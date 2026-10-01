@@ -7,7 +7,9 @@ import re
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
+from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
 
@@ -21,6 +23,18 @@ os.chdir(HERE)
 REPORTS_DIR = HERE / "reports"
 HISTORY_FILE = HERE / "logs" / "history.log"  # 01.10: история операций
 STOP_FILE = HERE / "stop.flag"  # 01.10: мягкая остановка (совпадает с core.text_parser)
+
+
+def _log_history(detail):
+    """02.10: строка в журнал операций logs/history.log.
+
+    Любая ошибка записи глушится — журнал никогда не мешает работе GUI."""
+    try:
+        HISTORY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+            f.write(f"{datetime.now():%Y-%m-%d %H:%M:%S} | {detail}\n")
+    except Exception:
+        pass
 
 # 22.09: единая палитра GUI (CTk не использует gui_theme.py)
 PALETTE = {
@@ -85,6 +99,8 @@ class Runner:
             self.q.put(f"> {' '.join(cmd)}\n\n")
         else:
             self.q.put("> (команда скрыта в настройках)\n\n")
+        _log_history(f"START | {' '.join(str(c) for c in cmd)}")
+        t0 = time.monotonic()
         try:
             self.proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -96,8 +112,10 @@ class Runner:
             self.proc.stdout.close()
             code = self.proc.wait()
             self.q.put(f"\n[завершено, код {code}]\n")
+            _log_history(f"DONE  | код {code} | {time.monotonic() - t0:.1f} с")
         except Exception as e:
             self.q.put(f"\n[ошибка запуска: {e}]\n")
+            _log_history(f"DONE  | ошибка запуска: {e}")
         self.q.put(None)
 
     def _poll(self):

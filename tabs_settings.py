@@ -92,6 +92,20 @@ class SettingsTab(ctk.CTkFrame):
                           "архив textools — с сохранением структуры и без "
                           "перезаписи.")
 
+        # --- Журнал операций (02.10) ---
+        s_h = Section(parent, "Журнал операций")
+        ctk.CTkLabel(s_h.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+            "Каждый запуск инструмента из GUI пишется в logs/history.log: "
+            "время, команда, код завершения и длительность. "
+            "Удобно вспомнить, что и когда делалось с текстами."
+        )).pack(anchor="w", pady=(0, 4))
+        b_hist = ctk.CTkButton(s_h.inner, text="Открыть журнал", height=34,
+                               command=self._open_history)
+        b_hist.pack(anchor="w")
+        Tooltip(b_hist, "Открыть logs/history.log в Блокноте. "
+                        "Файл можно удалять целиком — при следующей операции "
+                        "он создастся заново.")
+
         s4 = Section(parent, "Информация")
         ctk.CTkLabel(s4.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
             f"Настройки хранятся в: {CONFIG_FILE}\n"
@@ -145,6 +159,14 @@ class SettingsTab(ctk.CTkFrame):
     def _open_config(self):
         import subprocess
         subprocess.Popen(["notepad.exe", str(CONFIG_FILE)])
+
+    def _open_history(self):
+        from gui_ctk import HISTORY_FILE
+        if not HISTORY_FILE.exists():
+            self._log("Журнал пуст — ещё ни одной операции не было.\n")
+            return
+        import subprocess
+        subprocess.Popen(["notepad.exe", str(HISTORY_FILE)])
 
     def _reset_all(self):
         from gui_config import CONFIG_FILE
