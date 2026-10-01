@@ -1,0 +1,31 @@
+- имя: users
+  формы: [users]
+  встречается: 1
+- имя: dario
+  формы: [dario]
+  встречается: 1
+- имя: appdata
+  формы: [appdata]
+  встречается: 1
+- имя: local
+  формы: [local]
+  встречается: 1
+- имя: temp
+  формы: [temp]
+  встречается: 1
+- имя: users dario
+  формы: [users dario]
+  пар: 1
+  составное: true
+- имя: dario appdata
+  формы: [dario appdata]
+  пар: 1
+  составное: true
+- имя: appdata local
+  формы: [appdata local]
+  пар: 1
+  составное: true
+- имя: local temp
+  формы: [local temp]
+  пар: 1
+  составное: true

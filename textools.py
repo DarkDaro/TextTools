@@ -1,0 +1,124 @@
+"""
+textools — единый CLI текстовых инструментов.
+
+Команды:
+  registry-builder   найти имена-кандидаты в текстах
+  consistency        проверить имена по реестру (старые/опасные/опечатки)
+  orphan-finder      заметки без входящих и исходящих ссылок
+  broken-links       вики-ссылки на несуществующие заметки
+  merge-finder       дубликаты по содержимому и по именам файлов
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
+
+import argparse
+
+
+def main():
+    ap = argparse.ArgumentParser(description="textools: инструменты для текста")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p1 = sub.add_parser("registry-builder",
+                        help="найти имена-кандидаты в текстах")
+    p1.add_argument("--input", required=True)
+    p1.add_argument("--out")
+    p1.add_argument("--registry")
+    p1.add_argument("--min-count", type=int, default=2)
+    p1.add_argument("--limit", type=int)
+    p1.add_argument("--verbose", action="store_true")
+
+    p2 = sub.add_parser("consistency",
+                        help="проверка имён по реестру")
+    p2.add_argument("--input", required=True)
+    p2.add_argument("--registry", required=True)
+    p2.add_argument("--limit", type=int)
+    p2.add_argument("--verbose", action="store_true")
+    p2.add_argument("--out")
+
+    # 01.10: новые инструменты
+    p3 = sub.add_parser("forms",
+                        help="недостающие падежные формы реестра (pymorphy3)")
+    p3.add_argument("--registry", required=True)
+    p3.add_argument("--fill", action="store_true",
+                    help="дописать формы в реестр (с .bak)")
+    p3.add_argument("--out")
+
+    p4 = sub.add_parser("utf8", help="проверка/приведение текстов к UTF-8")
+    p4.add_argument("--input", required=True)
+    p4.add_argument("--fix", action="store_true")
+    p4.add_argument("--limit", type=int)
+
+    p5 = sub.add_parser("matrix", help="матрица «персонаж × файл»")
+    p5.add_argument("--input", required=True)
+    p5.add_argument("--registry", required=True)
+    p5.add_argument("--limit", type=int)
+    p5.add_argument("--verbose", action="store_true")
+    p5.add_argument("--out")
+
+    for name, desc in (("orphan-finder", "заметки без входящих и исходящих ссылок"),
+                       ("broken-links", "вики-ссылки на несуществующие заметки"),
+                       ("merge-finder", "дубликаты по содержимому и по именам")):
+        p = sub.add_parser(name, help=desc)
+        p.add_argument("--input", required=True)
+        p.add_argument("--limit", type=int)
+        p.add_argument("--verbose", action="store_true")
+        p.add_argument("--out")
+
+    args = ap.parse_args()
+
+    here = Path(__file__).parent
+    simple = {"orphan-finder": "orphan_finder",
+              "broken-links": "broken_links",
+              "merge-finder": "merge_finder"}
+    if args.cmd in simple:
+        sys.path.insert(0, str(here))
+        mod = __import__(f"tools.{simple[args.cmd]}", fromlist=["run"])
+        opts = ["--input", args.input,
+                *(["--limit", str(args.limit)] if args.limit else []),
+                *(["--verbose"] if args.verbose else []),
+                *(["--out", args.out] if args.out else [])]
+        sys.exit(mod.main(opts))
+    if args.cmd == "forms":
+        sys.path.insert(0, str(here))
+        from tools import morph_forms
+        morph_forms.main(
+            ["--registry", args.registry,
+             *(["--fill"] if args.fill else []),
+             *(["--out", args.out] if args.out else [])])
+    elif args.cmd == "utf8":
+        sys.path.insert(0, str(here))
+        from tools import utf8_convert
+        utf8_convert.main(
+            ["--input", args.input, *(["--fix"] if args.fix else []),
+             *(["--limit", str(args.limit)] if args.limit else [])])
+    elif args.cmd == "matrix":
+        sys.path.insert(0, str(here))
+        from tools import character_matrix
+        character_matrix.main(
+            ["--input", args.input, "--registry", args.registry,
+             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--verbose"] if args.verbose else []),
+             *(["--out", args.out] if args.out else [])])
+    elif args.cmd == "registry-builder":
+        sys.path.insert(0, str(here))
+        from tools import registry_builder
+        registry_builder.main(
+            ["--input", args.input, *(["--out", args.out] if args.out else []),
+             *(["--registry", args.registry] if args.registry else []),
+             "--min-count", str(args.min_count),
+             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--verbose"] if args.verbose else [])])
+    elif args.cmd == "consistency":
+        sys.path.insert(0, str(here))
+        from tools import consistency
+        consistency.main(
+            ["--input", args.input, "--registry", args.registry,
+             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--verbose"] if args.verbose else []),
+             *(["--out", args.out] if args.out else [])])
+
+
+if __name__ == "__main__":
+    main()

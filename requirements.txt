@@ -1,0 +1,5 @@
+pyyaml
+python-docx
+customtkinter
+pymorphy3
+charset-normalizer
