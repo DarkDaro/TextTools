@@ -44,7 +44,9 @@ class CleanTab(ctk.CTkFrame):
                                         "Сами копии не удаляются.")
         self.c_res.pack(side="left", padx=16)
 
-        BigButton(s1.inner, "Запустить чистку эмодзи", self._run_emoji)
+        BigButton(s1.inner, "Запустить чистку эмодзи", self._run_emoji,
+          tooltip="Удаляет эмодзи и текстовые смайлы. Шахматы, ноты "
+                  "и масти карт не трогаются.")
 
         # --- clean_text_files ---
         s2 = Section(parent, "2. Чистка мусора и CJK-символов (txt / md)")
@@ -59,7 +61,8 @@ class CleanTab(ctk.CTkFrame):
         ctk.CTkLabel(s2.inner, justify="left", anchor="w", font=FONT_SMALL,
                      text="Без галочки — только отчёт (что было бы удалено), файлы не меняются."
                      ).pack(anchor="w")
-        BigButton(s2.inner, "Запустить чистку мусора", self._run_clean_text)
+        BigButton(s2.inner, "Запустить чистку мусора", self._run_clean_text,
+          tooltip="Удаляет служебный мусор и CJK-символы по белому списку разрешённых.")
 
         # --- whitespace_clean (18.09) ---
         s3 = Section(parent, "3. Чистка пробелов и пустых строк (txt / md / docx)")
@@ -87,7 +90,8 @@ class CleanTab(ctk.CTkFrame):
             "Блоки кода ``` не трогаются. В docx правится только текст — "
             "форматирование (жирный, курсив, таблицы) сохраняется."
         )).pack(anchor="w", pady=(0, 2))
-        BigButton(s3.inner, "Запустить чистку пробелов", self._run_whitespace)
+        BigButton(s3.inner, "Запустить чистку пробелов", self._run_whitespace,
+          tooltip="Хвосты пробелов, табы, лишние пустые строки. Код-блоки не трогаются.")
 
         # --- 4. кодировки (01.10) ---
         s4 = Section(parent, "4. Кодировки: приведение к UTF-8 (txt / md)")
@@ -102,7 +106,8 @@ class CleanTab(ctk.CTkFrame):
                                              "кодировке что». С галочкой — "
                                              "перекодирует (с .bak).")
         self.c_utf8_fix.pack(anchor="w")
-        BigButton(s4.inner, "Проверить кодировки", self._run_utf8)
+        BigButton(s4.inner, "Проверить кодировки", self._run_utf8,
+          tooltip="Покажет, какие файлы не в UTF-8; с галочкой «Применить» — перекодирует (koi8-r, cp1251 и т.п.).")
 
     def _log(self, msg):
         from gui_ctk import _app

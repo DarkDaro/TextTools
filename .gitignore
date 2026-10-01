@@ -4,3 +4,9 @@ __pycache__/
 
 # Локальные тестовые материалы и архив
 archive/
+
+# Служебное (машина-зависимое)
+reports/
+logs/
+gui_config.json
+stop.flag

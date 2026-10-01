@@ -110,6 +110,53 @@ class NamesTab(ctk.CTkFrame):
                                                "формы в YAML (с .bak).")
         self.f_forms_fill.pack(anchor="w")
 
+        # --- Кандидаты -> реестр (01.10) ---
+        s5 = Section(parent, "Кандидаты -> реестр (без ручного копирования)")
+        self.f_merge_cand = PathField(s5.inner, "Кандидаты (yaml):", "merge_candidates",
+                                      CFG, file_mode="file",
+                                      tooltip="Файл кандидатов, который создал "
+                                              "registry-builder (поле «Сохранить в» выше).")
+        self.f_merge_reg = PathField(s5.inner, "Реестр (yaml):", "merge_registry", CFG,
+                                     file_mode="file",
+                                     tooltip="Ваш основной реестр персонажей. "
+                                             "Существующие имена не дублируются.")
+        self.f_merge_names = EntryField(s5.inner, "Имена (через запятую):",
+                                        "merge_names", CFG,
+                                        placeholder="все",
+                                        tooltip="Пусто = добавить всех кандидатов. "
+                                                "Или перечислите нужные: Эрика, Кайдзо.")
+        self.c_merge_add = CheckField(s5.inner, "Применить (дописать в реестр)",
+                                      "merge_add", CFG, default=False,
+                                      tooltip="Без галочки — только отчёт. "
+                                              "С галочкой — дописывает (с .bak).")
+        self.c_merge_add.pack(anchor="w")
+        BigButton(s5.inner, "Добавить кандидатов в реестр", self._run_merge_registry,
+                  tooltip="Сводит кандидатов registry-builder'а с реестром "
+                          "и дописывает недостающих персонажей.")
+
+        # --- MOC-заметки персонажей (01.10) ---
+        s6 = Section(parent, "MOC-заметки персонажей (Obsidian)")
+        self.f_moc_input = PathField(s6.inner, "Vault:", "moc_input", CFG,
+                                     file_mode="both",
+                                     tooltip="Хранилище, где искать упоминания.")
+        self.f_moc_reg = PathField(s6.inner, "Реестр (yaml):", "moc_registry", CFG,
+                                   file_mode="file",
+                                   tooltip="Реестр персонажей.")
+        self.f_moc_dir = PathField(s6.inner, "Папка заметок:", "moc_dir", CFG,
+                                   file_mode="dir",
+                                   tooltip="Например <vault>/Персонажи. Существующие "
+                                           "заметки не перезаписываются.")
+        self.c_moc_apply = CheckField(s6.inner, "Создать заметки", "moc_apply",
+                                      CFG, default=False,
+                                      tooltip="Без галочки — только отчёт. "
+                                              "С галочкой — создаёт заметки "
+                                              "<Имя>.md со ссылками на файлы "
+                                              "с упоминаниями.")
+        self.c_moc_apply.pack(anchor="w")
+        BigButton(s6.inner, "MOC-заметки персонажей", self._run_moc,
+                  tooltip="Заметка на каждого персонажа: кто где встречается, "
+                          "вики-ссылками — Obsidian покажет обратные ссылки.")
+
     def _log(self, msg):
         from gui_ctk import _app
         _app.log_line(msg)
@@ -162,3 +209,37 @@ class NamesTab(ctk.CTkFrame):
         if self.f_forms_fill.get():
             args.append("--fill")
         run_internal("morph_forms", args)
+
+    def _run_merge_registry(self):
+        from gui_ctk import run_internal
+        if not self.f_merge_cand.get():
+            self._log("Укажите файл кандидатов (yaml).\n")
+            return
+        if not self.f_merge_reg.get():
+            self._log("Укажите файл реестра (yaml).\n")
+            return
+        args = ["--candidates", self.f_merge_cand.get(),
+                "--registry", self.f_merge_reg.get()]
+        if self.f_merge_names.get():
+            args += ["--names", self.f_merge_names.get()]
+        if self.c_merge_add.get():
+            args.append("--add")
+        run_internal("registry_merge", args)
+
+    def _run_moc(self):
+        from gui_ctk import run_internal
+        if not self.f_moc_input.get():
+            self._log("Укажите vault.\n")
+            return
+        if not self.f_moc_reg.get():
+            self._log("Укажите файл реестра (yaml).\n")
+            return
+        if not self.f_moc_dir.get():
+            self._log("Укажите папку для заметок.\n")
+            return
+        args = ["--input", self.f_moc_input.get(),
+                "--registry", self.f_moc_reg.get(),
+                "--out-dir", self.f_moc_dir.get()]
+        if self.c_moc_apply.get():
+            args.append("--apply")
+        run_internal("moc_builder", args)

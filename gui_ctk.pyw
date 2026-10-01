@@ -19,6 +19,7 @@ import os
 os.chdir(HERE)
 
 REPORTS_DIR = HERE / "reports"
+HISTORY_FILE = HERE / "logs" / "history.log"  # 01.10: история операций
 STOP_FILE = HERE / "stop.flag"  # 01.10: мягкая остановка (совпадает с core.text_parser)
 
 # 22.09: единая палитра GUI (CTk не использует gui_theme.py)
@@ -48,7 +49,8 @@ def _pal(dark=None):
     return PALETTE["dark" if dark else "light"]
 
 from gui_config import CFG
-from widgets_ctk import Tooltip, FONT, FONT_SMALL, FONT_MONO, BigButton
+from widgets_ctk import (Tooltip, FONT, FONT_SMALL, FONT_MONO, BigButton,
+                         enable_dnd)
 
 # тема из конфига до построения окна
 _appearance = "dark" if str(CFG.get("theme", "dark")).lower() == "dark" else "light"
@@ -111,14 +113,20 @@ class Runner:
                         pass
                     if self.progress_bar is not None:
                         self.progress_bar.set(0)
+                    if self.progress_label is not None:
+                        self.progress_label.configure(text="")
                     self.done_fn()
                     return
                 # 22.09: PROGRESS:N/M — обновление прогресс-бара вместо лога
+                # 01.10: рядом с баром счётчик «N/M (x%)»
                 m = re.match(r"^PROGRESS:(\d+)/(\d+)", item)
                 if m and self.progress_bar is not None:
                     done, total = int(m.group(1)), int(m.group(2))
-                    if total > 0:
-                        self.progress_bar.set(done / total)
+                    frac = done / total if total > 0 else 0
+                    self.progress_bar.set(frac)
+                    if self.progress_label is not None:
+                        self.progress_label.configure(
+                            text=f"{done}/{total} ({frac:.0%})")
                     continue
                 self.log_fn(item)
         except queue.Empty:
@@ -173,6 +181,11 @@ class App(ctk.CTk):
         # 01.10: подчищаем забытый флаг прошлой сессии
         try:
             STOP_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
+        # 02.10: drag&drop путей (до построения полей; без библиотеки — тихо)
+        try:
+            enable_dnd(self)
         except Exception:
             pass
 
@@ -233,12 +246,21 @@ class App(ctk.CTk):
                      font=("Segoe UI", 12, "bold"), anchor="w").pack(
             fill="x", padx=12, pady=(8, 2))
 
-        # 22.09: прогресс-бар (для долгих сканов — phrase_check и др.)
-        self.progress_bar = ctk.CTkProgressBar(log_frame, height=8,
+        # 22.09: прогресс-бар (для долгих сканов)
+        # 01.10: строка прогресса — бар + ярлык «N/M (x%)»
+        prog_row = ctk.CTkFrame(log_frame, fg_color="transparent")
+        prog_row.pack(fill="x", padx=12, pady=(0, 2))
+        self.progress_bar = ctk.CTkProgressBar(prog_row, height=8,
                                                progress_color=p["accent"])
         self.progress_bar.set(0)
-        self.progress_bar.pack(fill="x", padx=12, pady=(0, 2))
+        self.progress_bar.pack(side="left", fill="x", expand=True)
+        self.progress_label = ctk.CTkLabel(prog_row, text="", font=FONT_SMALL,
+                                           width=150, anchor="e")
+        self.progress_label.pack(side="left", padx=(10, 0))
         self.runner.progress_bar = self.progress_bar
+        self.runner.progress_label = self.progress_label
+        self.runner.status_fn = (lambda: self.status.configure(
+            text="выполняется…"))
 
         # tk.Text для лога (цветные теги) + свой скроллбар
         # 22.09: начальные цвета из палитры
@@ -263,16 +285,21 @@ class App(ctk.CTk):
                                hover_color=_pal()["accent"],
                                command=self.runner.stop)
         stop_b.pack(side="left")
+        Tooltip(stop_b, "Мягко остановить операцию: программа завершает "
+                        "текущий файл и корректно заканчивает работу.")
         rep_b = ctk.CTkButton(btns, text="Отчёт", width=70, height=28,
                               fg_color=("gray75", "gray30"),
                               hover_color=_pal()["accent"],
                               command=self._save_report)
         rep_b.pack(side="left", padx=6)
+        Tooltip(rep_b, "Сохранить содержимое окна вывода в файл "
+                       "(reports/ или выбранная папка).")
         clr_b = ctk.CTkButton(btns, text="Очистить", width=80, height=28,
                               fg_color=("gray75", "gray30"),
                               hover_color=_pal()["accent"],
                               command=lambda: self.log.delete("1.0", "end"))
         clr_b.pack(side="left")
+        Tooltip(clr_b, "Очистить окно вывода (файлы не затрагиваются).")
         self._compact_btns = (stop_b, rep_b, clr_b)
         self.status = ctk.CTkLabel(btns, text="готов", font=FONT_SMALL)
         self.status.pack(side="right")

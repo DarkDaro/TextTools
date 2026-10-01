@@ -75,15 +75,53 @@ def replace_in_docx_text(path, new_full_text):
     doc.save(path)
 
 
+def _replace_in_paragraph(p, pattern, new):
+    """01.10: кросс-run замена внутри параграфа с сохранением
+    форматирования. Искомая строка, разорванная между run'ами (w:t),
+    находится в склеенном тексте; заменяющий текст помещается в первый
+    затронутый run, остальные части совпадения очищаются. Соседние run'ы
+    не трогаются. Возвращает число замен (0 или 1 за проход)."""
+    ts = [t for t in p.iter(W_NS + "t")]
+    if not ts:
+        return 0
+    texts = [t.text or "" for t in ts]
+    full = "".join(texts)
+    m = pattern.search(full)
+    if not m or m.start() == m.end():
+        return 0
+    start, end = m.span()
+    spans = []
+    pos = 0
+    for txt in texts:
+        spans.append((pos, pos + len(txt)))
+        pos += len(txt)
+    first = next(i for i, (s, e) in enumerate(spans) if s <= start < e)
+    last = next(i for i, (s, e) in enumerate(spans) if s < end <= e)
+    prefix = texts[first][:start - spans[first][0]]
+    suffix = texts[last][end - spans[last][0]:]
+    texts[first] = prefix + new + (suffix if first == last else "")
+    for i in range(first + 1, last + 1):
+        texts[i] = suffix if i == last else ""
+    for t_el, txt in zip(ts, texts):
+        if (t_el.text or "") != txt:
+            t_el.text = txt
+            if txt != txt.strip():
+                # краевые пробелы без xml:space Word съест
+                t_el.set(
+                    "{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    return 1
+
+
 def replace_in_docx(path, old, new, is_regex=False, backup=True):
-    """Замена old -> new в тексте w:t.
+    """Замена old -> new в тексте docx.
 
-    Замена идёт внутри каждого w:t отдельно: если искомая строка
-    разорвана между run'ами (Word любит рвать на куски), такие случаи
-    пропускаются — сообщаем отдельно (см. счётчик skipped).
-    Форматирование run'ов сохраняется полностью.
+    01.10: замена идёт по параграфам в склеенном тексте w:t — фраза,
+    разорванная Word'ом между run'ами, теперь ЗАМЕНЯЕТСЯ (раньше
+    пропускалась как broken). Форматирование сохраняется: правятся только
+    затронутые w:t, первый получает новый текст, остальные части
+    совпадения очищаются.
 
-    Возвращает (замен_всего, файлов_изменено, пропусков_разорванных).
+    Возвращает (замен_всего, файлов_изменено, пропусков_разорванных=0).
     """
     from docx import Document
     flags = 0
@@ -103,23 +141,20 @@ def replace_in_docx(path, old, new, is_regex=False, backup=True):
 
     total = 0
     broken = 0
-    for t_el in _iter_text_elements(doc):
-        txt = t_el.text
-        if not txt:
+    for part in doc.part.package.iter_parts():
+        name = str(part.partname)
+        if "/word/" not in name or not any(k in name for k in DOC_PART_KEYWORDS):
             continue
-        new_txt, n = pattern.subn(new if is_regex else new, txt)
-        # для не-regex: замена регистрозависимая как в md_replace
-        if n:
-            total += n
-            t_el.text = new_txt
-    # разорванные между run'ами: ищем в полном тексте параграфов
-    if not is_regex and old in (read_text(path) or "") and total == 0:
-        broken = 1  # есть вхождение, но порвано между run'ами
-    elif is_regex and total == 0:
-        full = read_text(path) or ""
-        joined = "".join(full.split("\n"))
-        if pattern.search(joined) and pattern.search(full):
-            broken = 1
+        el = getattr(part, "_element", None)
+        if el is None:
+            continue
+        for p in el.iter(W_NS + "p"):
+            # цикл: после каждой замены текст меняется — ищем заново
+            for _ in range(1000):  # защита от нулевой длины совпадений
+                n = _replace_in_paragraph(p, pattern, new)
+                if not n:
+                    break
+                total += n
 
     if total and backup:
         shutil.copy2(path, str(path) + ".bak")

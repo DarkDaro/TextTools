@@ -87,6 +87,16 @@ class VaultTab(ctk.CTkFrame):
                                               "«Почистить штампы».")
         self.c_pc_review.pack(side="left")
 
+        # --- Статистика текста (01.10) ---
+        s3 = Section(parent, "Статистика текста (объём, диалоги, паразиты)")
+        self.f_stats = PathField(s3.inner, "Папка или файл:", "stats_input", CFG,
+                                 file_mode="both",
+                                 tooltip="Папка с текстами (.md/.txt/.docx) или "
+                                         "один файл. Только чтение.")
+        BigButton(s3.inner, "Построить статистику", self._run_stats,
+                  tooltip="Объём, средняя длина предложения, доля диалогов, "
+                          "частотные слова-паразиты на 1000 слов.")
+
     def _log(self, msg):
         # 01.10: раньше не было — кнопки штампов падали с AttributeError
         from gui_ctk import _app
@@ -176,13 +186,24 @@ class VaultTab(ctk.CTkFrame):
             f"{p} — прогресс внизу над логом...\n")
         run_cmd(cmd)
 
+    def _run_stats(self):
+        from gui_ctk import run_internal
+        if not self.f_stats.get():
+            self._log("Укажите папку или файл.\n")
+            return
+        run_internal("text_stats", ["--input", self.f_stats.get()])
+
     def _run_review(self, path):
-        # 01.10: витрина — subprocess собирает вхождения, диалог даёт выбрать
+        # 01.10: витрина — subprocess собирает вхождения, диалог даёт выбрать.
+        # Поток кладёт результат в очередь, главный поток опрашивает через
+        # after() (звать after из чужого потока нельзя: main thread is not
+        # in main loop)
+        import queue as _queue
         import subprocess
         import threading
         from gui_config import CONFIG_FILE
-        from review_dialog import show as show_review
         script = str(CONFIG_FILE.parent / "tools" / "phrase_check.py")
+        q = _queue.Queue()
 
         def _worker():
             r = subprocess.run(
@@ -196,10 +217,20 @@ class VaultTab(ctk.CTkFrame):
                     if len(parts) == 6:
                         hits.append((parts[1], parts[2], parts[3],
                                      parts[4], parts[5]))
-            from gui_ctk import _app as app
-            app.after(0, lambda: self._open_review(hits))
+            q.put(hits)
+
+        def _check():
+            try:
+                hits = q.get_nowait()
+            except _queue.Empty:
+                from gui_ctk import _app as app
+                app.after(150, _check)
+                return
+            self._open_review(hits)
 
         threading.Thread(target=_worker, daemon=True).start()
+        from gui_ctk import _app as app
+        app.after(150, _check)
         self._log("Витрина: собираю вхождения штампов...\n")
 
     def _open_review(self, hits):

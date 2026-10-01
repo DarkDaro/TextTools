@@ -9,6 +9,39 @@ import customtkinter as ctk
 
 # 22.09: gui_theme.py остался только старому GUI (архив) — мёртвый импорт убран
 
+# 02.10: drag&drop путей (tkinterdnd2 — опционально, без него всё работает)
+try:
+    from tkinterdnd2 import DND_FILES as _DND_FILES
+    _DND_LIB = True
+except Exception:
+    _DND_LIB = False
+
+DND_ENABLED = False
+
+
+def enable_dnd(root_window):
+    """Подключить tkdnd к существующему root (вызвать один раз до
+    построения полей). False — если библиотеки нет (мягкая деградация)."""
+    global DND_ENABLED
+    if not _DND_LIB:
+        return False
+    try:
+        from tkinterdnd2 import TkinterDnD
+        TkinterDnD._require(root_window)
+        DND_ENABLED = True
+    except Exception:
+        DND_ENABLED = False
+    return DND_ENABLED
+
+
+def _drop_first_path(event):
+    """Первый путь из события: пути с пробелами приходят в {...}."""
+    data = event.data.strip()
+    if data.startswith("{"):
+        return data[1:].split("}")[0]
+    return data.split(" ")[0].strip("{}")
+
+
 # масштаб и вид по умолчанию
 ctk.set_widget_scaling(1.0)
 FONT = ("Segoe UI", 12)
@@ -59,6 +92,7 @@ class PathField(ctk.CTkFrame):
         self.cfg = cfg
         self.var = tk.StringVar(value=cfg.get(key))
         self.var.trace_add("write", self._autosave)
+        self._recent_key = f"{key}_recent"  # 02.10: история путей
         self._label = label
         self._wl = width_label
         self._mode = file_mode
@@ -80,6 +114,9 @@ class PathField(ctk.CTkFrame):
         self.entry = ctk.CTkEntry(self, textvariable=self.var,
                                   font=FONT_MONO, height=30)
         self.entry.pack(side="left", fill="x", expand=True, padx=6)
+        # 01.10: подсказка и на поле, не только на метке
+        if self._tt:
+            Tooltip(self.entry, self._tt)
 
         def browse_dir():
             cur = self.var.get()
@@ -99,15 +136,67 @@ class PathField(ctk.CTkFrame):
                 self._set(p)
 
         if self._mode in ("both", "dir"):
-            ctk.CTkButton(self, text="Папка", width=70, height=30,
-                          command=browse_dir).pack(side="left", padx=2)
+            b_dir = ctk.CTkButton(self, text="Папка", width=70, height=30,
+                                  command=browse_dir)
+            b_dir.pack(side="left", padx=2)
+            Tooltip(b_dir, "Выбрать папку. Обход — рекурсивный, включая подпапки.")
         if self._mode in ("both", "file"):
-            ctk.CTkButton(self, text="Файл", width=60, height=30,
-                          command=browse_file).pack(side="left", padx=2)
+            b_file = ctk.CTkButton(self, text="Файл", width=60, height=30,
+                                   command=browse_file)
+            b_file.pack(side="left", padx=2)
+            Tooltip(b_file, "Выбрать отдельный файл — обработается только он.")
+        # 02.10: список недавних путей этого поля
+        b_recent = ctk.CTkButton(self, text="▾", width=28, height=30,
+                                 command=self._show_recent)
+        b_recent.pack(side="left", padx=(0, 2))
+        Tooltip(b_recent, "Недавние пути этого поля (последние 5).")
+        self._recent_btn = b_recent
+        # 02.10: drag&drop папки/файла прямо в поле
+        if DND_ENABLED:
+            try:
+                for w in (self.entry, self):
+                    w.drop_target_register(_DND_FILES)
+                    w.bind("<<Drop>>", self._on_drop)
+            except Exception:
+                pass
 
     def _set(self, p):
         self.var.set(p)
         self.cfg.set(self.key, p)
+        self._remember(p)
+
+    def _remember(self, p):
+        """02.10: путь в историю поля (5 последних, без дублей)."""
+        try:
+            rec = self.cfg.get(self._recent_key)
+            rec = list(rec) if isinstance(rec, list) else []
+            if p in rec:
+                rec.remove(p)
+            rec.insert(0, p)
+            self.cfg.set(self._recent_key, rec[:5])
+        except Exception:
+            pass
+
+    def _show_recent(self):
+        menu = tk.Menu(self, tearoff=0, font=("Segoe UI", 10))
+        rec = self.cfg.get(self._recent_key)
+        rec = [r for r in rec if isinstance(r, str) and r] if isinstance(rec, list) else []
+        if not rec:
+            menu.add_command(label="(нет недавних путей)", state="disabled")
+        for r in rec:
+            menu.add_command(label=(r if len(r) <= 70 else "…" + r[-69:]),
+                             command=lambda rr=r: self._set(rr))
+        x = self._recent_btn.winfo_rootx()
+        y = self._recent_btn.winfo_rooty() + self._recent_btn.winfo_height() + 2
+        try:
+            menu.tk_popup(x, y)
+        finally:
+            menu.grab_release()
+
+    def _on_drop(self, event):
+        p = _drop_first_path(event)
+        if p:
+            self._set(p)
 
     def get(self):
         return self.var.get().strip()
@@ -140,7 +229,8 @@ class EntryField(ctk.CTkFrame):
                                   font=FONT_MONO, height=30,
                                   placeholder_text=placeholder or None)
         self.entry.pack(side="left", fill="x", expand=True, padx=4)
-        if tooltip and not label:
+        # 01.10: подсказка и на поле, не только на метке
+        if tooltip:
             Tooltip(self.entry, tooltip)
 
     def _autosave(self, *_):

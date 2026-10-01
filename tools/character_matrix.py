@@ -25,29 +25,34 @@ def run(input_path, registry_path, limit=None, verbose=False, out=None):
         print(f"Реестр пуст или не найден: {registry_path}")
         return 1
 
-    # паттерны: текущие формы (имя + формы), падежи только с заглавной
-    patmap = {}
-    for c in chars:
-        terms = [c["имя"]] + list(c["формы"])
-        patmap[c["имя"]] = morph.term_patterns(terms, expand=True)
+    # 02.10 (СЛ7): один комбинированный паттерн на всех персонажей —
+    # одна прогонка finditer по строке; атрибуция по named-группе
+    groups = [(c["имя"],
+               morph.term_patterns([c["имя"]] + list(c["формы"]), expand=True))
+              for c in chars]
+    combined, gmap = morph.combine_patterns(groups)
 
     counts = {c["имя"]: {} for c in chars}  # имя -> {файл: кол-во}
+    files = list(tp.iter_text_files(input_path, limit=limit))
+    total = len(files)
+    print(f"PROGRESS:0/{total}", flush=True)
     files_n = 0
-    for path in tp.iter_text_files(input_path, limit=limit):
+    for path in files:
         if tp.stop_requested():
             print("Остановлено пользователем.")
             break
+        files_n += 1
+        print(f"PROGRESS:{files_n}/{total}", flush=True)
         text = tp.read_text(path)
         if not text:
             continue
-        files_n += 1
-        lines = text.splitlines()
-        for c in chars:
-            name = c["имя"]
-            n = sum(len(pat.findall(ln))
-                    for ln in lines for pat in patmap[name])
-            if n:
-                counts[name][str(path)] = n
+        if combined is None:
+            continue
+        for ln in text.splitlines():
+            for m in combined.finditer(ln):
+                name = gmap[m.lastgroup]
+                key = str(path)
+                counts[name][key] = counts[name].get(key, 0) + 1
 
     print(f"Файлов: {files_n}, персонажей: {len(chars)}\n")
     for c in chars:

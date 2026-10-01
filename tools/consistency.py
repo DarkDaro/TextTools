@@ -52,14 +52,28 @@ def run(input_path, registry_path, limit=None, verbose=False, out=None):
     # 01.10: паттерны собираются один раз; точные термины — регистро-
     # независимо, падежные формы (pymorphy3) — только с заглавной буквы
     # (эвристика имён: бытовое «лик» в нижнем регистре не считается «Ликой»)
-    patmap = {}
-    for c in chars:
-        for fld in ("формы", "старое", "старое_опасное", "опечатки"):
-            expand = fld != "старое_опасное"  # опасное — явные формы, не расширяем
-            patmap[(c["имя"], fld)] = morph.term_patterns(c[fld], expand=expand)
+    # 01.10 (СЛ7): по одному комбинированному паттерну на поле — одна
+    # прогонка finditer по строке, персонаж атрибутируется по named-group
+    patmap = {}  # fld -> (combined, {group: имя})
+    for fld in ("формы", "старое", "старое_опасное", "опечатки"):
+        branches, gmap = [], {}
+        for idx, c in enumerate(chars):
+            expand = fld != "старое_опасное"  # опасное — явные формы
+            pats = morph.term_patterns(c[fld], expand=expand)
+            if not pats:
+                continue
+            g = f"c{idx}"
+            gmap[g] = c["имя"]
+            branches.append(f"(?P<{g}>" + "|".join(p.pattern for p in pats) + ")")
+        if branches:
+            patmap[fld] = (re.compile("|".join(branches)), gmap)
 
+    # 01.10: два прохода — сначала список файлов (для PROGRESS-бара GUI)
+    files = list(tp.iter_text_files(input_path, limit=limit))
+    total = len(files)
+    print(f"PROGRESS:0/{total}", flush=True)
     files_n = 0
-    for path in tp.iter_text_files(input_path, limit=limit):
+    for path in files:
         if tp.stop_requested():
             print("Остановлено пользователем.")
             break
@@ -68,19 +82,21 @@ def run(input_path, registry_path, limit=None, verbose=False, out=None):
             continue
         files_n += 1
         lines = text.splitlines()
-        for c in chars:
-            for fld, key in (("формы", "ок"), ("старое", "старое"),
-                             ("старое_опасное", "опасное"),
-                             ("опечатки", "опечатки")):
-                hits = []
-                pats = patmap[(c["имя"], fld)]
-                for i, ln in enumerate(lines, 1):
-                    n = sum(len(pat.findall(ln)) for pat in pats)
-                    for _ in range(n):
-                        hits.append((path, i, ln[:100]))
-                if hits:
-                    totals[c["имя"]][key] += len(hits)
-                    details.extend((c["имя"], key, h) for h in hits)
+        # накопители попаданий: (имя, ключ) -> [(файл, строка, фрагмент)]
+        acc = {}
+        for fld, key in (("формы", "ок"), ("старое", "старое"),
+                         ("старое_опасное", "опасное"),
+                         ("опечатки", "опечатки")):
+            combined, gmap = patmap.get(fld, (None, None))
+            if combined is None:
+                continue
+            for i, ln in enumerate(lines, 1):
+                for m in combined.finditer(ln):
+                    name = gmap[m.lastgroup]
+                    acc.setdefault((name, key), []).append((path, i, ln[:100]))
+        for (name, key), hits in acc.items():
+            totals[name][key] += len(hits)
+            details.extend((name, key, h) for h in hits)
 
     print(f"Файлов: {files_n}, персонажей в реестре: {len(chars)}")
     print()

@@ -25,10 +25,32 @@ _WORD_EDGE = r"(?<![А-ЯЁа-яёA-Za-z])"
 _WORD_EDGE_END = r"(?![А-ЯЁа-яёA-Za-z])"
 
 
+def _esc_yo(s):
+    """01.10: экранирование с ё/е-классами: «е»/«ё» (в любом регистре)
+    превращаются в [ЕЁеё] — паттерн находит оба написания."""
+    return "".join("[ЕЁеё]" if ch in "еёЕЁ" else re.escape(ch) for ch in s)
+
+
+def combine_patterns(groups):
+    """01.10: groups = [(ключ, [patterns])] -> (комбинированный regex | None,
+    {имя_группы: ключ}). Совпадение атрибутируется по m.lastgroup — одна
+    прогонка finditer по строке вместо суммы по всем паттернам."""
+    branches, gmap = [], {}
+    for i, (key, pats) in enumerate(groups):
+        if not pats:
+            continue
+        g = f"g{i}"
+        gmap[g] = key
+        branches.append(f"(?P<{g}>" + "|".join(p.pattern for p in pats) + ")")
+    if not branches:
+        return None, gmap
+    return re.compile("|".join(branches)), gmap
+
+
 def term_patterns(terms, expand=True):
     """Паттерны поиска списка терминов: точные — регистронезависимо,
-    падежные формы — только с заглавной (эвристика имён, 01.10).
-    Возвращает список re.Pattern."""
+    падежные формы — только с заглавной (эвристика имён, 01.10),
+    ё/е эквивалентны. Возвращает список re.Pattern."""
     pats = []
     covered = set()
     for t in terms:
@@ -37,7 +59,7 @@ def term_patterns(terms, expand=True):
             continue
         covered.add(tl)
         pats.append(re.compile(
-            _WORD_EDGE + re.escape(t) + _WORD_EDGE_END, re.IGNORECASE))
+            _WORD_EDGE + _esc_yo(t) + _WORD_EDGE_END, re.IGNORECASE))
     if expand and AVAILABLE:
         for t in terms:
             for f in sorted(word_forms(t)):
@@ -48,13 +70,13 @@ def term_patterns(terms, expand=True):
                 if " " in f:
                     # составные («Мастер Кайдзо») — регистронезависимо
                     pats.append(re.compile(
-                        _WORD_EDGE + re.escape(f) + _WORD_EDGE_END,
+                        _WORD_EDGE + _esc_yo(f) + _WORD_EDGE_END,
                         re.IGNORECASE))
                 else:
                     # одиночные — только с заглавной (эвристика имён:
                     # бытовое «лик» в нижнем регистре не считается «Ликой»)
                     pats.append(re.compile(
-                        _WORD_EDGE + re.escape(f.capitalize())
+                        _WORD_EDGE + _esc_yo(f.capitalize())
                         + _WORD_EDGE_END))
     return pats
 

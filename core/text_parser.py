@@ -35,6 +35,12 @@ STOPLIST = {
 WORD_RE = re.compile(r"[А-ЯЁа-яёA-Za-z][А-ЯЁа-яёA-Za-z-]+")
 SENT_SPLIT_RE = re.compile(r"[.!?…]+\s|[.!?…]+$")
 
+
+def norm_yo(s):
+    """01.10: ё -> е — одинаковая длина, индексы не съезжают.
+    «Елена» и «Елёна», «все чаще» и «всё чаще» перестают быть разными словами."""
+    return s.replace("ё", "е").replace("Ё", "Е")
+
 # 01.10: мягкая остановка — GUI кладёт файл-флаг, инструменты проверяют
 # между файлами и завершаются сами (жёсткий kill рискует побить docx)
 STOP_FILE = Path(__file__).resolve().parent.parent / "stop.flag"
@@ -111,6 +117,8 @@ def find_name_candidates(text, known=None, min_len=3):
     Возвращает список (слово_в_начальной_форме_приблизительно, слово).
     """
     known = known or set()
+    # 01.10: ё/е — одна буква для сравнения («Елена» = «Елёна»)
+    known = {norm_yo(k) for k in known}
     results = []
     for sent in sentences(text):
         words = WORD_RE.findall(sent)
@@ -119,7 +127,7 @@ def find_name_candidates(text, known=None, min_len=3):
                 continue  # первое слово предложения пропускаем
             # слово с заглавной, не полностью из заглавных (аббревиатуры)
             if w[0].isupper() and not w.isupper() and len(w) >= min_len:
-                low = w.lower()
+                low = norm_yo(w.lower())
                 if low in STOPLIST or low in known:
                     continue
                 results.append(low)
@@ -129,6 +137,7 @@ def find_name_candidates(text, known=None, min_len=3):
 def find_bigrams(text, known=None, min_len=3):
     """Пары подряд идущих заглавных слов (Имя Фамилия, Мастер Кайдзо)."""
     known = known or set()
+    known = {norm_yo(k) for k in known}  # 01.10: ё/е
     results = []
     for sent in sentences(text):
         words = WORD_RE.findall(sent)
@@ -136,7 +145,7 @@ def find_bigrams(text, known=None, min_len=3):
             a, b = words[idx], words[idx + 1]
             if (a[:1].isupper() and b[:1].isupper()
                     and len(a) >= min_len and len(b) >= min_len):
-                la, lb = a.lower(), b.lower()
+                la, lb = norm_yo(a.lower()), norm_yo(b.lower())
                 if la in STOPLIST or lb in STOPLIST:
                     continue
                 if la in known or lb in known:

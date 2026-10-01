@@ -53,7 +53,8 @@ class ReplaceTab(ctk.CTkFrame):
                                   default=False,
                                   tooltip="Не создавать бэкап. Не рекомендуется.")
         self.c_nobak.pack(side="left", padx=16)
-        BigButton(s1.inner, "Заменить", self._run_md_replace)
+        BigButton(s1.inner, "Заменить", self._run_md_replace,
+          tooltip="Массовая замена по всем .md/.txt/.docx. Без «Применить» — только отчёт.")
 
         # --- 2. спецрежимы ---
         s2 = Section(parent, "2. Спецрежимы md_replace (диагностика и починка)")
@@ -112,7 +113,8 @@ class ReplaceTab(ctk.CTkFrame):
                                    tooltip="С галочкой — показать что заменится. "
                                            "Без — реально заменить (с бэкапом).")
         self.c_fw_dry.pack(anchor="w")
-        BigButton(s3.inner, "Проверить", self._run_char_search)
+        BigButton(s3.inner, "Проверить", self._run_char_search,
+          tooltip="Ищет формы персонажа по реестру characters.yaml (у внешнего скрипта).")
         self.b_fix_word = BigButton(s3.inner, "Заменить слово",
                                     self._run_char_fix_word,
                                     tooltip="Точечная замена одного слова по всем "
@@ -135,7 +137,8 @@ class ReplaceTab(ctk.CTkFrame):
                                tooltip="Без галочки — dry-run. С галочкой — реально "
                                        "меняет файлы.")
         self.c_rf.pack(anchor="w")
-        BigButton(s4.inner, "Запустить", self._run_refile)
+        BigButton(s4.inner, "Запустить", self._run_refile,
+          tooltip="Regex-замена по файлам с выбранными расширениями. Без «Применить» — только отчёт.")
 
     def _log(self, msg):
         from gui_ctk import _app

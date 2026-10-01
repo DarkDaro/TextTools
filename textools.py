@@ -57,6 +57,37 @@ def main():
     p5.add_argument("--verbose", action="store_true")
     p5.add_argument("--out")
 
+    p6 = sub.add_parser("merge-registry",
+                        help="добавить кандидатов в реестр персонажей")
+    p6.add_argument("--candidates", required=True)
+    p6.add_argument("--registry", required=True)
+    p6.add_argument("--names", help="только эти имена (через запятую)")
+    p6.add_argument("--add", action="store_true", help="реально дописать (с .bak)")
+
+    p7 = sub.add_parser("restore", help="обзор/восстановление из бэкапов")
+    p7.add_argument("--input", required=True)
+    p7.add_argument("--restore", action="store_true")
+    p7.add_argument("--file", help="только этот файл (по имени)")
+
+    p8 = sub.add_parser("stats", help="статистика текстов (объём, диалоги, паразиты)")
+    p8.add_argument("--input", required=True)
+    p8.add_argument("--limit", type=int)
+    p8.add_argument("--out")
+
+    p9 = sub.add_parser("archive-backups",
+                        help="архивация старых бэкапов (перенос в archive/backups)")
+    p9.add_argument("--input", required=True)
+    p9.add_argument("--days", type=int, default=30)
+    p9.add_argument("--move", action="store_true")
+
+    p10 = sub.add_parser("moc", help="MOC-заметки персонажей для Obsidian")
+    p10.add_argument("--input", required=True)
+    p10.add_argument("--registry", required=True)
+    p10.add_argument("--out-dir", required=True)
+    p10.add_argument("--limit", type=int)
+    p10.add_argument("--apply", action="store_true")
+    p10.add_argument("--update", action="store_true")
+
     for name, desc in (("orphan-finder", "заметки без входящих и исходящих ссылок"),
                        ("broken-links", "вики-ссылки на несуществующие заметки"),
                        ("merge-finder", "дубликаты по содержимому и по именам")):
@@ -80,7 +111,42 @@ def main():
                 *(["--verbose"] if args.verbose else []),
                 *(["--out", args.out] if args.out else [])]
         sys.exit(mod.main(opts))
-    if args.cmd == "forms":
+    if args.cmd == "merge-registry":
+        sys.path.insert(0, str(here))
+        from tools import registry_merge
+        registry_merge.main(
+            ["--candidates", args.candidates, "--registry", args.registry,
+             *(["--names", args.names] if args.names else []),
+             *(["--add"] if args.add else [])])
+    elif args.cmd == "archive-backups":
+        sys.path.insert(0, str(here))
+        from tools import backup_archive
+        backup_archive.main(
+            ["--input", args.input, "--days", str(args.days),
+             *(["--move"] if args.move else [])])
+    elif args.cmd == "moc":
+        sys.path.insert(0, str(here))
+        from tools import moc_builder
+        moc_builder.main(
+            ["--input", args.input, "--registry", args.registry,
+             "--out-dir", args.out_dir,
+             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--apply"] if args.apply else []),
+             *(["--update"] if args.update else [])])
+    elif args.cmd == "stats":
+        sys.path.insert(0, str(here))
+        from tools import text_stats
+        text_stats.main(
+            ["--input", args.input,
+             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--out", args.out] if args.out else [])])
+    elif args.cmd == "restore":
+        sys.path.insert(0, str(here))
+        from tools import backup_restore
+        backup_restore.main(
+            ["--input", args.input, *(["--restore"] if args.restore else []),
+             *(["--file", args.file] if args.file else [])])
+    elif args.cmd == "forms":
         sys.path.insert(0, str(here))
         from tools import morph_forms
         morph_forms.main(

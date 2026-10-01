@@ -127,7 +127,9 @@ def run(input_path, max_blank=1, keep_breaks=False, fix=False, out=None):
         print("Файлы .md/.txt/.docx не найдены.")
         return 1
     total_files = total_changes = 0
-    for f in files:
+    total = len(files)
+    print(f"PROGRESS:0/{total}", flush=True)
+    for idx, f in enumerate(files, 1):
         if tp.stop_requested():  # 01.10: мягкая остановка
             print("Остановлено пользователем.")
             break
@@ -142,7 +144,9 @@ def run(input_path, max_blank=1, keep_breaks=False, fix=False, out=None):
                     f.write_text(new_text, encoding="utf-8")
         except (UnicodeDecodeError, PermissionError, OSError) as e:
             print(f"ПРОПУСК {f.name}: {e}")
+            print(f"PROGRESS:{idx}/{total}", flush=True)
             continue
+        print(f"PROGRESS:{idx}/{total}", flush=True)
         if n:
             total_files += 1
             total_changes += n

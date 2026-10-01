@@ -3,8 +3,8 @@
 import customtkinter as ctk
 
 from gui_config import CFG, CONFIG_FILE
-from widgets_ctk import (PathField, CheckField, HelpBox, Section,
-                         BigButton, Tooltip, FONT_SMALL)
+from widgets_ctk import (PathField, EntryField, CheckField, HelpBox,
+                         Section, BigButton, Tooltip, FONT_SMALL)
 from wrappers import DEFAULTS
 
 
@@ -56,6 +56,42 @@ class SettingsTab(ctk.CTkFrame):
         Tooltip(b_reset, "Очистить все сохранённые настройки (пути, галочки, тема). "
                          "Окно можно закрыть и открыть заново — поля будут пустыми.")
 
+        # --- Обслуживание бэкапов (01.10) ---
+        s_bak = Section(parent, "Обслуживание бэкапов (.bak и md_replace_backups)")
+        self.f_bak_dir = PathField(s_bak.inner, "Папка хранилища:", "bak_dir", CFG,
+                                   file_mode="both",
+                                   tooltip="Папка, в которой искать .bak рядом с "
+                                           "файлами и снимки md_replace_backups.")
+        self.f_bak_file = EntryField(s_bak.inner, "Файл (необязательно):", "bak_file",
+                                     CFG, placeholder="все",
+                                     tooltip="Восстановить только один файл по имени. "
+                                             "Пусто = все найденные.")
+        self.c_bak_restore = CheckField(s_bak.inner, "Восстановить",
+                                        "bak_restore", CFG, default=False,
+                                        tooltip="Без галочки — только обзор. "
+                                                "С галочкой — вернуть прежнее "
+                                                "содержимое (текущее сохраняется "
+                                                "как .pre-restore.bak).")
+        self.c_bak_restore.pack(anchor="w")
+        BigButton(s_bak.inner, "Показать / восстановить бэкапы", self._run_backup,
+                  tooltip="Обзор всех бэкапов; с галочкой «Восстановить» — "
+                          "откат к прежнему содержимому.")
+        self.f_bak_days = EntryField(s_bak.inner, "Старше (дней):", "bak_days", CFG,
+                                     placeholder="30",
+                                     tooltip="Архивируются бэкапы старше этого "
+                                             "числа дней.")
+        self.c_bak_move = CheckField(s_bak.inner, "Архивировать (перенести)",
+                                     "bak_move", CFG, default=False,
+                                     tooltip="Без галочки — только обзор. "
+                                             "С галочкой — переносит старые бэкапы "
+                                             "в archive/backups (НИЧЕГО не удаляется, "
+                                             "структура сохраняется).")
+        self.c_bak_move.pack(anchor="w")
+        BigButton(s_bak.inner, "Показать старые бэкапы / Архивировать", self._run_archive,
+                  tooltip="Бэкапы старше N дней переносятся в централизованный "
+                          "архив textools — с сохранением структуры и без "
+                          "перезаписи.")
+
         s4 = Section(parent, "Информация")
         ctk.CTkLabel(s4.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
             f"Настройки хранятся в: {CONFIG_FILE}\n"
@@ -82,6 +118,29 @@ class SettingsTab(ctk.CTkFrame):
             self._log(f"{CONFIG_FILE}\n")
         except Exception as e:
             self._log(f"Ошибка сохранения: {e}\n", "err")
+
+    def _run_backup(self):
+        from gui_ctk import run_internal
+        if not self.f_bak_dir.get():
+            self._log("Укажите папку хранилища.\n")
+            return
+        args = ["--input", self.f_bak_dir.get()]
+        if self.f_bak_file.get():
+            args += ["--file", self.f_bak_file.get()]
+        if self.c_bak_restore.get():
+            args.append("--restore")
+        run_internal("backup_restore", args)
+
+    def _run_archive(self):
+        from gui_ctk import run_internal
+        if not self.f_bak_dir.get():
+            self._log("Укажите папку хранилища.\n")
+            return
+        args = ["--input", self.f_bak_dir.get(),
+                "--days", self.f_bak_days.get() or "30"]
+        if self.c_bak_move.get():
+            args.append("--move")
+        run_internal("backup_archive", args)
 
     def _open_config(self):
         import subprocess

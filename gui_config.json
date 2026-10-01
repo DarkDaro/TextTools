@@ -5,7 +5,7 @@
   "md_old": "Эрик\\w+",
   "cs_char": "все",
   "rf_exts": "md txt",
-  "names_input": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\names",
+  "names_input": "C:/tmp/textools тест недавних",
   "clean_text_input": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\cjk",
   "md_vault": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\enc",
   "names_min_count": "1",
@@ -29,7 +29,7 @@
   "show_cmd": true,
   "cs_fw_dry": true,
   "pc_add": false,
-  "pc_input": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\stamps",
+  "pc_input": "C:\\AgentLetta\\python-projects\\textools\\archive\\_tmp_gui_review",
   "pc_dry": true,
   "cons_input": "",
   "cons_registry": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\names\\registry.yaml",
@@ -45,5 +45,17 @@
   "cs_word_good": "Кайдзо",
   "mat_input": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\names",
   "mat_registry": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\names\\registry.yaml",
-  "utf8_input": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\enc"
+  "utf8_input": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\enc",
+  "stats_input": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\names",
+  "bak_dir": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus",
+  "moc_input": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\names",
+  "moc_registry": "C:\\AgentLetta\\python-projects\\textools\\archive\\corpus\\names\\registry.yaml",
+  "moc_dir": "C:\\AgentLetta\\python-projects\\textools\\archive\\_tmp_gui_moc",
+  "names_input_recent": [
+    "C:/tmp/textools тест недавних",
+    "C:/tmp/textools переполнение 6",
+    "C:/tmp/textools переполнение 5",
+    "C:/tmp/textools переполнение 4",
+    "C:/tmp/textools переполнение 3"
+  ]
 }

@@ -19,7 +19,7 @@ from pathlib import Path
 from collections import Counter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core.text_parser import iter_text_files, read_text
+from core.text_parser import iter_text_files, read_text, norm_yo
 
 # --- Встроенный словарь штампов ИИ-текста --------------------------------
 
@@ -121,8 +121,8 @@ def add_phrase(phrase):
 
 
 def count_phrase(text, phrase):
-    """Число вхождений фразы в текст (регистронезависимо)."""
-    return text.lower().count(phrase)
+    """Число вхождений фразы в текст (регистронезависимо, ё=е, 01.10)."""
+    return norm_yo(text.lower()).count(norm_yo(phrase))
 
 
 def run(input_path, custom=None, phrases=None, limit=None, out=None):
@@ -147,9 +147,9 @@ def run(input_path, custom=None, phrases=None, limit=None, out=None):
         except Exception:
             content = None
         if content:
-            low = content.lower()
+            low = norm_yo(content.lower())  # 01.10: ё=е
             for ph in search:
-                c = low.count(ph)
+                c = low.count(norm_yo(ph))
                 if c:
                     total_hits.setdefault(ph, []).append((str(f), c))
         if n_files % 10 == 0 or n_files == total:
@@ -211,8 +211,9 @@ def _replace_preserving_case(text, phrase, repl):
     """Замена с сохранением регистра первой буквы оригинала."""
     if not phrase:
         return text
-    low = text.lower()
-    ph_low = phrase.lower()
+    # 01.10: ё=е; norm_yo не меняет длину — индексы валидны в оригинале
+    low = norm_yo(text.lower())
+    ph_low = norm_yo(phrase.lower())
     out = []
     pos = 0
     while True:
@@ -451,10 +452,10 @@ def clean(input_path, clean_map_path=None, limit=None, dry_run=True,
             if n_files % 10 == 0 or n_files == total:
                 print(f"PROGRESS:{n_files}/{total}", flush=True)
             continue
-        low = content.lower()
+        low = norm_yo(content.lower())  # 01.10: ё=е
         file_hits = []
         for ph, repl in items:
-            c = low.count(ph)
+            c = low.count(norm_yo(ph))
             if c:
                 file_hits.append((ph, repl, c))
                 plan.setdefault(ph, []).append((str(f), c))

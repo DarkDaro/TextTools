@@ -1,2 +1,2 @@
 @echo off
-start "" pythonw "C:\AgentLetta\python-projects\textools\gui_ctk.pyw"
+start "" pythonw "%~dp0gui_ctk.pyw"
