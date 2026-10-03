@@ -23,7 +23,9 @@ pip install -r requirements.txt
 ```
 
 Зависимости: `pyyaml`, `python-docx`, `customtkinter`, `pymorphy3`
-(падежные формы имён), `charset-normalizer` (определение кодировок).
+(падежные формы имён), `charset-normalizer` (определение кодировок),
+`tkinterdnd2` (перетаскивание файлов в поля — при её отсутствии
+программа работает, но без drag&drop).
 
 ## Возможности
 
@@ -39,7 +41,13 @@ pip install -r requirements.txt
   символов и кодировок, точечная замена слова, regex-замена по папке.
 * **Чистка**: эмодзи и смайлы, мусор/CJK по белому списку, пробелы и
   пустые строки вне код-блоков, приведение текстов к UTF-8 (koi8-r,
-  cp1251 распознаются автоматически).
+  cp1251 распознаются автоматически), типографика: «ёлочки» (включая
+  „лапки“ и вложенные цитаты), тире, многоточия, диалоговое тире,
+  опционально неразрывные пробелы (`--nbsp`).
+* **Стилистика**: отчёт о повторах слов в пределах окна (тавтологии) и
+  слишком длинных предложениях; статистика со словами-паразитами
+  (список настраивается в `tools/parasites.yaml`) и CSV-дневником
+  объёма (`stats --csv` → `reports/stats_log.csv`).
 * **Обслуживание**: обзор и восстановление из бэкапов (`.bak` и
   `md_replace_backups/`), архивация старых бэкапов в `archive/backups`
   (перенос, ничего не удаляется), история операций в `logs/history.log`,
@@ -61,7 +69,9 @@ python textools.py merge-finder     --input <папка>
 python textools.py restore          --input <папка> [--restore] [--file <имя>]
 python textools.py archive-backups  --input <папка> [--days 30] [--move]
 python textools.py moc              --input <vault> --registry <yaml> --out-dir <папка> [--apply]
-python textools.py stats            --input <папка> [--out report.md]
+python textools.py stats            --input <папка> [--out report.md] [--csv]
+python textools.py typography       --input <папка> [--fix] [--nbsp]
+python textools.py style-report     --input <папка> [--registry <yaml>] [--window 5] [--long 25]
 ```
 
 Общие опции: `--out <файл>` (отчёт), `--limit N`, `--verbose`.
@@ -75,8 +85,11 @@ python textools.py stats            --input <папка> [--out report.md]
   упоминаний, падежные формы (pymorphy3), добавление кандидатов в
   реестр, MOC-заметки персонажей для Obsidian
 * **Хранилище** — orphan-finder, broken-links, merge-finder, поиск
-  штампов, чистка штампов (в том числе интерактивно, с витриной)
-* **Чистка** — эмодзи, мусор/CJK, пробелы, кодировки (UTF-8)
+  штампов, чистка штампов (в том числе интерактивно, с витриной),
+  статистика текста (с CSV-дневником объёма), стилистический отчёт
+  (повторы слов рядом, длинные предложения)
+* **Чистка** — эмодзи, мусор/CJK, пробелы, кодировки (UTF-8),
+  типографика («ёлочки», тире, многоточия, неразрывные пробелы)
 * **Замены** — md_replace (4 режима), char_search, точечная замена
   слова, refile
 * **Настройки** — пути к внешним скриптам, тема, обслуживание бэкапов,
@@ -99,14 +112,13 @@ python textools.py stats            --input <папка> [--out report.md]
 * `tools/` — движки команд (registry_builder, consistency, orphan_finder,
   broken_links, merge_finder, phrase_check, whitespace_clean,
   utf8_convert, morph_forms, character_matrix, registry_merge,
-  backup_restore, backup_archive, moc_builder, text_stats) + словари
-  `phrases*.yaml`
+  backup_restore, backup_archive, moc_builder, text_stats, typography,
+  style_report) + словари `phrases*.yaml`, `parasites.yaml`
 * `wrappers/` — сборка командных строк для **внешних** скриптов
   (emoji-cleaner, md-replace, char_search, refile, clean_text_files);
   сами скрипты лежат вне репозитория, пути задаются в
   `wrappers/__init__.py::DEFAULTS` и переопределяются в настройках GUI
 * `gui_ctk.pyw`, `tabs_*.py`, `widgets_ctk.py`, `review_dialog.py` — GUI
-* `synthetic/` — синтетические тестовые данные
 * `reports/` — выходные отчёты (в git не входит)
 
 ## Тесты

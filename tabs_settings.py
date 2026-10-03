@@ -116,6 +116,19 @@ class SettingsTab(ctk.CTkFrame):
             "  • Бэкапы: .bak рядом с файлами или md_replace_backups в хранилище\n"
             "  • Кнопка «Стоп» внизу окна прерывает запущенную операцию"
         )).pack(anchor="w")
+        r4 = ctk.CTkFrame(s4.inner, fg_color="transparent")
+        r4.pack(fill="x", pady=(6, 0))
+        b_rep = ctk.CTkButton(r4, text="Открыть папку отчётов", height=34,
+                              command=self._open_reports)
+        b_rep.pack(side="left", padx=(0, 8))
+        Tooltip(b_rep, "reports/ — сюда пишутся отчёты инструментов "
+                       "(когда включено «Сохранять отчёт»).")
+        b_par = ctk.CTkButton(r4, text="Открыть список паразитов", height=34,
+                              command=self._open_parasites)
+        b_par.pack(side="left", padx=8)
+        Tooltip(b_par, "tools/parasites.yaml — свой список слов-паразитов "
+                       "для статистики. При первом открытии создаётся шаблон "
+                       "из встроенного списка.")
 
     def _log(self, msg, tag=None):
         from gui_ctk import _app
@@ -167,6 +180,31 @@ class SettingsTab(ctk.CTkFrame):
             return
         import subprocess
         subprocess.Popen(["notepad.exe", str(HISTORY_FILE)])
+
+    def _open_reports(self):
+        from gui_ctk import REPORTS_DIR
+        REPORTS_DIR.mkdir(exist_ok=True)
+        import subprocess
+        subprocess.Popen(["explorer", str(REPORTS_DIR)])
+
+    def _open_parasites(self):
+        from tools.text_stats import PARASITE_FILE, PARASITES
+        if not PARASITE_FILE.exists():
+            # 03.10: первый запуск — шаблон из встроенного списка
+            # (файл полностью заменяет встроенный список)
+            lines = [
+                "# Слова-паразиты для статистики (вкладка «Хранилище»).",
+                "# Если этот файл существует, он полностью заменяет встроенный",
+                "# список. Формат — элементы YAML-списка, регистр не важен:",
+                "#   - слово",
+                "#   - составная фраза",
+                "",
+            ]
+            lines += [f"- {p}" for p in PARASITES]
+            PARASITE_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            self._log(f"Создан шаблон списка паразитов: {PARASITE_FILE}\n")
+        import subprocess
+        subprocess.Popen(["notepad.exe", str(PARASITE_FILE)])
 
     def _reset_all(self):
         from gui_config import CONFIG_FILE

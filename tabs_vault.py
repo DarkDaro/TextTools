@@ -93,9 +93,48 @@ class VaultTab(ctk.CTkFrame):
                                  file_mode="both",
                                  tooltip="Папка с текстами (.md/.txt/.docx) или "
                                          "один файл. Только чтение.")
+        self.c_stats_csv = CheckField(s3.inner, "Дописывать в CSV-дневник",
+                                      "stats_csv", CFG, default=False,
+                                      tooltip="Каждый запуск добавляет строку "
+                                              "«дата; файл; слова; …» в "
+                                              "reports/stats_log.csv — удобно "
+                                              "следить за прогрессом в Excel.")
+        self.c_stats_csv.pack(anchor="w")
         BigButton(s3.inner, "Построить статистику", self._run_stats,
                   tooltip="Объём, средняя длина предложения, доля диалогов, "
                           "частотные слова-паразиты на 1000 слов.")
+
+        # --- Стилистика (03.10) ---
+        s4 = Section(parent, "Стилистика: повторы рядом и длинные предложения")
+        self.f_style = PathField(s4.inner, "Папка или файл:", "style_input", CFG,
+                                 file_mode="both",
+                                 tooltip="Папка с текстами (.md/.txt/.docx) или "
+                                         "один файл. Только чтение, файлы "
+                                         "не изменяются.")
+        self.f_style_reg = EntryField(s4.inner, "Реестр персонажей (yaml):",
+                                      "style_registry", CFG,
+                                      placeholder="необязательно",
+                                      tooltip="Формы имён из реестра "
+                                              "не будут считаться повторами.")
+        r4 = ctk.CTkFrame(s4.inner, fg_color="transparent")
+        r4.pack(fill="x", pady=2)
+        self.e_style_window = EntryField(r4, "Окно повтора (слов):",
+                                         "style_window", CFG, placeholder="5",
+                                         width_label=150,
+                                         tooltip="Слово считается повтором, "
+                                                 "если встретилось второй раз "
+                                                 "в пределах этого числа слов.")
+        self.e_style_window.pack(side="left", padx=(0, 12))
+        self.e_style_long = EntryField(r4, "Длинное предложение (слов):",
+                                       "style_long", CFG, placeholder="25",
+                                       width_label=190,
+                                       tooltip="Предложения длиннее этого числа "
+                                               "слов попадают в отчёт.")
+        self.e_style_long.pack(side="left", padx=0)
+        BigButton(s4.inner, "Построить стилистический отчёт", self._run_style,
+                  tooltip="Повторы слов в пределах окна (тавтологии, кроме "
+                          "служебных и форм имён) и слишком длинные "
+                          "предложения. Файлы не изменяются.")
 
     def _log(self, msg):
         # 01.10: раньше не было — кнопки штампов падали с AttributeError
@@ -191,7 +230,28 @@ class VaultTab(ctk.CTkFrame):
         if not self.f_stats.get():
             self._log("Укажите папку или файл.\n")
             return
-        run_internal("text_stats", ["--input", self.f_stats.get()])
+        args = ["--input", self.f_stats.get()]
+        # 03.10: CSV-дневник объёма (reports/stats_log.csv)
+        if self.c_stats_csv.get():
+            args.append("--csv")
+        run_internal("text_stats", args)
+
+    def _run_style(self):
+        # 03.10: стилистический отчёт — повторы рядом + длинные предложения
+        from gui_ctk import run_internal
+        p = self.f_style.get()
+        if not p:
+            self._log("Укажите папку или файл.\n")
+            return
+        args = ["--input", p]
+        reg = self.f_style_reg.get()
+        if reg:
+            args += ["--registry", reg]
+        if self.e_style_window.get().isdigit():
+            args += ["--window", self.e_style_window.get()]
+        if self.e_style_long.get().isdigit():
+            args += ["--long", self.e_style_long.get()]
+        run_internal("style_report", args)
 
     def _run_review(self, path):
         # 01.10: витрина — subprocess собирает вхождения, диалог даёт выбрать.

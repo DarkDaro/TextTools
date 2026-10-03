@@ -10,3 +10,9 @@ reports/
 logs/
 gui_config.json
 stop.flag
+.zcode/
+.zcodeignore
+
+# Старые тестовые сэмплы и синтетика (не часть программы)
+test/
+synthetic/

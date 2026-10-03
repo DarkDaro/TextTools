@@ -6,13 +6,21 @@ text_stats — статистика текстов (01.10, дешёвая нов
 (строки, начинающиеся с тире), частотные слова-паразиты (на 1000 слов).
 Только читает файлы.
 
+Свой список паразитов: tools/parasites.yaml (список строк) заменяет
+встроенный, если файл существует.
+
 Использование:
-  python textools.py stats --input <папка/файл> [--out report.md] [--limit N]
+  python textools.py stats --input <папка/файл> [--out report.md]
+      [--limit N] [--csv]
+  --csv: дописать строку на каждый файл в reports/stats_log.csv
+  (дневник объёма для отслеживания прогресса в Excel).
 """
 import argparse
+import csv
 import re
 import sys
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -24,11 +32,27 @@ PARASITES = [
     "на самом деле", "в принципе", "короче", "типа", "как будто",
     "именно", "даже", "вот", "уже", "еще", "только", "потом", "итак",
 ]
+# 03.10: свой список (полностью заменяет встроенный)
+PARASITE_FILE = Path(__file__).resolve().parent / "parasites.yaml"
 DIALOG_RE = re.compile(r"^\s*[—–-]\s*\S")
 WORD_RE = re.compile(r"[А-ЯЁа-яёA-Za-z]+(?:-[А-ЯЁа-яёA-Za-z]+)*")
 
 
-def analyze_text(text):
+def load_parasites():
+    """Список паразитов: parasites.yaml, если есть, иначе встроенный."""
+    if PARASITE_FILE.exists():
+        try:
+            import yaml
+            data = yaml.safe_load(PARASITE_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, list) and all(isinstance(x, str) for x in data):
+                return [x for x in data if x.strip()]
+        except Exception as e:
+            print(f"ПРЕДУПРЕЖДЕНИЕ: parasites.yaml не прочитан ({e}) — "
+                  f"используется встроенный список.")
+    return PARASITES
+
+
+def analyze_text(text, parasites=None):
     """Словарь со статистикой одного текста."""
     lines = text.splitlines()
     words = WORD_RE.findall(text)
@@ -42,15 +66,15 @@ def analyze_text(text):
         "sents": n_sents,
         "avg_sent": round(n_words / n_sents, 1) if n_sents else 0.0,
         "dialog_share": round(100 * dialog / non_empty, 1) if non_empty else 0.0,
-        "parasites": _count_parasites(text, n_words),
+        "parasites": _count_parasites(text, n_words, parasites),
     }
 
 
-def _count_parasites(text, n_words):
+def _count_parasites(text, n_words, parasites=None):
     """{паразит: (счёт, на_1000_слов)} — регистронезависимо, ё=е."""
     low = tp.norm_yo(text.lower())
     out = {}
-    for p in PARASITES:
+    for p in (parasites if parasites is not None else PARASITES):
         pat = re.compile(r"(?<![А-ЯЁа-яёA-Za-z])"
                          + tp.norm_yo(p).replace(" ", r"\s+")
                          + r"(?![А-ЯЁа-яёA-Za-z])", re.IGNORECASE)
@@ -60,7 +84,10 @@ def _count_parasites(text, n_words):
     return out
 
 
-def run(input_path, limit=None, out=None):
+def run(input_path, limit=None, out=None, csv_log=False):
+    parasites = load_parasites()
+    if parasites is not PARASITES:
+        print(f"Список паразитов: {PARASITE_FILE} ({len(parasites)} шт.)")
     files = list(tp.iter_text_files(input_path, limit=limit))
     total = len(files)
     print(f"PROGRESS:0/{total}", flush=True)
@@ -78,7 +105,7 @@ def run(input_path, limit=None, out=None):
         text = tp.read_text(f)
         if not text:
             continue
-        st = analyze_text(text)
+        st = analyze_text(text, parasites)
         rows.append((f, st))
         totals["words"] += st["words"]
         totals["sents"] += st["sents"]
@@ -121,6 +148,23 @@ def run(input_path, limit=None, out=None):
             lines.append(f"- {p}: {c} ({rate(c)} на 1000 слов)")
         Path(out).write_text("\n".join(lines), encoding="utf-8")
         print(f"\nОтчёт: {out}")
+
+    if csv_log:
+        # 03.10: дневник объёма — одна строка на файл с датой запуска
+        csv_path = (Path(__file__).resolve().parent.parent / "reports"
+                    / "stats_log.csv")
+        csv_path.parent.mkdir(exist_ok=True)
+        new_file = not csv_path.exists()
+        with open(csv_path, "a", encoding="utf-8-sig", newline="") as fh:
+            w = csv.writer(fh, delimiter=";")
+            if new_file:
+                w.writerow(["дата", "файл", "слов", "предложений",
+                            "средняя длина", "диалогов %"])
+            stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+            for f, st in rows:
+                w.writerow([stamp, str(f), st["words"], st["sents"],
+                            st["avg_sent"], st["dialog_share"]])
+        print(f"CSV-дневник: {csv_path} (дописано строк: {len(rows)})")
     return 0
 
 
@@ -129,8 +173,11 @@ def main(argv=None):
     ap.add_argument("--input", required=True, help="папка или файл")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--out", help="отчёт в .md")
+    ap.add_argument("--csv", action="store_true",
+                    help="дописать строки в reports/stats_log.csv")
     args = ap.parse_args(argv)
-    return run(args.input, limit=args.limit, out=args.out)
+    return run(args.input, limit=args.limit, out=args.out,
+               csv_log=args.csv)
 
 
 if __name__ == "__main__":

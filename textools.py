@@ -73,6 +73,8 @@ def main():
     p8.add_argument("--input", required=True)
     p8.add_argument("--limit", type=int)
     p8.add_argument("--out")
+    p8.add_argument("--csv", action="store_true",
+                    help="дописать строку в reports/stats_log.csv (дневник объёма)")
 
     p9 = sub.add_parser("archive-backups",
                         help="архивация старых бэкапов (перенос в archive/backups)")
@@ -96,6 +98,26 @@ def main():
         p.add_argument("--limit", type=int)
         p.add_argument("--verbose", action="store_true")
         p.add_argument("--out")
+
+    p11 = sub.add_parser("typography",
+                         help="типографика: «ёлочки», тире, многоточия (с .bak)")
+    p11.add_argument("--input", required=True)
+    p11.add_argument("--fix", action="store_true",
+                     help="реально править (по умолчанию dry-run)")
+    p11.add_argument("--nbsp", action="store_true",
+                     help="неразрывные пробелы после предлогов и «№»")
+    p11.add_argument("--out")
+
+    p12 = sub.add_parser("style-report",
+                         help="стилистика: повторы слов рядом, длинные предложения")
+    p12.add_argument("--input", required=True)
+    p12.add_argument("--registry", help="реестр персонажей (исключить их формы)")
+    p12.add_argument("--window", type=int, default=5,
+                     help="окно повтора в словах (по умолчанию 5)")
+    p12.add_argument("--long", type=int, default=25,
+                     help="порог длинного предложения в словах (по умолчанию 25)")
+    p12.add_argument("--limit", type=int)
+    p12.add_argument("--out")
 
     args = ap.parse_args()
 
@@ -138,6 +160,23 @@ def main():
         from tools import text_stats
         text_stats.main(
             ["--input", args.input,
+             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--out", args.out] if args.out else []),
+             *(["--csv"] if args.csv else [])])
+    elif args.cmd == "typography":
+        sys.path.insert(0, str(here))
+        from tools import typography
+        typography.main(
+            ["--input", args.input, *(["--fix"] if args.fix else []),
+             *(["--nbsp"] if args.nbsp else []),
+             *(["--out", args.out] if args.out else [])])
+    elif args.cmd == "style-report":
+        sys.path.insert(0, str(here))
+        from tools import style_report
+        style_report.main(
+            ["--input", args.input,
+             *(["--registry", args.registry] if args.registry else []),
+             "--window", str(args.window), "--long", str(args.long),
              *(["--limit", str(args.limit)] if args.limit else []),
              *(["--out", args.out] if args.out else [])])
     elif args.cmd == "restore":

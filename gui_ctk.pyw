@@ -179,6 +179,16 @@ class Runner:
 
 
 def run_cmd(cmd):
+    # 03.10: дружелюбное сообщение, если внешний скрипт не найден
+    # (в т.ч. дефолтный путь вроде C:\AgentLetta\scripts\clean_text_files.py)
+    if len(cmd) > 2 and cmd[0] == "python" and not cmd[1].startswith("-"):
+        from pathlib import Path as _P
+        if not _P(cmd[1]).is_file():
+            _app.log_line(
+                f"Скрипт не найден: {cmd[1]}\n"
+                "Укажите правильный путь на вкладке «Настройки» "
+                "(раздел «Пути к внешним скриптам»).\n", "err")
+            return
     _app.runner.run(cmd)
 
 

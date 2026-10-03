@@ -109,6 +109,36 @@ class CleanTab(ctk.CTkFrame):
         BigButton(s4.inner, "Проверить кодировки", self._run_utf8,
           tooltip="Покажет, какие файлы не в UTF-8; с галочкой «Применить» — перекодирует (koi8-r, cp1251 и т.п.).")
 
+        # --- 5. типографика (03.10) ---
+        s5 = Section(parent, "5. Типографика: «ёлочки», тире, многоточия (txt / md / docx)")
+        self.f_typo = PathField(s5.inner, "Папка или файл:", "typo_input", CFG,
+                                file_mode="both",
+                                tooltip="Папка (обход рекурсивный) или один файл "
+                                        ".md/.txt/.docx.")
+        r5 = ctk.CTkFrame(s5.inner, fg_color="transparent")
+        r5.pack(fill="x", pady=4)
+        self.c_typo_fix = CheckField(r5, "Применить изменения", "typo_fix", CFG,
+                                     default=False,
+                                     tooltip="Без галочки — dry-run (только отчёт). "
+                                             "С галочкой — реально правит, "
+                                             "создавая .bak рядом с файлом.")
+        self.c_typo_fix.pack(side="left", padx=(0, 16))
+        self.c_typo_nbsp = CheckField(r5, "Неразрывные пробелы", "typo_nbsp", CFG,
+                                      default=False,
+                                      tooltip="Ставит неразрывный пробел после "
+                                              "предлогов/союзов (в, и, с, на…) "
+                                              "и после «№». По умолчанию выключено.")
+        self.c_typo_nbsp.pack(side="left", padx=16)
+        ctk.CTkLabel(s5.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+            "Кавычки \"...\" → «ёлочки» (парные, вокруг кириллицы), "
+            "3+ точки → …, «слово - слово» → «слово — слово», "
+            "«- Реплика» в начале строки → «— Реплика» (txt/docx; в .md списки "
+            "не трогаются). Код-блоки, frontmatter и inline-код не трогаются."
+        )).pack(anchor="w", pady=(0, 2))
+        BigButton(s5.inner, "Запустить типографику", self._run_typo,
+          tooltip="«Ёлочки», тире, многоточия, неразрывные пробелы (опция). "
+                  "Dry-run по умолчанию.")
+
     def _log(self, msg):
         from gui_ctk import _app
         _app.log_line(msg)
@@ -136,6 +166,19 @@ class CleanTab(ctk.CTkFrame):
         if self.c_utf8_fix.get():
             args.append("--fix")
         run_internal("utf8_convert", args)
+
+    def _run_typo(self):
+        from gui_ctk import run_internal
+        p = self.f_typo.get()
+        if not p:
+            self._log("Укажите папку или файл.\n")
+            return
+        args = ["--input", p]
+        if self.c_typo_fix.get():
+            args.append("--fix")
+        if self.c_typo_nbsp.get():
+            args.append("--nbsp")
+        run_internal("typography", args)
 
     def _run_emoji(self):
         p = self.f_emoji.get()
