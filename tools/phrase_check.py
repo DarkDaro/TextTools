@@ -342,11 +342,13 @@ def review(input_path, clean_map_path=None, limit=None):
         if content:
             lines = content.splitlines()
             for ph, repl in items:
+                # 20.10: ё=е и в витрине — вхождения с «ё» не теряются
+                ph_low = norm_yo(ph.lower())
                 for i, ln in enumerate(lines, 1):
-                    low = ln.lower()
+                    low = norm_yo(ln.lower())
                     start = 0
                     while True:
-                        j = low.find(ph, start)
+                        j = low.find(ph_low, start)
                         if j < 0:
                             break
                         frag = ln[max(0, j - 30):j + len(ph) + 30].strip()
@@ -384,7 +386,9 @@ def clean_selection(pairs, clean_map_path=None):
         except Exception:
             continue
         present = [(ph, repl) for ph, repl in items
-                   if ph in phrases and ph in content.lower()]
+                   # 20.10: ё=е при поиске вхождений
+                   if ph in phrases
+                   and norm_yo(ph) in norm_yo(content.lower())]
         if not present:
             continue
         new = content

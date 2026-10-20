@@ -57,6 +57,19 @@ def run(candidates_path, registry_path, names=None, add=False, out=None):
     for c in new:
         print(f"  + {c['имя']}: {', '.join(c['формы'][:6])}"
               + ("…" if len(c["формы"]) > 6 else ""))
+    # 20.10: --out теперь пишет md-отчёт по плану слияния
+    if out:
+        lines = ["# Слияние кандидатов в реестр", "",
+                 f"Реестр: {registry_path}",
+                 f"Кандидатов к добавлению: {len(new)} "
+                 f"(применено: {'да' if add else 'нет, план'})", ""]
+        lines += [f"+ {c['имя']}: {', '.join(c['формы'][:8])}"
+                  + ("…" if len(c["формы"]) > 8 else "") for c in new]
+        if skipped:
+            lines += ["", "## Пропущено", ""]
+            lines += [f"- {nm}: {why}" for nm, why in skipped]
+        Path(out).write_text("\n".join(lines) + "\n", encoding="utf-8")
+        print(f"Отчёт: {out}")
     if not new:
         print("Добавлять нечего.")
         return 0
