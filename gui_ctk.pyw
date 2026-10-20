@@ -36,6 +36,26 @@ def _log_history(detail):
     except Exception:
         pass
 
+
+def _log_crash(prefix=""):
+    """20.10: трейсбек в logs/gui_crash.log. Под pythonw окно без этого
+    просто стоит пустым и причина теряется (как при пустом экране 20.10)."""
+    import traceback
+    try:
+        LOG = HERE / "logs" / "gui_crash.log"
+        LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG, "a", encoding="utf-8") as f:
+            f.write(f"\n===== {datetime.now():%Y-%m-%d %H:%M:%S} "
+                    f"{prefix} =====\n")
+            traceback.print_exc(file=f)
+    except Exception:
+        pass
+
+
+def _sys_excepthook(exc_type, exc_val, exc_tb):
+    _log_crash("runtime")
+    sys.__excepthook__(exc_type, exc_val, exc_tb)
+
 # 22.09: единая палитра GUI (CTk не использует gui_theme.py)
 PALETTE = {
     "light": {
@@ -464,7 +484,12 @@ class App(ctk.CTk):
 
 
 def main():
-    app = App()
+    sys.excepthook = _sys_excepthook  # 20.10: runtime падения тоже в журнал
+    try:
+        app = App()
+    except Exception:
+        _log_crash("startup")
+        raise
     app.mainloop()
 
 
