@@ -83,6 +83,8 @@ class Runner:
         self.running = False
         # 22.09: прогресс-бар (присваивается из App, может быть None)
         self.progress_bar = None
+        # 20.10: инициализируем заранее — _poll ссылается на оба
+        self.progress_label = None
 
     def run(self, cmd, cwd=None):
         if self.running:
@@ -155,8 +157,9 @@ class Runner:
     def stop(self):
         if self.proc and self.running:
             # 01.10: мягкая остановка — кладём stop.flag; инструменты
-            # сами завершаются между файлами. Через 3 с — kill как fallback
-            # (раньше kill сразу рисковал побить docx в момент записи)
+            # сами завершаются между файлами. 20.10: окно ожидания с
+            # 3 до 15 с — долгий docx файла мог быть убит на середине
+            # записи (раньше kill сразу рисковал побить файл в момент записи)
             try:
                 STOP_FILE.write_text("stop", encoding="utf-8")
                 self.log_fn("\n[остановка: жду окончания текущего файла…]\n")
@@ -165,7 +168,7 @@ class Runner:
 
             def _force():
                 import time as _t
-                for _ in range(30):
+                for _ in range(150):
                     _t.sleep(0.1)
                     if not self.running:
                         return
@@ -180,7 +183,8 @@ class Runner:
 
 def run_cmd(cmd):
     # Дружелюбное сообщение, если внешний скрипт не настроен или не найден
-    if len(cmd) > 2 and cmd[0] == "python" and not cmd[1].startswith("-"):
+    if len(cmd) > 2 and cmd[0] == sys.executable \
+            and not cmd[1].startswith("-"):
         from pathlib import Path as _P
         if cmd[1] == "":
             _app.log_line(
@@ -200,7 +204,10 @@ def run_cmd(cmd):
 def run_internal(modname, args):
     code = (f"import sys; sys.path.insert(0, r'{HERE}'); "
             f"from tools.{modname} import main; main({args!r})")
-    _app.runner.run(["python", "-c", code])
+    # 20.10: sys.executable вместо «python» из PATH — при двух питонах
+    # на машине (3.14 с пакетами / 3.15 пустой) гарантированно тот же
+    # интерпретатор, что питает сам GUI
+    _app.runner.run([sys.executable, "-c", code])
 
 
 _app = None
@@ -227,6 +234,30 @@ class App(ctk.CTk):
         self.minsize(900, 640)
 
         self.runner = Runner(self.log_line, self._on_done, self)
+        # 20.10: закрытие окна во время работы процесса — останавливаем
+        # запись аккуратно, вместо жёсткого обрыва с недописанным файлом
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _on_close(self):
+        try:
+            if self.runner.running and self.runner.proc:
+                self.log_line(
+                    "\n[закрытие: жду завершения текущего файла (до 15 с)…\n"
+                    "  Будущий повторный запуск запрещён до окончания]\n",
+                    "warn")
+                self.runner.stop()
+                p = self.runner.proc
+                try:
+                    p.wait(timeout=15)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            STOP_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
+        self.destroy()
 
         # --- Верхняя панель ---
         top = ctk.CTkFrame(self, fg_color="transparent")

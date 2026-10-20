@@ -41,7 +41,16 @@ def combine_patterns(groups):
             continue
         g = f"g{i}"
         gmap[g] = key
-        branches.append(f"(?P<{g}>" + "|".join(p.pattern for p in pats) + ")")
+        # 20.10: флаги (IGNORECASE и др.) не переносятся в комбинированный
+        # regex — каждую ветку-валидацию оборачиваем в (?i:...), иначе
+        # точные формы перестают находить нижний регистр в объединении
+        alts = []
+        for p in pats:
+            alt = p.pattern
+            if p.flags & re.IGNORECASE:
+                alt = f"(?i:{alt})"
+            alts.append(alt)
+        branches.append(f"(?P<{g}>" + "|".join(alts) + ")")
     if not branches:
         return None, gmap
     return re.compile("|".join(branches)), gmap

@@ -54,7 +54,7 @@ def run(input_path, fix=False, limit=None):
                     n_bad -= 1
                     print(f"PROGRESS:{n}/{total}", flush=True)
                     continue
-                shutil.copy2(f, str(f) + ".bak")
+                tp.backup_once(f)  # 20.10: старый .bak не затирается
                 f.write_text(text, encoding="utf-8")
                 n_fixed += 1
         print(f"PROGRESS:{n}/{total}", flush=True)

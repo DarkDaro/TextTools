@@ -24,8 +24,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core import text_parser as tp
+from core import name_registry as nr  # 20.10: реестр имён (был не импортирован)
 
-SKIP_DIRS = {".git", ".obsidian", ".trash", "reports", "__pycache__"}
+SKIP_DIRS = {".git", ".obsidian", ".trash", "reports", "__pycache__",
+             "md_replace_backups", ".smart-env"}  # 20.10: бэкапы не сканируем
 EXTS = (".md", ".txt", ".docx")
 FENCE_RE = ("```", "~~~")
 
@@ -155,8 +157,8 @@ def run(input_path, registry=None, window=5, long=25, limit=None, out=None):
     exclude = set()
     if registry:
         try:
-            entries = load_registry(registry)
-            exclude = {_norm(w) for w in known_forms(entries)}
+            entries = nr.load_registry(registry)
+            exclude = {_norm(w) for w in nr.known_forms(entries)}
         except Exception as e:
             print(f"Реестр не прочитан ({e}) — повторы имён не исключаются.")
     files = collect(input_path)
@@ -182,6 +184,10 @@ def run(input_path, registry=None, window=5, long=25, limit=None, out=None):
                 text = f.read_text(encoding="utf-8")
         except (UnicodeDecodeError, PermissionError, OSError) as e:
             print(f"ПРОПУСК {f.name}: {e}")
+            print(f"PROGRESS:{idx}/{total}", flush=True)
+            continue
+        if text is None:  # 20.10: битый docx — read_text вернул None
+            print(f"ПРОПУСК {f.name}: docx не читается")
             print(f"PROGRESS:{idx}/{total}", flush=True)
             continue
         print(f"PROGRESS:{idx}/{total}", flush=True)

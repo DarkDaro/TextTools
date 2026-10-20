@@ -6,6 +6,8 @@ textools core: vault_scanner
 import re
 from pathlib import Path
 
+from core import encoding
+
 SKIP_DIRS = {".obsidian", ".git", "md_replace_backups", ".trash", ".smart-env"}
 
 WIKILINK_RE = re.compile(r"!?\[\[([^\]]+)\]\]")
@@ -68,9 +70,10 @@ def scan_vault(vault, exts=(".md",), limit=None):
 
     notes = []
     for f, rel in md_files:
-        try:
-            text = f.read_text(encoding="utf-8")
-        except (UnicodeDecodeError, PermissionError, OSError):
+        # 20.10: cp1251/koi8 заметки больше не выпадают из графа — читаем
+        # через read_any (utf-8 / autodetect)
+        text, _enc = encoding.read_any(f)
+        if text is None:
             notes.append(Note(f, str(rel), set(), None))
             continue
         links = set()

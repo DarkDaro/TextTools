@@ -59,7 +59,9 @@ def show(owner, hits, on_apply):
 
     for ph, g in groups.items():
         m = ctk.CTkCheckBox(g["frame"], text="все", variable=g["master"],
-                            command=lambda ph=ph: toggle_group(
+                            # 20.10: g тоже замыкаем как default — иначе
+                            # «все» любой группы переключает строки последней
+                            command=lambda ph=ph, g=g: toggle_group(
                                 ph, g["master"].get()),
                             font=("Segoe UI", 10))
         m.pack(anchor="w", padx=10, pady=(0, 4))

@@ -49,10 +49,8 @@ def read_any(path):
     if not data:
         return "", "utf-8"
     try:
-        return data.decode("utf-8"), "utf-8"
-    except UnicodeDecodeError:
-        pass
-    try:
+        # 20.10: сначала utf-8-sig — иначе файла с BOM декодируется как
+        # plain utf-8 и невидимый \ufeff приклеивается к первому токену
         return data.decode("utf-8-sig"), "utf-8-sig"
     except UnicodeDecodeError:
         pass

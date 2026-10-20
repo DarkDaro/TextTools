@@ -64,7 +64,9 @@ def run(candidates_path, registry_path, names=None, add=False, out=None):
         print("\nРЕЖИМ ОТЧЁТА — реестр не изменён. Для добавления: --add / галочка.")
         return 0
     p = Path(registry_path)
-    shutil.copy2(p, str(p) + ".bak")
+    # 20.10: существующий .bak не затирается
+    if not Path(str(p) + ".bak").exists():
+        shutil.copy2(p, str(p) + ".bak")
     chars = nr.load_registry(registry_path)
     chars.extend(new)
     nr.save_registry(registry_path, chars)

@@ -469,8 +469,10 @@ def clean(input_path, clean_map_path=None, limit=None, dry_run=True,
                 if not no_backup:
                     bak_dir = Path(f).parent / "md_replace_backups" / \
                         _t.strftime("%Y-%m-%d_%H-%M-%S")
+                    # 20.10: одиночный файл — бэкап по имени; rel с
+                    # абсолютным путём делал bak самим файлом
                     rel = f.relative_to(Path(input_path)) \
-                        if not Path(input_path).is_file() else f
+                        if not Path(input_path).is_file() else f.name
                     bak = bak_dir / rel
                     bak.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(f, bak)

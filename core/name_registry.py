@@ -15,30 +15,46 @@ FIELDS = ("имя", "формы", "старое", "старое_опасное",
 
 
 def load_registry(path):
-    """Загружает реестр. Возвращает список словарей."""
+    """Загружает реестр. Возвращает список словарей.
+    20.10: битый/чужой YAML не роняет инструмент — понятное сообщение
+    и пустой реестр (старое поведение сохранено для отсутствующего файла)."""
     p = Path(path)
     if not p.exists():
         return []
-    with open(p, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f)
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except Exception as e:
+        print(f"Реестр не прочитан: {p.name}: {e}")
+        return []
     if not data:
+        return []
+    if not isinstance(data, list) or not all(
+            isinstance(c, dict) for c in data):
+        print(f"Ожидался список персонажей в {p.name} — реестр не загружен.")
         return []
     # нормализация полей
     chars = []
     for c in data:
-        ch = {"имя": c.get("имя", "").strip()}
+        ch = {"имя": str(c.get("имя", "")).strip()}
         for fld in FIELDS[1:]:
-            ch[fld] = list(c.get(fld) or [])
+            v = c.get(fld)
+            ch[fld] = (v if isinstance(v, list) else ([v] if v else []))
         chars.append(ch)
     return [c for c in chars if c["имя"]]
 
 
 def save_registry(path, chars):
-    """Сохраняет реестр (UTF-8, читаемый вид)."""
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
+    """Сохраняет реестр (UTF-8, читаемый вид). 20.10: атомарно — через
+    временный файл и os.replace, сбой посреди записи не теряет реестр."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = Path(str(path) + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
         yaml.safe_dump(chars, f, allow_unicode=True, sort_keys=False,
                        default_flow_style=None, width=100)
+    import os
+    os.replace(tmp, path)
 
 
 def known_forms(chars):

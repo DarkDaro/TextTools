@@ -10,6 +10,7 @@ md_replace / char_search при реальной записи требуют п�
 GUI всегда передаёт --yes, подтверждением служит чекбокс «Применить изменения».
 """
 from pathlib import Path
+import sys
 
 # Пути к внешним скриптам в коде не хранятся: их указывает пользователь
 # на вкладке «Настройки» (ключи script_<имя> в gui_config.json).
@@ -37,7 +38,7 @@ def script_path(key):
 
 def cmd_emoji_clean(paths, dry_run=True, backup=False, restore=False):
     """Чистка эмодзи/смайлов в txt/md/docx."""
-    cmd = ["python", script_path("emoji_cleaner"), *paths]
+    cmd = [sys.executable, script_path("emoji_cleaner"), *paths]
     if restore:
         cmd.append("--restore")
     else:
@@ -50,7 +51,7 @@ def cmd_emoji_clean(paths, dry_run=True, backup=False, restore=False):
 
 def cmd_clean_text(root, apply=False):
     """Чистка мусора/CJK в txt/md (whitelist)."""
-    cmd = ["python", script_path("clean_text"), root]
+    cmd = [sys.executable, script_path("clean_text"), root]
     if apply:
         cmd.append("--fix")
     return cmd
@@ -59,7 +60,7 @@ def cmd_clean_text(root, apply=False):
 def cmd_md_replace(vault, old, new, is_regex=False, subdir=None,
                    include=None, exclude=None, dry_run=True, no_backup=False):
     """Массовая замена в .md по vault."""
-    cmd = ["python", script_path("md_replace"), old, new, "--vault", vault]
+    cmd = [sys.executable, script_path("md_replace"), old, new, "--vault", vault]
     if is_regex:
         cmd.append("--regex")
     if subdir:
@@ -78,7 +79,7 @@ def cmd_md_replace(vault, old, new, is_regex=False, subdir=None,
 
 def cmd_md_find_bad(vault, subdir=None):
     """Найти проблемные unicode-символы."""
-    cmd = ["python", script_path("md_replace"), "--find-bad", "--vault", vault]
+    cmd = [sys.executable, script_path("md_replace"), "--find-bad", "--vault", vault]
     if subdir:
         cmd += ["--subdir", subdir]
     return cmd
@@ -86,7 +87,7 @@ def cmd_md_find_bad(vault, subdir=None):
 
 def cmd_md_fix_encoding(vault, subdir=None, dry_run=True, no_backup=False):
     """Пересохранить файлы в UTF-8."""
-    cmd = ["python", script_path("md_replace"), "--fix-encoding", "--vault", vault]
+    cmd = [sys.executable, script_path("md_replace"), "--fix-encoding", "--vault", vault]
     if subdir:
         cmd += ["--subdir", subdir]
     if dry_run:
@@ -99,7 +100,7 @@ def cmd_md_fix_encoding(vault, subdir=None, dry_run=True, no_backup=False):
 
 def cmd_md_strip_bad(vault, subdir=None, dry_run=True, no_backup=False):
     """Вырезать мусорные unicode-символы."""
-    cmd = ["python", script_path("md_replace"), "--strip-bad", "--vault", vault]
+    cmd = [sys.executable, script_path("md_replace"), "--strip-bad", "--vault", vault]
     if subdir:
         cmd += ["--subdir", subdir]
     if dry_run:
@@ -112,7 +113,7 @@ def cmd_md_strip_bad(vault, subdir=None, dry_run=True, no_backup=False):
 
 def cmd_char_search(vault, char=None, fix=False, dry_run=True, no_backup=False):
     """Проверка/исправление имён персонажей по characters.yaml."""
-    cmd = ["python", script_path("char_search"), "--vault", vault]
+    cmd = [sys.executable, script_path("char_search"), "--vault", vault]
     if char:
         cmd.append(char)
     if fix:
@@ -127,7 +128,7 @@ def cmd_char_search(vault, char=None, fix=False, dry_run=True, no_backup=False):
 
 def cmd_char_fix_word(vault, bad, good, dry_run=True, no_backup=False):
     """22.09: точечная замена одного слова (--fix-word) без реестра."""
-    cmd = ["python", script_path("char_search"), "--vault", vault,
+    cmd = [sys.executable, script_path("char_search"), "--vault", vault,
            "--fix-word", bad, good]
     if dry_run:
         cmd.append("--dry-run")
@@ -140,7 +141,7 @@ def cmd_char_fix_word(vault, bad, good, dry_run=True, no_backup=False):
 def cmd_refile(directory, pattern, replacement="", exts=None,
                exclude_dirs=None, dry_run=True):
     """Массовая regex-замена по папке."""
-    cmd = ["python", script_path("refile"), pattern,
+    cmd = [sys.executable, script_path("refile"), pattern,
            "-r", replacement, "-d", directory]
     if exts:
         cmd += ["--exts", *exts]

@@ -210,6 +210,7 @@ class SettingsTab(ctk.CTkFrame):
         subprocess.Popen(["notepad.exe", str(PARASITE_FILE)])
 
     def _reset_all(self):
+        import gui_config
         from gui_config import CONFIG_FILE
         if CONFIG_FILE.exists():
             try:
@@ -217,4 +218,7 @@ class SettingsTab(ctk.CTkFrame):
             except Exception as e:
                 self._log(f"Ошибка сброса: {e}\n", "err")
                 return
+        # 20.10: конфиг в памяти тоже сбрасываем — иначе следующий ввод
+        # в любом поле молча восстановит старые настройки
+        gui_config.reset()
         self._log("Настройки сброшены. Перезапустите программу.\n", "ok")

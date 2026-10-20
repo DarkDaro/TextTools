@@ -74,7 +74,9 @@ def run(registry_path, fill=False, out=None):
 
     if fill:
         p = Path(registry_path)
-        shutil.copy2(p, str(p) + ".bak")
+        # 20.10: существующий .bak не затирается
+        if not Path(str(p) + ".bak").exists():
+            shutil.copy2(p, str(p) + ".bak")
         for c in chars:
             per = sug.get(c["имя"], {})
             for fld, missing in per.items():
