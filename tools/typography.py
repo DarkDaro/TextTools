@@ -34,7 +34,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core import text_parser as tp
 
-SKIP_DIRS = {".git", ".obsidian", ".trash", "reports", "__pycache__"}
+SKIP_DIRS = {".git", ".obsidian", ".trash", "reports", "__pycache__",
+             "md_replace_backups", ".smart-env"}  # 20.10: бэкапы не трогаем
 EXTS = (".md", ".txt", ".docx")
 FENCE_RE = ("```", "~~~")
 
@@ -217,7 +218,7 @@ def run(input_path, fix=False, nbsp=False, out=None):
                     text, nbsp=nbsp,
                     dialogue=f.suffix.lower() != ".md", frontmatter=True)
                 if sum(counts.values()) and fix:
-                    shutil.copy2(f, str(f) + ".bak")
+                    tp.backup_once(f)  # 20.10: старый .bak не затирается
                     f.write_text(new_text, encoding="utf-8")
         except (UnicodeDecodeError, PermissionError, OSError) as e:
             print(f"ПРОПУСК {f.name}: {e}")
@@ -267,7 +268,12 @@ def fix_docx(path, nbsp, fix):
     w:t — разорванные форматированием кавычки не трогаются (безопаснее)."""
     from docx import Document
 
-    doc = Document(path)
+    try:
+        doc = Document(path)
+    except Exception as e:
+        print(f"ПРОПУСК (docx не читается): {Path(path).name}: {e}")
+        return {k: 0 for k in RULE_KEYS}
+
     counts = {k: 0 for k in RULE_KEYS}
     for part in doc.part.package.iter_parts():
         name = str(part.partname)
@@ -290,8 +296,11 @@ def fix_docx(path, nbsp, fix):
                 for k in RULE_KEYS:
                     counts[k] += c[k]
     if sum(counts.values()) and fix:
-        shutil.copy2(path, str(path) + ".bak")
-        doc.save(path)
+        tp.backup_once(path)  # 20.10: старый .bak не затирается
+        try:
+            doc.save(path)
+        except Exception as e:
+            print(f"ПРОПУСК (не сохраняется, файл занят?): {Path(path).name}: {e}")
     return counts
 
 

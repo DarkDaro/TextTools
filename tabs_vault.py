@@ -1,5 +1,7 @@
 """Вкладка «Хранилище»: orphan-finder, broken-links, merge-finder.
 18.09: переделана на CustomTkinter (widgets_ctk)."""
+import sys
+
 import customtkinter as ctk
 
 from gui_config import CFG
@@ -136,10 +138,10 @@ class VaultTab(ctk.CTkFrame):
                           "служебных и форм имён) и слишком длинные "
                           "предложения. Файлы не изменяются.")
 
-    def _log(self, msg):
+    def _log(self, msg, tag=None):
         # 01.10: раньше не было — кнопки штампов падали с AttributeError
         from gui_ctk import _app
-        _app.log_line(msg)
+        _app.log_line(msg, tag)
 
     def _run(self, modname):
         from gui_ctk import run_internal, _app
@@ -184,13 +186,14 @@ class VaultTab(ctk.CTkFrame):
 
             def _add_phrase():
                 r = subprocess.run(
-                    ["python", script, "--add", phrase],
+                    [sys.executable, script, "--add", phrase],
                     capture_output=True, text=True, encoding="utf-8", timeout=30)
                 if r.returncode == 0 and r.stdout:
                     self._log(r.stdout)
 
             threading.Thread(target=_add_phrase, daemon=True).start()
-        cmd = ["python", str(CONFIG_FILE.parent / "tools" / "phrase_check.py"),
+        cmd = [sys.executable,
+               str(CONFIG_FILE.parent / "tools" / "phrase_check.py"),
                "--input", p]
         if custom:
             cmd += ["--custom", custom]
@@ -215,7 +218,7 @@ class VaultTab(ctk.CTkFrame):
             return
         dry = self.c_pc_dry.get()
         script = CONFIG_FILE.parent / "tools" / "phrase_check.py"
-        cmd = ["python", str(script), "--input", p, "--clean"]
+        cmd = [sys.executable, str(script), "--input", p, "--clean"]
         if dry:
             cmd += ["--dry-run"]
         else:
@@ -266,10 +269,17 @@ class VaultTab(ctk.CTkFrame):
         q = _queue.Queue()
 
         def _worker():
-            r = subprocess.run(
-                ["python", script, "--input", path, "--review"],
-                capture_output=True, text=True, encoding="utf-8",
-                errors="replace", timeout=600)
+            # 20.10: любой сбой (таймаут, нет интерпретатора) кладёт в
+            # очередь маркер — раньше полл после ошибки крутился вечно
+            import sys
+            try:
+                r = subprocess.run(
+                    [sys.executable, script, "--input", path, "--review"],
+                    capture_output=True, text=True, encoding="utf-8",
+                    errors="replace", timeout=600)
+            except Exception as e:
+                q.put(("err", f"Витрина не запустилась: {e}\n"))
+                return
             hits = []
             for line in (r.stdout or "").splitlines():
                 if line.startswith("REVIEW\t"):
@@ -277,16 +287,19 @@ class VaultTab(ctk.CTkFrame):
                     if len(parts) == 6:
                         hits.append((parts[1], parts[2], parts[3],
                                      parts[4], parts[5]))
-            q.put(hits)
+            q.put(("ok", hits))
 
         def _check():
+            from gui_ctk import _app as app
             try:
-                hits = q.get_nowait()
+                kind, payload = q.get_nowait()
             except _queue.Empty:
-                from gui_ctk import _app as app
                 app.after(150, _check)
                 return
-            self._open_review(hits)
+            if kind == "err":
+                self._log(payload, "err")
+                return
+            self._open_review(payload)
 
         threading.Thread(target=_worker, daemon=True).start()
         from gui_ctk import _app as app

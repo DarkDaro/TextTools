@@ -73,7 +73,9 @@ def run(input_path, out=None, registry=None, min_count=2, limit=None,
         if verbose:
             for it in items[:40]:
                 extra = f" (пар: {it.get('пар')})" if it.get("пар") else ""
-                print(f"  {it['имя']}: {it['встречается']}{extra}")
+                # 20.10: у биграмм вместо «встречается» ключ «пар»
+                n = it.get("встречается", it.get("пар", 0))
+                print(f"  {it['имя']}: {n}{extra}")
     return 0
 
 

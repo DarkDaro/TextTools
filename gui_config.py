@@ -1,6 +1,7 @@
 """Обёртка конфига для виджетов (get/set с автосохранением)."""
 from pathlib import Path
 import json
+import os
 
 CONFIG_FILE = Path(__file__).parent / "gui_config.json"
 
@@ -20,6 +21,13 @@ def _load():
     return _config
 
 
+def reset():
+    """20.10: очистить конфиг в памяти (файл уже удалён снаружи) — иначе
+    самое следующее Cfg.set молча восстановит старые настройки."""
+    global _config
+    _config = {}
+
+
 class Cfg:
     """Доступ к конфигу: get/set, автосохранение при каждом set."""
 
@@ -37,10 +45,17 @@ class Cfg:
         cfg = _load()
         cfg[key] = value
         try:
-            CONFIG_FILE.write_text(
-                json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
+            # 20.10: атомарная запись — сбой посреди не оставит битый JSON
+            tmp = Path(str(CONFIG_FILE) + ".tmp")
+            tmp.write_text(
+                json.dumps(cfg, ensure_ascii=False, indent=2),
+                encoding="utf-8")
+            os.replace(tmp, CONFIG_FILE)
         except Exception:
-            pass
+            try:
+                Path(str(CONFIG_FILE) + ".tmp").unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 CFG = Cfg()

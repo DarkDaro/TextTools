@@ -16,6 +16,8 @@ import re
 import shutil
 from pathlib import Path
 
+from core import text_parser
+
 W_NS = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 DOC_PART_KEYWORDS = ("document.xml", "header", "footer",
                      "footnotes", "endnotes", "comments")
@@ -64,37 +66,50 @@ def replace_in_docx_text(path, new_full_text):
     строку, записываем обратно. Форматирование run'ов теряется внутри
     изменённых параграфов (параграфы пересоздаются) — это плата за
     cross-run замены. Параграфы = строки new_full_text.
+    20.10: занятый файл (Word, антивирус, синхронизация) больше не роняет
+    весь прогон — печатаем ПРОПУСК и возврат.
     """
     from docx import Document
-    doc = Document(path)
+    try:
+        doc = Document(path)
+    except Exception as e:
+        print(f"  ПРОПУСК (docx не читается): {Path(path).name}: {e}")
+        return
     # удаляем все существующие параграфы
     for p in list(doc.paragraphs):
         p._element.getparent().remove(p._element)
     for line in new_full_text.split("\n"):
         doc.add_paragraph(line)
-    doc.save(path)
+    try:
+        doc.save(path)
+    except Exception as e:
+        print(f"  ПРОПУСК (файл занят, сохранить не удалось): "
+              f"{Path(path).name}: {e}")
 
 
-def _replace_in_paragraph(p, pattern, new):
+def _replace_in_paragraph(p, pattern, new, pos=0):
     """01.10: кросс-run замена внутри параграфа с сохранением
     форматирования. Искомая строка, разорванная между run'ами (w:t),
     находится в склеенном тексте; заменяющий текст помещается в первый
     затронутый run, остальные части совпадения очищаются. Соседние run'ы
-    не трогаются. Возвращает число замен (0 или 1 за проход)."""
+    не трогаются.
+    20.10: поиск только с позиции pos (замена, содержащая сам оригинал,
+    больше не раздувает текст бесконечно). Возвращает
+    (число замен 0/1, новая позиция поиска)."""
     ts = [t for t in p.iter(W_NS + "t")]
     if not ts:
-        return 0
+        return 0, pos
     texts = [t.text or "" for t in ts]
     full = "".join(texts)
-    m = pattern.search(full)
+    m = pattern.search(full, pos)
     if not m or m.start() == m.end():
-        return 0
+        return 0, pos
     start, end = m.span()
     spans = []
-    pos = 0
+    cur = 0
     for txt in texts:
-        spans.append((pos, pos + len(txt)))
-        pos += len(txt)
+        spans.append((cur, cur + len(txt)))
+        cur += len(txt)
     first = next(i for i, (s, e) in enumerate(spans) if s <= start < e)
     last = next(i for i, (s, e) in enumerate(spans) if s < end <= e)
     prefix = texts[first][:start - spans[first][0]]
@@ -109,7 +124,7 @@ def _replace_in_paragraph(p, pattern, new):
                 # краевые пробелы без xml:space Word съест
                 t_el.set(
                     "{http://www.w3.org/XML/1998/namespace}space", "preserve")
-    return 1
+    return 1, start + len(new)
 
 
 def replace_in_docx(path, old, new, is_regex=False, backup=True):
@@ -149,15 +164,18 @@ def replace_in_docx(path, old, new, is_regex=False, backup=True):
         if el is None:
             continue
         for p in el.iter(W_NS + "p"):
-            # цикл: после каждой замены текст меняется — ищем заново
+            # 20.10: ищем с позиции конца прошлой замены — иначе замена,
+            # содержащая искомое («мир» -> «мирный»), растит текст вечно
+            cursor = 0
             for _ in range(1000):  # защита от нулевой длины совпадений
-                n = _replace_in_paragraph(p, pattern, new)
+                n, cursor = _replace_in_paragraph(p, pattern, new, cursor)
                 if not n:
                     break
                 total += n
 
     if total and backup:
-        shutil.copy2(path, str(path) + ".bak")
+        # 20.10: существующий .bak не затирается
+        tp_src.backup_once(path)
         doc.save(path)
     elif total:
         doc.save(path)
@@ -166,7 +184,6 @@ def replace_in_docx(path, old, new, is_regex=False, backup=True):
 
 def count_in_docx(path, old, is_regex=False):
     """Сколько вхождений old в docx (по параграфам, разорванные склеиваются)."""
-    flags = 0 if is_regex else re.MULTILINE
     text = read_text(path)
     if not text:
         return 0

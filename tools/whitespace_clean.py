@@ -24,7 +24,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core import text_parser as tp
 
-SKIP_DIRS = {".git", ".obsidian", ".trash", "reports", "__pycache__"}
+SKIP_DIRS = {".git", ".obsidian", ".trash", "reports", "__pycache__",
+             "md_replace_backups", ".smart-env"}  # 20.10: бэкапы не чистим
 EXTS = (".md", ".txt", ".docx")
 FENCE_RE = ("```", "~~~")
 
@@ -140,7 +141,7 @@ def run(input_path, max_blank=1, keep_breaks=False, fix=False, out=None):
                 text = f.read_text(encoding="utf-8")
                 new_text, n = clean_text(text, max_blank, keep_breaks)
                 if n and fix:
-                    shutil.copy2(f, str(f) + ".bak")
+                    tp.backup_once(f)  # 20.10: старый .bak не затирается
                     f.write_text(new_text, encoding="utf-8")
         except (UnicodeDecodeError, PermissionError, OSError) as e:
             print(f"ПРОПУСК {f.name}: {e}")
@@ -174,7 +175,12 @@ def clean_docx(path, max_blank, keep_breaks, fix):
     Пустые строки в docx — это пустые параграфы, сжимаем их серии."""
     from docx import Document
 
-    doc = Document(path)
+    try:
+        doc = Document(path)
+    except Exception as e:
+        print(f"ПРОПУСК (docx не читается): {Path(path).name}: {e}")
+        return 0
+
     total = 0
     for part in doc.part.package.iter_parts():
         name = str(part.partname)
@@ -211,8 +217,11 @@ def clean_docx(path, max_blank, keep_breaks, fix):
         # 3) хвостовые таб-элементы в конце параграфов
         total += _strip_trailing_tabs(el)
     if total and fix:
-        shutil.copy2(path, str(path) + ".bak")
-        doc.save(path)
+        tp.backup_once(path)  # 20.10: старый .bak не затирается
+        try:
+            doc.save(path)
+        except Exception as e:
+            print(f"ПРОПУСК (не сохраняется, файл занят?): {Path(path).name}: {e}")
     return total
 
 
