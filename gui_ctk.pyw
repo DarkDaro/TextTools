@@ -52,6 +52,18 @@ def _log_crash(prefix=""):
         pass
 
 
+def _log_info(prefix):
+    """20.10: маркер старта без трейсбека — что питон, дошло ли до
+    построения, mainloop и закрытия."""
+    try:
+        LOG = HERE / "logs" / "gui_crash.log"
+        LOG.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG, "a", encoding="utf-8") as f:
+            f.write(f"{datetime.now():%H:%M:%S} | {prefix}\n")
+    except Exception:
+        pass
+
+
 def _sys_excepthook(exc_type, exc_val, exc_tb):
     _log_crash("runtime")
     sys.__excepthook__(exc_type, exc_val, exc_tb)
@@ -258,27 +270,6 @@ class App(ctk.CTk):
         # запись аккуратно, вместо жёсткого обрыва с недописанным файлом
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-    def _on_close(self):
-        try:
-            if self.runner.running and self.runner.proc:
-                self.log_line(
-                    "\n[закрытие: жду завершения текущего файла (до 15 с)…\n"
-                    "  Будущий повторный запуск запрещён до окончания]\n",
-                    "warn")
-                self.runner.stop()
-                p = self.runner.proc
-                try:
-                    p.wait(timeout=15)
-                except Exception:
-                    pass
-        except Exception:
-            pass
-        try:
-            STOP_FILE.unlink(missing_ok=True)
-        except Exception:
-            pass
-        self.destroy()
-
         # --- Верхняя панель ---
         top = ctk.CTkFrame(self, fg_color="transparent")
         top.pack(fill="x", padx=16, pady=(12, 0))
@@ -405,6 +396,25 @@ class App(ctk.CTk):
             t._build(t)
             t.pack(fill="x", anchor="n")
 
+    def _on_close(self):
+        """20.10: мягкое закрытие: если процесс пишет файлы — даём ему
+        докончить текущий файл (до 15 с), затем закрываем окно."""
+        try:
+            if self.runner.running and self.runner.proc:
+                self.runner.stop()
+                p = self.runner.proc
+                try:
+                    p.wait(timeout=15)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            STOP_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
+        self.destroy()
+
     # --- Тема ---
 
     def _on_theme_change(self, value):
@@ -485,12 +495,17 @@ class App(ctk.CTk):
 
 def main():
     sys.excepthook = _sys_excepthook  # 20.10: runtime падения тоже в журнал
+    _log_info(f"START pid={os.getpid()} py={sys.version.split()[0]} "
+              f"exe={sys.executable}")
     try:
         app = App()
+        _log_info("BUILD DONE")
     except Exception:
         _log_crash("startup")
         raise
+    _log_info("MAINLOOP")
     app.mainloop()
+    _log_info("CLOSED")
 
 
 if __name__ == "__main__":
