@@ -11,21 +11,23 @@ GUI всегда передаёт --yes, подтверждением служи
 """
 from pathlib import Path
 
-# Пути к внешним скриптам (переопределяются в настройках GUI)
+# Пути к внешним скриптам в коде не хранятся: их указывает пользователь
+# на вкладке «Настройки» (ключи script_<имя> в gui_config.json).
+# Пустое значение = скрипт не настроен, run_cmd подскажет в GUI-логе.
 DEFAULTS = {
-    "emoji_cleaner": r"C:\AgentLetta\python-projects\emoji-cleaner\clean.py",
-    "clean_text": r"C:\AgentLetta\scripts\clean_text_files.py",
-    "md_replace": r"C:\AgentLetta\python-projects\md-replace\md_replace.py",
-    "char_search": r"C:\AgentLetta\python-projects\md-replace\char_search.py",
-    "refile": r"C:\AgentLetta\python-projects\refile.py",
+    "emoji_cleaner": "",
+    "clean_text": "",
+    "md_replace": "",
+    "char_search": "",
+    "refile": "",
 }
 
 TEXT_EXTS = ["md", "txt"]
 
 
 def script_path(key):
-    """18.09: путь к скрипту с учётом настроек GUI (script_<key> в конфиге).
-    Пустое/несуществующее значение -> путь по умолчанию."""
+    """Путь к внешнему скрипту из настроек GUI (script_<key> в конфиге).
+    Не настроен или файл не существует -> "" (run_cmd подскажет в GUI)."""
     from gui_config import CFG
     custom = CFG.get(f"script_{key}")
     if custom and Path(custom).is_file():

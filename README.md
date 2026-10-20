@@ -116,9 +116,11 @@ python textools.py style-report     --input <папка> [--registry <yaml>] [--
   style_report) + словари `phrases*.yaml`, `parasites.yaml`
 * `wrappers/` — сборка командных строк для **внешних** скриптов
   (emoji-cleaner, md-replace, char_search, refile, clean_text_files);
-  сами скрипты лежат вне репозитория, пути задаются в
-  `wrappers/__init__.py::DEFAULTS` и переопределяются в настройках GUI
+  сами скрипты лежат вне репозитория, пути к ним задаются в настройках
+  GUI (вкладка «Настройки» → «Пути к внешним скриптам»)
 * `gui_ctk.pyw`, `tabs_*.py`, `widgets_ctk.py`, `review_dialog.py` — GUI
+* `gui_config.example.json` — минимальный пример конфига; рабочий
+  `gui_config.json` создаётся программой и в git не входит
 * `reports/` — выходные отчёты (в git не входит)
 
 ## Тесты
@@ -133,3 +135,7 @@ python test_gui.py       # проверки GUI (открывает окно п�
 
 Каждый набор сам пересоздаёт тестовый корпус `archive/corpus/`, порядок
 запуска не важен. Подробности — `archive/README.md`.
+
+## Лицензия
+
+Проект распространяется под лицензией MIT — см. [LICENSE](LICENSE).

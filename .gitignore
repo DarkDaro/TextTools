@@ -16,3 +16,8 @@ stop.flag
 # Старые тестовые сэмплы и синтетика (не часть программы)
 test/
 synthetic/
+
+# Прочее локальное
+.vscode/
+Thumbs.db
+desktop.ini

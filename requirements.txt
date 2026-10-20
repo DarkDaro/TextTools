@@ -1,6 +1,6 @@
-pyyaml
-python-docx
-customtkinter
-pymorphy3
-charset-normalizer
-tkinterdnd2
+PyYAML>=6.0
+python-docx>=1.1
+customtkinter>=5.2
+pymorphy3>=2.0
+charset-normalizer>=3.3
+tkinterdnd2>=0.4

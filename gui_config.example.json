@@ -1,0 +1,11 @@
+{
+  "_note": "Минимальный пример конфига. Рабочий gui_config.json создаётся программой автоматически и в git не входит.",
+  "theme": "dark",
+  "default_vault": "",
+  "show_cmd": true,
+  "script_emoji_cleaner": "",
+  "script_clean_text": "",
+  "script_md_replace": "",
+  "script_char_search": "",
+  "script_refile": ""
+}

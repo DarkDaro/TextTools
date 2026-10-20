@@ -13,9 +13,9 @@ class SettingsTab(ctk.CTkFrame):
 
     def _build(self, parent):
         HelpBox(parent, text=(
-            "Здесь настраиваются пути к внешним скриптам (обычно менять не нужно — "
-            "уже стоят правильные) и хранилище по умолчанию. "
-            "Все настройки сохраняются автоматически."))
+            "Здесь задаются пути к внешним скриптам (в репозиторий они не "
+            "входят). Пока путь не указан, соответствующие кнопки сообщат "
+            "об этом. Все настройки сохраняются автоматически."))
 
         s1 = Section(parent, "Пути к внешним скриптам")
         for label, key in (("emoji-cleaner:", "emoji_cleaner"),
@@ -23,8 +23,11 @@ class SettingsTab(ctk.CTkFrame):
                            ("md_replace:", "md_replace"),
                            ("char_search:", "char_search"),
                            ("refile:", "refile")):
+            default = DEFAULTS[key]
+            tip = (f"Путь к скрипту. По умолчанию: {default}" if default else
+                   "Путь к скрипту. По умолчанию не задан — укажите вручную.")
             PathField(s1.inner, label, f"script_{key}", CFG, file_mode="file",
-                      tooltip=f"Путь к скрипту. По умолчанию: {DEFAULTS[key]}")
+                      tooltip=tip)
 
         s2 = Section(parent, "Общее")
         PathField(s2.inner, "Vault по умолчанию:", "default_vault", CFG, file_mode="dir",
