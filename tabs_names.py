@@ -157,6 +157,21 @@ class NamesTab(ctk.CTkFrame):
                   tooltip="Заметка на каждого персонажа: кто где встречается, "
                           "вики-ссылками — Obsidian покажет обратные ссылки.")
 
+        # --- Ё/Е-аудит (20.10) ---
+        s7 = Section(parent, "Ё/Е-аудит (спорные места с ё)")
+        self.f_yo_input = PathField(s7.inner, "Тексты (папка/файл):", "yo_input",
+                                    CFG, file_mode="both",
+                                    tooltip="Папка или файл .md/.txt. Правки "
+                                            "применяются только к .md/.txt.")
+        self.f_yo_reg = PathField(s7.inner, "Реестр (yaml):", "yo_registry", CFG,
+                                  file_mode="file",
+                                  tooltip="Реестр персонажей: имена с ё (Семён) "
+                                          "сверяются с написанием в тексте (Семен).")
+        BigButton(s7.inner, "Ё/Е-аудит (витрина)", self._run_yo,
+                  tooltip="Собирает спорные места: имена из реестра, словарные "
+                          "пары и омографы (все/всё). Замена — только по "
+                          "выбранным вхождением в диалоге.")
+
     def _log(self, msg):
         from gui_ctk import _app
         _app.log_line(msg)
@@ -225,6 +240,86 @@ class NamesTab(ctk.CTkFrame):
         if self.c_merge_add.get():
             args.append("--add")
         run_internal("registry_merge", args)
+
+    def _run_yo(self):
+        # 20.10: ё/е-аудит — спорные места с ё и е в отдельной витрине
+        import io
+        import queue as _queue
+        import sys
+        import threading
+        from gui_ctk import _app
+
+        p = self.f_yo_input.get()
+        if not p:
+            self._log("Укажите папку или файл для Ё/Е-аудита.\n")
+            return
+        reg = self.f_yo_reg.get() or None
+        q = _queue.Queue()
+
+        def _worker():
+            if sys.stdout is None:
+                sys.stdout = io.StringIO()  # pythonw: print движков в никуда
+            try:
+                from tools import yo_audit
+                dictionary = yo_audit.load_dict()
+                name_p = []
+                if reg:
+                    from core import name_registry as nr
+                    name_p = yo_audit.name_pairs(nr.load_registry(reg))
+                targets = yo_audit.yowords_all(dictionary, name_p)
+                hits = []
+                stats = {"ё_всего": 0}
+                for f in yo_audit.iter_text_files(p):
+                    if yo_audit.stop_requested():
+                        break
+                    hits.extend(yo_audit.scan(f, targets, stats))
+                # docx в этой итерации не правится (решение пользователя)
+                hits = [h for h in hits
+                        if not h[2].lower().endswith(".docx")]
+                q.put(("ok", hits, targets))
+            except Exception as e:
+                q.put(("err", f"Ё/Е-аудит не удался: {e}", None))
+
+        def _check():
+            from gui_ctk import _app as app
+            try:
+                kind, payload, targets = q.get_nowait()
+            except _queue.Empty:
+                app.after(150, _check)
+                return
+            if kind == "err":
+                self._log(payload + "\n", "err")
+                return
+            self._open_yo(payload, targets)
+
+        threading.Thread(target=_worker, daemon=True).start()
+        _app.after(150, _check)
+        self._log("Ё/Е-аудит: собираю спорные места...\n")
+
+    def _open_yo(self, hits, _targets):
+        from gui_ctk import _app
+        if not hits:
+            _app.log_line("Ё/Е-аудит: спорных мест не найдено.\n", "ok")
+            return
+        _app.log_line(f"Ё/Е-аудит: {len(hits)} вхождений.\n")
+
+        # написание как в тексте -> правильная форма (для кнопки применить)
+        wrong_to_right = {}
+        for w, r, _fs, _ln, _frag in hits:
+            wrong_to_right.setdefault(w.lower(), r)
+
+        def _apply(pairs):
+            from tools import yo_audit
+            by_file = {}
+            for w, fs in pairs:
+                by_file.setdefault(fs, []).append(
+                    (w, wrong_to_right.get(w.lower(), "")))
+            for msg in yo_audit.clean_selection(by_file):
+                _app.log_line(msg + "\n",
+                              "ok" if msg.startswith("[Ё]") else None)
+
+        import review_dialog
+        review_dialog.show(_app, hits, _apply)
 
     def _run_moc(self):
         from gui_ctk import run_internal
