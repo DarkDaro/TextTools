@@ -2,6 +2,8 @@
 18.09: переделана на CustomTkinter (widgets_ctk)."""
 import customtkinter as ctk
 
+from pathlib import Path
+
 from gui_config import CFG, CONFIG_FILE
 from widgets_ctk import (PathField, EntryField, CheckField, HelpBox,
                          Section, BigButton, Tooltip, FONT_SMALL)
@@ -28,6 +30,9 @@ class SettingsTab(ctk.CTkFrame):
                    "Путь к скрипту. По умолчанию не задан — укажите вручную.")
             PathField(s1.inner, label, f"script_{key}", CFG, file_mode="file",
                       tooltip=tip)
+        BigButton(s1.inner, "Проверить пути", self._check_scripts,
+                  tooltip="Проверить все пути: настроен ли скрипт и "
+                          "существует ли файл.").pack(anchor="w", pady=(6, 2))
 
         s2 = Section(parent, "Общее")
         PathField(s2.inner, "Vault по умолчанию:", "default_vault", CFG, file_mode="dir",
@@ -136,6 +141,26 @@ class SettingsTab(ctk.CTkFrame):
     def _log(self, msg, tag=None):
         from gui_ctk import _app
         _app.log_line(msg, tag)
+
+    def _check_scripts(self):
+        # 20.10: проверка путей без запуска операций
+        import wrappers as _wrappers
+        from gui_config import CFG
+        ok = miss = notset = 0
+        for key in _wrappers.DEFAULTS:
+            custom = CFG.get(f"script_{key}")
+            if not custom:
+                self._log(f"  {key}: не настроен\n", "warn")
+                notset += 1
+            elif Path(custom).is_file():
+                self._log(f"  {key}: найден ({custom})\n", "ok")
+                ok += 1
+            else:
+                self._log(f"  {key}: файл не найден ({custom})\n", "err")
+                miss += 1
+        if ok + miss == 0:
+            self._log("Ни один внешний скрипт не настроен. Кнопки, которые "
+                      "их используют, сообщат об этом в логе.\n", "warn")
 
     def _save_now(self):
         from gui_config import _load, CONFIG_FILE
