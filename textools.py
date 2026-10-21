@@ -7,6 +7,7 @@ textools — единый CLI текстовых инструментов.
   orphan-finder      заметки без входящих и исходящих ссылок
   broken-links       вики-ссылки на несуществующие заметки
   merge-finder       дубликаты по содержимому и по именам файлов
+  integrity          целостность .md: пустые, битый UTF-8, frontmatter, заголовки
 """
 import sys
 from pathlib import Path
@@ -92,7 +93,8 @@ def main():
 
     for name, desc in (("orphan-finder", "заметки без входящих и исходящих ссылок"),
                        ("broken-links", "вики-ссылки на несуществующие заметки"),
-                       ("merge-finder", "дубликаты по содержимому и по именам")):
+                       ("merge-finder", "дубликаты по содержимому и по именам"),
+                       ("integrity", "целостность .md: пустые, битый UTF-8, frontmatter, заголовки")):
         p = sub.add_parser(name, help=desc)
         p.add_argument("--input", required=True)
         p.add_argument("--limit", type=int)
@@ -124,7 +126,8 @@ def main():
     here = Path(__file__).parent
     simple = {"orphan-finder": "orphan_finder",
               "broken-links": "broken_links",
-              "merge-finder": "merge_finder"}
+              "merge-finder": "merge_finder",
+              "integrity": "integrity_check"}
     if args.cmd in simple:
         sys.path.insert(0, str(here))
         mod = __import__(f"tools.{simple[args.cmd]}", fromlist=["run"])

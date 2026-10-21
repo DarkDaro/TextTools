@@ -316,6 +316,7 @@ python textools.py merge-registry   --candidates <yaml> --registry <yaml> [--add
 python textools.py orphan-finder    --input <папка>
 python textools.py broken-links     --input <папка>
 python textools.py merge-finder     --input <папка>
+python textools.py integrity         --input <папка>
 python textools.py utf8             --input <папка> [--fix]
 python textools.py restore          --input <папка> [--restore]
 python textools.py archive-backups  --input <папка> [--days 30] [--move]

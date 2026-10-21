@@ -1,4 +1,4 @@
-"""Вкладка «Хранилище»: orphan-finder, broken-links, merge-finder.
+"""Вкладка «Хранилище»: orphan-finder, broken-links, merge-finder, integrity.
 18.09: переделана на CustomTkinter (widgets_ctk)."""
 import sys
 
@@ -20,6 +20,8 @@ class VaultTab(ctk.CTkFrame):
             "• Битые ссылки — ссылки [[вот так]], ведущие на несуществующую заметку.\n"
             "• Дубликаты — заметки с очень похожим содержимым или почти одинаковым именем — "
             "кандидаты на слияние.\n"
+            "• Целостность — пустые файлы, битая кодировка, незакрытый frontmatter, "
+            "отсутствие заголовка.\n"
             "Все три инструмента ТОЛЬКО читают файлы — ничего не изменяют."))
 
         s = Section(parent, "Хранилище (vault)")
@@ -40,6 +42,10 @@ class VaultTab(ctk.CTkFrame):
                       side="left", padx=8)
         BigButton(btns, "Дубликаты (merge)", self._run_merge,
                   tooltip="Похожие заметки — кандидаты на слияние.").pack(
+                      side="left", padx=8)
+        BigButton(btns, "Целостность", self._run_integrity,
+                  tooltip="Пустые файлы, битый UTF-8, незакрытый frontmatter, "
+                          "отсутствие заголовка ##. Только чтение.").pack(
                       side="left", padx=8)
 
         self.c_report = CheckField(s.inner, "Сохранять отчёт в reports/", "vault_save_report", CFG,
@@ -166,6 +172,9 @@ class VaultTab(ctk.CTkFrame):
 
     def _run_merge(self):
         self._run("merge_finder")
+
+    def _run_integrity(self):
+        self._run("integrity_check")
 
     def _run_phrase_check(self):
         # 22.09: phrase_check — штампы ИИ-текста и канцелярит
