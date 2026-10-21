@@ -131,12 +131,20 @@ def _tool_label(cmd):
     return "операция"
 
 
+def _cfg_flag(key, default=True):
+    """21.10: булева настройка из конфига (снивает «false»/«0»/«no»)."""
+    v = CFG.get(key, default)
+    if isinstance(v, bool):
+        return v
+    return str(v).lower() not in ("false", "0", "no")
+
+
 def _toast_beep(level):
     """21.10: короткий системный звук уведомления. Отключается галочкой
     «Звуковые сигналы» на вкладке «Настройки»; ошибки звучат всегда громче."""
     if winsound is None:
         return
-    if str(CFG.get("sound", True)).lower() in ("false", "0", "no"):
+    if not _cfg_flag("sound", True):
         return
     flags = {"err": winsound.MB_ICONERROR,
              "warn": winsound.MB_ICONEXCLAMATION,
@@ -593,11 +601,16 @@ class App(ctk.CTk):
             self.log.insert("end", text)
         self.log.see("end")
 
-    def toast(self, text, level="info"):
+    # 21.10: активные тосты — новые выстраиваются стопкой выше предыдущих
+    _toast_stack = []
+
+    def toast(self, text, level="info", beep=True):
         """21.10: всплывающее сообщение справа снизу экрана, исчезает само
-        (или по клику). С уровнем err/warn/ok звучит системный сигнал."""
+        (или по клику). beep=False — без звука (звук тогда прозвучит
+        отдельно, например «Готово» при выключенном тосте завершения)."""
         try:
-            _toast_beep(level)
+            if beep:
+                _toast_beep(level)
             p = _pal()
             border = {"ok": p["ok"], "warn": p["warn"], "err": p["err"],
                       "info": p["accent"]}.get(level, p["accent"])
@@ -611,25 +624,47 @@ class App(ctk.CTk):
             tk.Label(inner, text=text, justify="left", bg=p["card"],
                      fg=p["log_fg"], font=("Segoe UI", 10),
                      wraplength=330).pack(anchor="w")
+
+            def _drop():
+                try:
+                    App._toast_stack.remove(win)
+                except ValueError:
+                    pass
+                win.destroy()
+
             for w in (win, outer, inner):
-                w.bind("<Button-1>", lambda e: win.destroy())
+                w.bind("<Button-1>", lambda e: _drop())
             win.update_idletasks()
-            x = win.winfo_screenwidth() - win.winfo_width() - 24
-            y = win.winfo_screenheight() - win.winfo_height() - 48
+            sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
+            x = sw - win.winfo_width() - 24
+            # 21.10: стопка — новые тосты выезжают выше уже открытых
+            y = sh - 48 - win.winfo_height()
+            for other in list(App._toast_stack):
+                try:
+                    y = min(y, other.winfo_y() - win.winfo_height() - 8)
+                except Exception:
+                    pass
+            App._toast_stack.append(win)
             win.geometry(f"+{x}+{y}")
-            win.after(4200, win.destroy)
+            win.after(4200, _drop)
         except Exception:
             pass  # тост никогда не мешает работе инструментов
 
     def _on_done(self, code=0, elapsed=0.0):
-        """21.10: завершение операции — разблокировка кнопок, тост и звук."""
+        """21.10: завершение операции — разблокировка кнопок, тост и звук.
+        Тост завершения и звук разъединены: тост выключается галочкой
+        «Тост при завершении», звук — «Звуковые сигналы» (ошибка всегда
+        и тостится и звучит, если звук включён)."""
         self._set_busy(False)
         label = getattr(self.runner, "_label", "операция")
         mins = f"{int(elapsed) // 60}:{int(elapsed) % 60:02d}"
         if code == 0:
             self.status.configure(text="готов")
-            self.toast(f"Готово: {label} ({mins}).\nПодробности — в окне вывода.",
-                       "ok")
+            _toast_beep("ok")  # звук независим от тоста завершения
+            if _cfg_flag("toast_done", True):
+                self.toast(
+                    f"Готово: {label} ({mins}).\nПодробности — в окне вывода.",
+                    "ok", beep=False)
         else:
             self.status.configure(text=f"готов (код {code})")
             self.toast(f"Ошибка: {label} завершился с кодом {code}.\n"
