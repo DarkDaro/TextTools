@@ -36,8 +36,9 @@ pip install -r requirements.txt
   тексты по реестру, находя старые имена и опечатки в любых падежах
   (pymorphy3, ё/е эквивалентны); forms дописывает недостающие падежи
   в реестр; matrix строит таблицу «персонаж × файл».
-* **Хранилище**: orphan-finder, broken-links, merge-finder, поиск и
-  интерактивная чистка штампов (витрина с выбором вхождений).
+* **Хранилище**: orphan-finder, broken-links, merge-finder, integrity
+  (целостность заметок), поиск и интерактивная чистка штампов
+  (витрина с выбором вхождений).
 * **Замены**: массовая замена в .md/.txt/.docx (в docx — включая фразы,
   разорванные между run'ами, с сохранением форматирования), диагностика
   символов и кодировок, точечная замена слова, regex-замена по папке.
@@ -71,6 +72,7 @@ python textools.py utf8             --input <папка> [--fix]
 python textools.py orphan-finder    --input <папка>
 python textools.py broken-links     --input <папка>
 python textools.py merge-finder     --input <папка>
+python textools.py integrity         --input <папка>
 python textools.py restore          --input <папка> [--restore] [--file <имя>]
 python textools.py archive-backups  --input <папка> [--days 30] [--move]
 python textools.py moc              --input <vault> --registry <yaml> --out-dir <папка> [--apply]
@@ -89,8 +91,8 @@ python textools.py style-report     --input <папка> [--registry <yaml>] [--
 * **Имена персонажей** — registry-builder, consistency, матрица
   упоминаний, падежные формы (pymorphy3), добавление кандидатов в
   реестр, MOC-заметки персонажей для Obsidian
-* **Хранилище** — orphan-finder, broken-links, merge-finder, поиск
-  штампов, чистка штампов (в том числе интерактивно, с витриной),
+* **Хранилище** — orphan-finder, broken-links, merge-finder, проверка
+  целостности заметок (integrity), поиск штампов, чистка штампов (в том числе интерактивно, с витриной),
   статистика текста (с CSV-дневником объёма), стилистический отчёт
   (повторы слов рядом, длинные предложения)
 * **Чистка** — эмодзи, мусор/CJK, пробелы, кодировки (UTF-8),
@@ -115,7 +117,7 @@ python textools.py style-report     --input <папка> [--registry <yaml>] [--
 * `core/` — парсер текста, реестр имён, сканер vault, docx (включая
   кросс-run замену), морфология (pymorphy3), кодировки
 * `tools/` — движки команд (registry_builder, consistency, orphan_finder,
-  broken_links, merge_finder, phrase_check, whitespace_clean,
+  broken_links, merge_finder, integrity_check, phrase_check, whitespace_clean,
   utf8_convert, morph_forms, character_matrix, registry_merge,
   backup_restore, backup_archive, moc_builder, text_stats, typography,
   style_report) + словари `phrases*.yaml`, `parasites.yaml`
