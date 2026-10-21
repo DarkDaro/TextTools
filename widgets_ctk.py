@@ -49,9 +49,11 @@ def _clean_clip_path(data):
     return data.replace("\r\n", " ").replace("\n", " ").strip()
 
 
-def attach_clip_menu(entry):
+def attach_clip_menu(entry, extra=None):
     """21.10: правая кнопка мыши в поле — Копировать/Вставить/Очистить.
-    Ctrl+V тоже вставляет через «чистку» (кавычки снимаются)."""
+    Вставка подчищает кавычки и переводы строк («Копировать как путь»).
+    extra — кортеж (подпись, команда): дополнительный пункт, например
+    «Вставить и выбрать папку» для полей путей."""
     menu = tk.Menu(entry, tearoff=0, font=("Segoe UI", 10))
 
     def paste():
@@ -70,6 +72,8 @@ def attach_clip_menu(entry):
 
     menu.add_command(label="Вставить из буфера", command=paste)
     menu.add_command(label="Копировать всё", command=copy_all)
+    if extra:
+        menu.add_command(label=extra[0], command=extra[1])
     menu.add_separator()
     menu.add_command(label="Очистить поле",
                      command=lambda: entry.delete(0, "end"))
@@ -203,8 +207,37 @@ class PathField(ctk.CTkFrame):
             except Exception:
                 pass
         # 21.10: правый клик — Копировать/Вставить/Очистить; вставленный
-        # путь чистится от кавычек («Копировать как путь» в Explorer)
-        attach_clip_menu(self.entry)
+        # путь чистится от кавычек («Копировать как путь» в Explorer).
+        # 21.10+: «Вставить и выбрать папку/файл» — вставка из буфера
+        # и сразу диалог выбора, стартующий с этого пути.
+        def _paste_and_pick():
+            try:
+                data = _clean_clip_path(self.entry.clipboard_get())
+            except Exception:
+                return
+            if not data:
+                return
+            home = str(getattr(self.cfg, "home", "."))
+            self._set(data)
+            if self._mode in ("both", "dir"):
+                start = data if Path(data).is_dir() else \
+                    (str(Path(data).parent) if Path(data).parent.exists()
+                     else home)
+                p = filedialog.askdirectory(initialdir=start)
+            else:
+                start = str(Path(data).parent) if \
+                    Path(data).parent.exists() else home
+                p = filedialog.askopenfilename(
+                    initialdir=start,
+                    filetypes=[("Текст и документы",
+                                "*.md *.txt *.yaml *.yml *.docx *.log"),
+                               ("Все файлы", "*.*")])
+            if p:
+                self._set(p)
+
+        label = ("Вставить и выбрать папку…" if self._mode in ("both", "dir")
+                 else "Вставить и выбрать файл…")
+        self._clip_menu = attach_clip_menu(self.entry, extra=(label, _paste_and_pick))
 
     def _set(self, p):
         self.var.set(p)
