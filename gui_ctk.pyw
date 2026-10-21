@@ -9,6 +9,10 @@ import sys
 import threading
 import time
 import tkinter as tk
+try:
+    import winsound  # 21.10: системные звуки ошибок и уведомлений
+except Exception:
+    winsound = None
 from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
@@ -68,6 +72,13 @@ def _sys_excepthook(exc_type, exc_val, exc_tb):
     _log_crash("runtime")
     sys.__excepthook__(exc_type, exc_val, exc_tb)
 
+
+def _walk_widgets(w):
+    """21.10: обход дерева виджетов (для сбора кнопок и перекраски)."""
+    yield w
+    for c in w.winfo_children():
+        yield from _walk_widgets(c)
+
 # 22.09: единая палитра GUI (CTk не использует gui_theme.py)
 PALETTE = {
     "light": {
@@ -103,6 +114,41 @@ _appearance = "dark" if str(CFG.get("theme", "dark")).lower() == "dark" else "li
 ctk.set_appearance_mode(_appearance)
 
 
+def _tool_label(cmd):
+    """21.10: короткое имя инструмента для статуса и тостов."""
+    if len(cmd) > 2 and str(cmd[1]) == "-c":
+        m = re.search(r"tools\.(\w+)", str(cmd[2]))
+        if m:
+            return m.group(1)
+    for a in cmd[1:]:
+        s = str(a)
+        if s.startswith("-"):
+            continue
+        try:
+            return Path(s).stem or s
+        except Exception:
+            return s
+    return "операция"
+
+
+def _toast_beep(level):
+    """21.10: короткий системный звук уведомления. Отключается галочкой
+    «Звуковые сигналы» на вкладке «Настройки»; ошибки звучат всегда громче."""
+    if winsound is None:
+        return
+    if str(CFG.get("sound", True)).lower() in ("false", "0", "no"):
+        return
+    flags = {"err": winsound.MB_ICONERROR,
+             "warn": winsound.MB_ICONEXCLAMATION,
+             "ok": winsound.MB_ICONASTERISK}
+    f = flags.get(level)
+    if f is not None:
+        try:
+            winsound.MessageBeep(f)
+        except Exception:
+            pass
+
+
 class Runner:
     """Запускает команду в фоновом потоке, вывод идёт в очередь."""
 
@@ -117,14 +163,33 @@ class Runner:
         self.progress_bar = None
         # 20.10: инициализируем заранее — _poll ссылается на оба
         self.progress_label = None
+        # 21.10: тосты, имя инструмента, таймер, пометка реального прогресса
+        self.notify_fn = None
+        self.status_fn = None
+        self._label = "операция"
+        self._t0 = 0.0
+        self._had_progress = False
+        self._result = None
 
-    def run(self, cmd, cwd=None):
+    def run(self, cmd, cwd=None, label=None):
         if self.running:
-            self.log_fn("Уже запущено — дождитесь окончания или нажмите Стоп.\n")
+            # 21.10: защита от второго параллельного запуска — сообщение
+            # в лог и всплывающий тост со звуком
+            msg = (f"Уже запущено: {self._label}. Дождитесь окончания "
+                   "или нажмите «Стоп».")
+            self.log_fn(msg + "\n", "warn")
+            if self.notify_fn:
+                self.notify_fn(msg, "warn")
             return
         self.running = True
+        self._label = label or _tool_label(cmd)
+        self._t0 = time.monotonic()
+        self._had_progress = False
+        self._result = None
         self.q = queue.Queue()
         threading.Thread(target=self._worker, args=(cmd, cwd), daemon=True).start()
+        if self.status_fn:
+            self.status_fn(f"выполняется: {self._label}")
         self.root.after(100, self._poll)
 
     def _worker(self, cmd, cwd):
@@ -145,17 +210,25 @@ class Runner:
                 self.q.put(line)
             self.proc.stdout.close()
             code = self.proc.wait()
+            elapsed = time.monotonic() - t0
             self.q.put(f"\n[завершено, код {code}]\n")
-            _log_history(f"DONE  | код {code} | {time.monotonic() - t0:.1f} с")
+            # 21.10: структурный результат — код выхода и длительность
+            # идут через очередь в GUI-поток (тост, звук, статус)
+            self.q.put(("result", code, elapsed))
+            _log_history(f"DONE  | код {code} | {elapsed:.1f} с | {self._label}")
         except Exception as e:
             self.q.put(f"\n[ошибка запуска: {e}]\n")
-            _log_history(f"DONE  | ошибка запуска: {e}")
+            self.q.put(("result", -1, time.monotonic() - t0))
+            _log_history(f"DONE  | ошибка запуска: {e} | {self._label}")
         self.q.put(None)
 
     def _poll(self):
         try:
             while True:
                 item = self.q.get_nowait()
+                if isinstance(item, tuple) and item and item[0] == "result":
+                    self._result = item[1:]
+                    continue
                 if item is None:
                     self.running = False
                     # 01.10: сброс флага мягкой остановки и прогресс-бара
@@ -167,7 +240,9 @@ class Runner:
                         self.progress_bar.set(0)
                     if self.progress_label is not None:
                         self.progress_label.configure(text="")
-                    self.done_fn()
+                    res = self._result if self._result is not None else (0, 0.0)
+                    self._result = None
+                    self.done_fn(res[0], res[1])
                     return
                 # 22.09: PROGRESS:N/M — обновление прогресс-бара вместо лога
                 # 01.10: рядом с баром счётчик «N/M (x%)»
@@ -176,6 +251,7 @@ class Runner:
                     done, total = int(m.group(1)), int(m.group(2))
                     frac = done / total if total > 0 else 0
                     self.progress_bar.set(frac)
+                    self._had_progress = True
                     if self.progress_label is not None:
                         self.progress_label.configure(
                             text=f"{done}/{total} ({frac:.0%})")
@@ -184,6 +260,19 @@ class Runner:
         except queue.Empty:
             pass
         if self.running:
+            # 21.10: пока движок не присылает PROGRESS (нештатные и внешние
+            # скрипты), бар «дышит» пульсом — видна живая работа; в статусе
+            # имя инструмента и время
+            if not self._had_progress and self.progress_bar is not None:
+                t = (time.monotonic() - self._t0) % 2.4
+                tri = t if t <= 1.2 else 2.4 - t
+                self.progress_bar.set(0.08 + 0.82 * (tri / 1.2))
+                if self.progress_label is not None:
+                    self.progress_label.configure(text="идёт работа…")
+            if self.status_fn:
+                s = int(time.monotonic() - self._t0)
+                self.status_fn(
+                    f"выполняется: {self._label} • {s // 60}:{s % 60:02d}")
             self.root.after(100, self._poll)
 
     def stop(self):
@@ -195,6 +284,9 @@ class Runner:
             try:
                 STOP_FILE.write_text("stop", encoding="utf-8")
                 self.log_fn("\n[остановка: жду окончания текущего файла…]\n")
+                if self.notify_fn:
+                    self.notify_fn("Останавливаю операцию — текущий файл "
+                                   "будет докончен", "warn")
             except Exception:
                 pass
 
@@ -223,12 +315,16 @@ def run_cmd(cmd):
                 "Внешний скрипт не настроен.\n"
                 "Укажите путь на вкладке «Настройки» "
                 "(раздел «Пути к внешним скриптам»).\n", "err")
+            # 21.10: тост и звук ошибки — не только строка в логе
+            _app.toast("Скрипт не настроен: укажите путь на вкладке "
+                       "«Настройки»", "err")
             return
         if not _P(cmd[1]).is_file():
             _app.log_line(
                 f"Скрипт не найден: {cmd[1]}\n"
                 "Укажите правильный путь на вкладке «Настройки» "
                 "(раздел «Пути к внешним скриптам»).\n", "err")
+            _app.toast(f"Скрипт не найден: {Path(cmd[1]).name}", "err")
             return
     _app.runner.run(cmd)
 
@@ -266,6 +362,8 @@ class App(ctk.CTk):
         self.minsize(900, 640)
 
         self.runner = Runner(self.log_line, self._on_done, self)
+        # 21.10: тосты (всплывающие сообщения) из Runner — «уже запущено» и т.п.
+        self.runner.notify_fn = self.toast
         # 20.10: закрытие окна во время работы процесса — останавливаем
         # запись аккуратно, вместо жёсткого обрыва с недописанным файлом
         self.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -334,8 +432,6 @@ class App(ctk.CTk):
         self.progress_label.pack(side="left", padx=(10, 0))
         self.runner.progress_bar = self.progress_bar
         self.runner.progress_label = self.progress_label
-        self.runner.status_fn = (lambda: self.status.configure(
-            text="выполняется…"))
 
         # tk.Text для лога (цветные теги) + свой скроллбар
         # 22.09: начальные цвета из палитры
@@ -378,6 +474,9 @@ class App(ctk.CTk):
         self._compact_btns = (stop_b, rep_b, clr_b)
         self.status = ctk.CTkLabel(btns, text="готов", font=FONT_SMALL)
         self.status.pack(side="right")
+        # 21.10: статус рисует Runner (имя инструмента + таймер работы);
+        # после создания лейбла — раньше он ещё не существует
+        self.runner.status_fn = self.status.configure
 
         # --- Вкладки инструментов ---
         from tabs_names import NamesTab
@@ -395,6 +494,24 @@ class App(ctk.CTk):
             t = cls(scroll)
             t._build(t)
             t.pack(fill="x", anchor="n")
+
+        # 21.10: реестр «крупных» кнопок инструментов — на время операции
+        # они блокируются, чтобы нельзя было запустить вторую параллельно
+        self._big_buttons = []
+        for frame in self.nb._tab_dict.values():
+            for w in _walk_widgets(frame):
+                if isinstance(w, BigButton):
+                    self._big_buttons.append(w)
+
+    def _set_busy(self, busy):
+        """21.10: блокировка кнопок инструментов на время операции.
+        «Стоп», «Отчёт» и «Очистить» остаются доступны."""
+        state = "disabled" if busy else "normal"
+        for b in self._big_buttons:
+            try:
+                b.configure(state=state)
+            except Exception:
+                pass
 
     def _on_close(self):
         """20.10: мягкое закрытие: если процесс пишет файлы — даём ему
@@ -476,8 +593,47 @@ class App(ctk.CTk):
             self.log.insert("end", text)
         self.log.see("end")
 
-    def _on_done(self):
-        self.status.configure(text="готов")
+    def toast(self, text, level="info"):
+        """21.10: всплывающее сообщение справа снизу экрана, исчезает само
+        (или по клику). С уровнем err/warn/ok звучит системный сигнал."""
+        try:
+            _toast_beep(level)
+            p = _pal()
+            border = {"ok": p["ok"], "warn": p["warn"], "err": p["err"],
+                      "info": p["accent"]}.get(level, p["accent"])
+            win = tk.Toplevel(self)
+            win.overrideredirect(True)
+            win.attributes("-topmost", True)
+            outer = tk.Frame(win, bg=border, padx=2, pady=2)
+            outer.pack()
+            inner = tk.Frame(win, bg=p["card"], padx=14, pady=9)
+            inner.pack()
+            tk.Label(inner, text=text, justify="left", bg=p["card"],
+                     fg=p["log_fg"], font=("Segoe UI", 10),
+                     wraplength=330).pack(anchor="w")
+            for w in (win, outer, inner):
+                w.bind("<Button-1>", lambda e: win.destroy())
+            win.update_idletasks()
+            x = win.winfo_screenwidth() - win.winfo_width() - 24
+            y = win.winfo_screenheight() - win.winfo_height() - 48
+            win.geometry(f"+{x}+{y}")
+            win.after(4200, win.destroy)
+        except Exception:
+            pass  # тост никогда не мешает работе инструментов
+
+    def _on_done(self, code=0, elapsed=0.0):
+        """21.10: завершение операции — разблокировка кнопок, тост и звук."""
+        self._set_busy(False)
+        label = getattr(self.runner, "_label", "операция")
+        mins = f"{int(elapsed) // 60}:{int(elapsed) % 60:02d}"
+        if code == 0:
+            self.status.configure(text="готов")
+            self.toast(f"Готово: {label} ({mins}).\nПодробности — в окне вывода.",
+                       "ok")
+        else:
+            self.status.configure(text=f"готов (код {code})")
+            self.toast(f"Ошибка: {label} завершился с кодом {code}.\n"
+                       "Подробности — в окне вывода.", "err")
 
     def _save_report(self):
         text = self.log.get("1.0", "end").rstrip()

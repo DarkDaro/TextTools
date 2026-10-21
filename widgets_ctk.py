@@ -42,6 +42,49 @@ def _drop_first_path(event):
     return data.split(" ")[0].strip("{}")
 
 
+def _clean_clip_path(data):
+    """21.10: путь из буфера подчищается: Explorer «Копировать как путь»
+    обрамляет путь двойными кавычками, переводы строк заменяются пробелом."""
+    data = (data or "").strip().strip('"').strip()
+    return data.replace("\r\n", " ").replace("\n", " ").strip()
+
+
+def attach_clip_menu(entry):
+    """21.10: правая кнопка мыши в поле — Копировать/Вставить/Очистить.
+    Ctrl+V тоже вставляет через «чистку» (кавычки снимаются)."""
+    menu = tk.Menu(entry, tearoff=0, font=("Segoe UI", 10))
+
+    def paste():
+        try:
+            data = _clean_clip_path(entry.clipboard_get())
+        except Exception:
+            return
+        if data:
+            entry.insert(entry.index("insert"), data)
+
+    def copy_all():
+        data = entry.get()
+        if data:
+            entry.clipboard_clear()
+            entry.clipboard_append(data)
+
+    menu.add_command(label="Вставить из буфера", command=paste)
+    menu.add_command(label="Копировать всё", command=copy_all)
+    menu.add_separator()
+    menu.add_command(label="Очистить поле",
+                     command=lambda: entry.delete(0, "end"))
+
+    def popup(e):
+        try:
+            menu.tk_popup(e.x_root, e.y_root)
+        finally:
+            menu.grab_release()
+        return "break"
+
+    entry.bind("<Button-3>", popup)
+    return menu
+
+
 # масштаб и вид по умолчанию
 ctk.set_widget_scaling(1.0)
 FONT = ("Segoe UI", 12)
@@ -159,6 +202,9 @@ class PathField(ctk.CTkFrame):
                     w.bind("<<Drop>>", self._on_drop)
             except Exception:
                 pass
+        # 21.10: правый клик — Копировать/Вставить/Очистить; вставленный
+        # путь чистится от кавычек («Копировать как путь» в Explorer)
+        attach_clip_menu(self.entry)
 
     def _set(self, p):
         self.var.set(p)
@@ -232,6 +278,8 @@ class EntryField(ctk.CTkFrame):
         # 01.10: подсказка и на поле, не только на метке
         if tooltip:
             Tooltip(self.entry, tooltip)
+        # 21.10: правый клик — Копировать/Вставить/Очистить в любом поле
+        attach_clip_menu(self.entry)
 
     def _autosave(self, *_):
         self.cfg.set(self.key, self.var.get())

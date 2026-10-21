@@ -41,6 +41,11 @@ class SettingsTab(ctk.CTkFrame):
         CheckField(s2.inner, "Показывать команды в логе", "show_cmd", CFG, default=True,
                    tooltip="Показывать в окне вывода командную строку перед результатом."
                    ).pack(anchor="w")
+        CheckField(s2.inner, "Звуковые сигналы", "sound", CFG, default=True,
+                   tooltip="Короткие системные звуки: ошибка операции, "
+                           "«Уже запущено», завершение. С ошибкой звук "
+                           "всегда заметный."
+                   ).pack(anchor="w")
 
         # --- Сохранение / сброс ---
         s3 = Section(parent, "Сохранение настроек")
