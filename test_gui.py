@@ -44,7 +44,8 @@ RUN_BUTTONS = {
 # 24.10: служебные кнопки без запуска инструментов: кликаем и смотрим,
 # что действие отработало без исключения (лог вырос).
 UTILITY_BUTTONS = {"Проверить пути", "Сохранить сейчас",
-                   "Проверить зависимости", "Скопировать сведения"}
+                   "Проверить зависимости", "Скопировать сведения",
+                   "Найти скрипты"}
 
 # 24.10: опасные (запись/удаление/внешние программы) — только привязка
 # обработчика, без клика
@@ -332,6 +333,41 @@ def main():
               str(gui_config.CFG.get("ui.log_limit")) == "7000",
               str(gui_config.CFG.get("ui.log_limit")))
 
+        # 25.10: «Выкл» — отдельный флаг script_preset, а не очистка полей.
+        saved_preset = gui_config.CFG.get("script_preset", "auto")
+        saved_fields = {key: field.get()
+                        for key, field in settings._script_fields.items()}
+        test_paths = {key: f"C:/tmp/{key}.py"
+                      for key in settings._script_fields}
+        for key, field in settings._script_fields.items():
+            field.set(test_paths[key])
+        settings._on_preset("Выкл")
+        check("«Выкл» не стирает ручные пути",
+              all(field.get() == test_paths[key]
+                  for key, field in settings._script_fields.items()),
+              str({key: field.get()
+                   for key, field in settings._script_fields.items()}))
+        from wrappers import script_path
+        check("«Выкл» отключает запуск внешних скриптов",
+              all(script_path(key) == "" for key in settings._script_fields),
+              str({key: script_path(key) for key in settings._script_fields}))
+        settings._on_preset("Вручную")
+        check("«Вручную» возвращает сохранённые пути",
+              all(field.get() == test_paths[key]
+                  for key, field in settings._script_fields.items()),
+              str({key: field.get()
+                   for key, field in settings._script_fields.items()}))
+        settings._fill_auto(switch=False)
+        from wrappers import script_preset
+        check("«Найти скрипты» не меняет ручной пресет",
+              script_preset() == "manual", script_preset())
+        for key, field in settings._script_fields.items():
+            field.set(saved_fields.get(key, ""))
+        gui_config.CFG.set("script_preset", saved_preset)
+        settings.preset.set({"auto": "Авто", "manual": "Вручную",
+                             "off": "Выкл"}.get(saved_preset, "Авто"))
+        settings._update_preset_hint()
+
         reports_dir = Path(tempfile.gettempdir()) / "textools_reports_check"
         settings.f_report_dir.set(str(reports_dir))
         resolved = app._reports_dir()
@@ -508,6 +544,22 @@ def main():
               str(cjk[:1]))
         check("расширения из настроек доходят до find_cjk",
               bool(cjk) and "--ext" in cjk[0][1], str(cjk[:1]))
+        check("find_cjk запускается без --exit-zero",
+              bool(cjk) and "--exit-zero" not in cjk[0][1], str(cjk[:1]))
+        orig_beep = gui_ctk._toast_beep
+        orig_flag = gui_ctk._cfg_flag
+        try:
+            gui_ctk._toast_beep = lambda level: None
+            gui_ctk._cfg_flag = lambda *args, **kwargs: False
+            app.runner._label = "find_cjk"
+            app._on_done(1, 0.1)
+            check("find_cjk: код 1 — «есть замечания»",
+                  app.status.cget("text") == "есть замечания",
+                  app.status.cget("text"))
+        finally:
+            gui_ctk._toast_beep = orig_beep
+            gui_ctk._cfg_flag = orig_flag
+            app.status.configure(text="готов")
 
         print("[10] состояние окна")
         app._save_ui_state()

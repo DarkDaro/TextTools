@@ -2,12 +2,15 @@
 obsidian-check и поиск иероглифов (find_cjk).
 18.09: переделана на CustomTkinter (widgets_ctk)."""
 import sys
+from pathlib import Path
 
 import customtkinter as ctk
 
 from gui_config import CFG
 from widgets_ctk import (PathField, CheckField, HelpBox, Section,
                          EntryField, ActionButton, button_row)
+
+HERE = Path(__file__).resolve().parent
 
 
 class VaultTab(ctk.CTkFrame):
@@ -273,13 +276,14 @@ class VaultTab(ctk.CTkFrame):
     def _run_cjk(self):
         # 24.10: find_cjk живёт в корне проекта, запуск отдельным процессом
         from gui_ctk import run_cmd, _app
-        from gui_config import CONFIG_FILE
         p = self.f_cjk.get()
         if not p:
             _app.log_line("Укажите папку или файл для поиска иероглифов.\n")
             return
+        # 25.10: код 1 у find_cjk — находки. GUI показывает статус
+        # «есть замечания», поэтому --exit-zero здесь не нужен.
         cmd = [sys.executable,
-               str(CONFIG_FILE.parent / "find_cjk.py"), p]
+               str(HERE / "find_cjk.py"), p]
         ext = str(CFG.get("cjk_ext", "") or "").strip()
         if ext:
             cmd += ["--ext", ext]
@@ -291,7 +295,6 @@ class VaultTab(ctk.CTkFrame):
     def _run_phrase_check(self):
         # 22.09: phrase_check — штампы ИИ-текста и канцелярит
         from gui_ctk import run_cmd
-        from gui_config import CONFIG_FILE
         p = self.f_pc.get()
         if not p:
             self._log("Укажите папку или файл для поиска штампов.\n")
@@ -303,7 +306,7 @@ class VaultTab(ctk.CTkFrame):
         # скрипта, зато лог не пишется из чужого потока (Tk так нельзя).
         if phrase and self.c_pc_add.get():
             import subprocess
-            script = str(CONFIG_FILE.parent / "tools" / "phrase_check.py")
+            script = str(HERE / "tools" / "phrase_check.py")
             try:
                 r = subprocess.run(
                     [sys.executable, script, "--add", phrase],
@@ -317,7 +320,7 @@ class VaultTab(ctk.CTkFrame):
             except Exception as e:
                 self._log(f"Не удалось запомнить фразу: {e}\n", "warn")
         cmd = [sys.executable,
-               str(CONFIG_FILE.parent / "tools" / "phrase_check.py"),
+               str(HERE / "tools" / "phrase_check.py"),
                "--input", p]
         if custom:
             cmd += ["--custom", custom]
@@ -332,7 +335,6 @@ class VaultTab(ctk.CTkFrame):
         # 22.09: чистка штампов по словарю замен (dry-run по умолчанию)
         # 01.10: «Выборочно (витрина)» — сначала обзор вхождений в диалоге
         from gui_ctk import run_cmd, _app
-        from gui_config import CONFIG_FILE
         p = self.f_pc.get()
         if not p:
             _app.log_line("Укажите папку или файл для чистки штампов.\n")
@@ -341,7 +343,7 @@ class VaultTab(ctk.CTkFrame):
             self._run_review(p)
             return
         dry = self.c_pc_dry.get()
-        script = CONFIG_FILE.parent / "tools" / "phrase_check.py"
+        script = HERE / "tools" / "phrase_check.py"
         cmd = [sys.executable, str(script), "--input", p, "--clean"]
         if dry:
             cmd += ["--dry-run"]
@@ -397,12 +399,11 @@ class VaultTab(ctk.CTkFrame):
         import queue as _queue
         import subprocess
         import threading
-        from gui_config import CONFIG_FILE
         from gui_ctk import _app as app
 
         if not app.begin_background("Витрина штампов"):
             return
-        script = str(CONFIG_FILE.parent / "tools" / "phrase_check.py")
+        script = str(HERE / "tools" / "phrase_check.py")
         q = _queue.Queue()
 
         def _worker():

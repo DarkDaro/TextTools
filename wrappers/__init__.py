@@ -10,30 +10,168 @@ md_replace / char_search при реальной записи требуют п�
 GUI всегда передаёт --yes, подтверждением служит чекбокс «Применить изменения».
 """
 from pathlib import Path
+import os
 import sys
 
-# Пути к внешним скриптам в коде не хранятся: их указывает пользователь
-# на вкладке «Настройки» (ключи script_<имя> в gui_config.json).
-# Пустое значение = скрипт не настроен, run_cmd подскажет в GUI-логе.
-DEFAULTS = {
-    "emoji_cleaner": "",
-    "clean_text": "",
-    "md_replace": "",
-    "char_search": "",
-    "refile": "",
+# 25.10: базовые пути к внешним скриптам. Абсолютные пути в коде не
+# хранятся: ищем знакомые раскладки рядом с проектом и в каталогах
+# пользователя. Найденное подставляется в пустые поля настроек.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+HOME_ROOT = Path.home()
+
+# Относительные пути от одной из базовых папок. Порядок важен:
+# сначала специфичные для проекта каталоги, потом общие имена.
+SCRIPT_CANDIDATES = {
+    "emoji_cleaner": (
+        "emoji-cleaner/clean.py",
+        "emoji_cleaner/clean.py",
+        "emoji-cleaner.py",
+    ),
+    "clean_text": (
+        "scripts/Archive/herodata/clean_text_files.py",
+        "herodata/clean_text_files.py",
+        "clean_text_files.py",
+        "clean-text/clean_text_files.py",
+    ),
+    "md_replace": (
+        "md-replace/md_replace.py",
+        "md_replace/md_replace.py",
+        "md_replace.py",
+    ),
+    "char_search": (
+        "md-replace/char_search.py",
+        "md_replace/char_search.py",
+        "char_search.py",
+    ),
+    "refile": (
+        "refile.py",
+        "refile/refile.py",
+    ),
 }
+
+# 25.10: недостаточно проверить имя файла. Одноимённый чужой скрипт в
+# домашнем каталоге не должен попасть в автопоиск: сверяем заметные
+# строки конкретного инструмента. Ручной путь в настройках не проверяется.
+SCRIPT_SIGNATURES = {
+    "emoji_cleaner": ("эмодзи", "--restore"),
+    "clean_text": ("clean_text_files", "китайских"),
+    "md_replace": ("Массовая автозамена", "--dry-run"),
+    "char_search": ("Поиск персонажей", "--vault"),
+    "refile": ("массовое редактирование", "--exts"),
+}
+
+
+def _looks_like_script(key, path):
+    """Проверить, что файл похож на нужный инструмент по его строкам."""
+    markers = SCRIPT_SIGNATURES.get(key, ())
+    try:
+        text = Path(path).read_text(encoding="utf-8",
+                                     errors="replace")[:16384].lower()
+    except OSError:
+        return False
+    return bool(markers) and all(marker.lower() in text for marker in markers)
+
+
+def _script_roots(root=None):
+    """Папки, в которых ищем скрипты. root задаёт только одну папку."""
+    if root is not None:
+        return [Path(root)]
+    roots = []
+    env = os.environ.get("TEXTOOLS_SCRIPTS_DIR", "").strip()
+    if env:
+        roots.append(Path(env))
+    roots.extend([
+        PROJECT_ROOT,
+        PROJECT_ROOT.parent,
+        PROJECT_ROOT.parent.parent,
+        HOME_ROOT / "python-projects",
+        HOME_ROOT / "projects",
+        Path.cwd(),
+    ])
+    # без дублей, сохраняя порядок
+    seen = set()
+    out = []
+    for p in roots:
+        try:
+            key = str(p.resolve()).lower()
+        except Exception:
+            key = str(p).lower()
+        if key not in seen:
+            seen.add(key)
+            out.append(p)
+    return out
+
+
+def find_scripts(root=None):
+    """{ключ: путь} для найденных внешних скриптов. root — только эта папка."""
+    found = {}
+    for base in _script_roots(root):
+        for key, relatives in SCRIPT_CANDIDATES.items():
+            if key in found:
+                continue
+            for rel in relatives:
+                p = base / rel
+                if p.is_file() and _looks_like_script(key, p):
+                    found[key] = str(p)
+                    break
+    return found
+
+
+# 25.10: не кэшируем на импорте. Кэш сбрасывается при смене
+# TEXTOOLS_SCRIPTS_DIR или рабочей папки, иначе новый путь находился бы
+# только после перезапуска GUI.
+_default_cache = None
+_default_key = None
+
+
+def default_scripts():
+    """Найденные скрипты с кэшем, зависящим от окружения и cwd."""
+    global _default_cache, _default_key
+    key = (os.environ.get("TEXTOOLS_SCRIPTS_DIR", "").strip(),
+           str(Path.cwd()))
+    if _default_cache is None or key != _default_key:
+        _default_cache = find_scripts()
+        _default_key = key
+    return _default_cache
+
 
 TEXT_EXTS = ["md", "txt"]
 
 
-def script_path(key):
-    """Путь к внешнему скрипту из настроек GUI (script_<key> в конфиге).
-    Не настроен или файл не существует -> "" (run_cmd подскажет в GUI)."""
+def script_preset():
+    """Текущий пресет: auto / manual / off. Старые конфиги = auto."""
     from gui_config import CFG
-    custom = CFG.get(f"script_{key}")
+    value = str(CFG.get("script_preset", "auto") or "auto").strip().lower()
+    return value if value in ("auto", "manual", "off") else "auto"
+
+
+def script_source(key):
+    """Откуда взят путь: custom / auto / ""."""
+    from gui_config import CFG
+    custom = str(CFG.get(f"script_{key}", "") or "").strip()
+    if custom and Path(custom).is_file():
+        return "custom"
+    default = default_scripts().get(key, "")
+    if default and Path(default).is_file():
+        return "auto"
+    if find_scripts().get(key):
+        return "auto"
+    return ""
+
+
+def script_path(key):
+    """Путь к внешнему скрипту: настройка -> автопоиск -> "".
+    Пресет off отключает внешние скрипты целиком."""
+    from gui_config import CFG
+    if script_preset() == "off":
+        return ""
+    custom = str(CFG.get(f"script_{key}", "") or "").strip()
     if custom and Path(custom).is_file():
         return custom
-    return DEFAULTS[key]
+    default = default_scripts().get(key, "")
+    if default and Path(default).is_file():
+        return default
+    return find_scripts().get(key, "")
 
 
 def cmd_emoji_clean(paths, dry_run=True, backup=False, restore=False):

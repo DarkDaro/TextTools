@@ -11,6 +11,7 @@
     python find_cjk.py <путь> --ext .md,.txt # только эти расширения
     python find_cjk.py <путь> --json out.json
     python find_cjk.py <путь> --quiet        # только итог, без деталей
+    python find_cjk.py <путь> --exit-zero    # 0 даже при находках (для скриптов)
 
 Код возврата: 0 — чисто, 1 — есть находки, 2 — путь не найден.
 Только чтение. Ничего не меняет и не исправляет.
@@ -150,6 +151,9 @@ def main(argv=None) -> int:
     parser.add_argument("--ext", default="", help="расширения через запятую, например .md,.txt")
     parser.add_argument("--json", dest="json_out", default="", help="сохранить полный отчёт в JSON")
     parser.add_argument("--quiet", action="store_true", help="только итог, без деталей")
+    # 25.10: для CLI и внешних проверок; GUI сам трактует код 1
+    parser.add_argument("--exit-zero", action="store_true",
+                        help="вернуть 0 даже при находках")
     # 24.10: argv — чтобы вызывать из textools.py без подмены sys.argv
     args = parser.parse_args(argv)
 
@@ -267,7 +271,7 @@ def main(argv=None) -> int:
         write_json(report)
         print(f"Полный отчёт: {args.json_out}")
 
-    return 1
+    return 0 if args.exit_zero else 1
 
 
 if __name__ == "__main__":
