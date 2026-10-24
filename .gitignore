@@ -21,3 +21,10 @@ synthetic/
 .vscode/
 Thumbs.db
 desktop.ini
+
+# Сборка пакета
+build/
+*.egg-info/
+
+# UI-стандарт проекта — рабочая копия, в git не входит
+UI_DESIGN.md

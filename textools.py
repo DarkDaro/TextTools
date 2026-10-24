@@ -8,6 +8,8 @@ textools — единый CLI текстовых инструментов.
   broken-links       вики-ссылки на несуществующие заметки
   merge-finder       дубликаты по содержимому и по именам файлов
   integrity          целостность .md: пустые, битый UTF-8, frontmatter, заголовки
+  obsidian-check     валидатор метафайлов Obsidian: таблицы, заголовки, теги, ссылки
+  cjk                иероглифы (CJK), мойбейк и порча кодировки (только чтение)
 """
 import sys
 from pathlib import Path
@@ -16,9 +18,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import argparse
 
+# 24.10: версия проекта — единый источник для CLI, GUI и pyproject.toml
+__version__ = "1.0.0"
+
 
 def main():
     ap = argparse.ArgumentParser(description="textools: инструменты для текста")
+    ap.add_argument("--version", action="version",
+                    version=f"textools {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p1 = sub.add_parser("registry-builder",
@@ -101,6 +108,28 @@ def main():
         p.add_argument("--verbose", action="store_true")
         p.add_argument("--out")
 
+    p_int = sub.add_parser("obsidian-check",
+                           help="валидатор метафайлов Obsidian: таблицы, заголовки, теги, frontmatter")
+    p_int.add_argument("--input", required=True)
+    p_int.add_argument("--limit", type=int)
+    p_int.add_argument("--fix", action="store_true", help="править однозначное (с .bak)")
+    p_int.add_argument("--no-bak", action="store_true",
+                       help="не делать .bak (для папок под git)")
+    p_int.add_argument("--exit-zero", action="store_true",
+                       help="код 0, даже если найдены ERROR (для GUI)")
+    p_int.add_argument("--verbose", action="store_true")
+    p_int.add_argument("--out")
+
+    # 24.10: find_cjk из корня проекта — поиск иероглифов и мойбейка
+    p_cjk = sub.add_parser("cjk",
+                           help="иероглифы (CJK), мойбейк и порча кодировки (только чтение)")
+    p_cjk.add_argument("--input", required=True, help="папка или файл")
+    p_cjk.add_argument("--ext", default="",
+                       help="расширения через запятую, например .md,.txt")
+    p_cjk.add_argument("--json", dest="json_out", default="",
+                       help="сохранить полный отчёт в JSON")
+    p_cjk.add_argument("--quiet", action="store_true", help="только итог, без деталей")
+
     p11 = sub.add_parser("typography",
                          help="типографика: «ёлочки», тире, многоточия (с .bak)")
     p11.add_argument("--input", required=True)
@@ -136,6 +165,25 @@ def main():
                 *(["--verbose"] if args.verbose else []),
                 *(["--out", args.out] if args.out else [])]
         sys.exit(mod.main(opts))
+    if args.cmd == "obsidian-check":
+        sys.path.insert(0, str(here))
+        from tools import obsidian_check
+        opts = ["--input", args.input,
+                *(["--limit", str(args.limit)] if args.limit else []),
+                *(["--fix"] if args.fix else []),
+                *(["--no-bak"] if args.no_bak else []),
+                *(["--exit-zero"] if args.exit_zero else []),
+                *(["--verbose"] if args.verbose else []),
+                *(["--out", args.out] if args.out else [])]
+        sys.exit(obsidian_check.main(opts))
+    if args.cmd == "cjk":
+        sys.path.insert(0, str(here))
+        from find_cjk import main as cjk_main
+        opts = [args.input,
+                *(["--ext", args.ext] if args.ext else []),
+                *(["--json", args.json_out] if args.json_out else []),
+                *(["--quiet"] if args.quiet else [])]
+        sys.exit(cjk_main(opts))
     if args.cmd == "merge-registry":
         sys.path.insert(0, str(here))
         from tools import registry_merge

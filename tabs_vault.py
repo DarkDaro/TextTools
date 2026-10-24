@@ -1,11 +1,13 @@
-"""Вкладка «Хранилище»: orphan-finder, broken-links, merge-finder, integrity.
+"""Вкладка «Хранилище»: orphan-finder, broken-links, merge-finder, integrity,
+obsidian-check и поиск иероглифов (find_cjk).
 18.09: переделана на CustomTkinter (widgets_ctk)."""
 import sys
 
 import customtkinter as ctk
 
 from gui_config import CFG
-from widgets_ctk import PathField, CheckField, HelpBox, Section, BigButton, EntryField
+from widgets_ctk import (PathField, CheckField, HelpBox, Section,
+                         EntryField, ActionButton, button_row)
 
 
 class VaultTab(ctk.CTkFrame):
@@ -22,7 +24,12 @@ class VaultTab(ctk.CTkFrame):
             "кандидаты на слияние.\n"
             "• Целостность — пустые файлы, битая кодировка, незакрытый frontmatter, "
             "отсутствие заголовка.\n"
-            "Все три инструмента ТОЛЬКО читают файлы — ничего не изменяют."))
+            "• Валидатор Obsidian — всё то, что Obsidian молча ломает при чтении: "
+            "таблицы, заголовки, теги, ссылки, code fence. По умолчанию только читает; "
+            "галочка «Исправить однозначное» включает запись с бэкапом .bak.\n"
+            "• Иероглифы — китайские знаки, японские азбуки, мойбейк и невидимые "
+            "символы: частая порча текста после языковых моделей.\n"
+            "Все проверки, кроме «Исправить однозначное», ТОЛЬКО читают файлы."))
 
         s = Section(parent, "Хранилище (vault)")
         self.f_vault = PathField(s.inner, "Папка vault:", "vault_input", CFG,
@@ -32,25 +39,84 @@ class VaultTab(ctk.CTkFrame):
                                          "Но можно выбрать и один .md файл — "
                                          "инструмент проверит только его.")
 
-        btns = ctk.CTkFrame(s.inner, fg_color="transparent")
-        btns.pack(fill="x", pady=6)
-        BigButton(btns, "Orphans (одиночки)", self._run_orphans,
-                  tooltip="Заметки без входящих и исходящих ссылок.").pack(
-                      side="left", padx=(0, 8))
-        BigButton(btns, "Битые ссылки", self._run_broken,
-                  tooltip="Ссылки [[такие]], ведущие на несуществующие заметки.").pack(
-                      side="left", padx=8)
-        BigButton(btns, "Дубликаты (merge)", self._run_merge,
-                  tooltip="Похожие заметки — кандидаты на слияние.").pack(
-                      side="left", padx=8)
-        BigButton(btns, "Целостность", self._run_integrity,
-                  tooltip="Пустые файлы, битый UTF-8, незакрытый frontmatter, "
-                          "отсутствие заголовка ##. Только чтение.").pack(
-                      side="left", padx=8)
+        btns = button_row(s.inner, pady=(6, 0))
+        ActionButton(btns, "Orphans (одиночки)", self._run_orphans,
+                     kind="safe", width=170,
+                     tooltip="Заметки без входящих и исходящих ссылок."
+                     ).pack(side="left", padx=(0, 8))
+        ActionButton(btns, "Битые ссылки", self._run_broken,
+                     kind="safe", width=165,
+                     tooltip="Ссылки [[такие]], ведущие на несуществующие заметки."
+                     ).pack(side="left", padx=(0, 8))
+        ActionButton(btns, "Дубликаты (merge)", self._run_merge,
+                     kind="safe", width=175,
+                     tooltip="Похожие заметки — кандидаты на слияние."
+                     ).pack(side="left", padx=(0, 8))
+        ActionButton(btns, "Целостность", self._run_integrity,
+                     kind="safe", width=150,
+                     tooltip="Пустые файлы, битый UTF-8, незакрытый frontmatter, "
+                             "отсутствие заголовка ##. Только чтение."
+                     ).pack(side="left")
 
-        self.c_report = CheckField(s.inner, "Сохранять отчёт в reports/", "vault_save_report", CFG,
-                                   tooltip="Кроме окна, отчёт будет записан в папку reports/ внутри textools.")
+        self.c_report = CheckField(s.inner, "Сохранять отчёт в папку отчётов",
+                                   "vault_save_report", CFG,
+                                   tooltip="Кроме окна, отчёт будет записан "
+                                           "в папку отчётов (по умолчанию "
+                                           "reports/ внутри textools).")
         self.c_report.pack(anchor="w", pady=(0, 4))
+
+        # --- 24.10: валидатор метафайлов Obsidian ---
+        s_obs = Section(parent, "Валидатор заметок Obsidian (obsidian-check)")
+        self.f_obs = PathField(s_obs.inner, "Папка vault:", "obs_input", CFG,
+                               file_mode="both",
+                               tooltip="Папка хранилища или одна заметка. "
+                                       "Проверяет frontmatter, таблицы, "
+                                       "заголовки, теги, ссылки и code fence.")
+        r_obs = ctk.CTkFrame(s_obs.inner, fg_color="transparent")
+        r_obs.pack(fill="x", pady=4)
+        self.c_obs_fix = CheckField(r_obs, "Исправить однозначное (--fix)",
+                                    "obs_fix", CFG, default=False,
+                                    tooltip="Правит только машинно-однозначное: "
+                                            "кавычки в значениях frontmatter, "
+                                            "'|' внутри `кода` в таблице, "
+                                            "посимвольно разбитый текст. "
+                                            "Перед записью создаётся .bak.")
+        self.c_obs_fix.pack(side="left", padx=(0, 16))
+        self.c_obs_report = CheckField(r_obs, "Сохранять отчёт в папку отчётов",
+                                       "obs_report", CFG, default=False,
+                                       tooltip="Пишет полный отчёт со всеми "
+                                               "замечаниями в папку отчётов "
+                                               "(по умолчанию reports/).")
+        self.c_obs_report.pack(side="left", padx=16)
+        row_obs = button_row(s_obs.inner)
+        b_obs = ActionButton(row_obs, "Проверить заметки", self._run_obsidian,
+                             kind="safe", width=185,
+                             tooltip="ERROR — Obsidian отрисует неверно или "
+                                     "потеряет данные, WARN — сломана структура, "
+                                     "INFO — косметика. Без галочки только читает.")
+        b_obs.pack(side="left")
+        b_obs.link_danger(self.c_obs_fix.var)
+
+        # --- 24.10: поиск иероглифов и порчи кодировки (find_cjk) ---
+        s_cjk = Section(parent, "Иероглифы и порча кодировки (find_cjk)")
+        self.f_cjk = PathField(s_cjk.inner, "Папка или файл:", "cjk_input", CFG,
+                               file_mode="both",
+                               tooltip="Проверяет .md/.txt/.json/.yaml на китайские "
+                                       "иероглифы, японские и корейские азбуки, "
+                                       "мойбейк, невидимые символы. Только чтение.")
+        self.c_cjk_json = CheckField(s_cjk.inner,
+                                     "Сохранять полный отчёт в JSON",
+                                     "cjk_json", CFG, default=False,
+                                     tooltip="JSON со всеми находками (файл, "
+                                             "строка, колонка, код символа) "
+                                             "в папке отчётов.")
+        self.c_cjk_json.pack(anchor="w")
+        row_cjk = button_row(s_cjk.inner)
+        ActionButton(row_cjk, "Найти иероглифы", self._run_cjk,
+                     kind="safe", width=185,
+                     tooltip="Иероглифы, мойбейк (UTF-8, прочитанный как "
+                             "latin-1/cp1251) и BOM внутри текста. "
+                             "Файлы не меняются.").pack(side="left")
 
         # --- 22.09: phrase_check — штампы ИИ-текста и канцелярит ---
         s2 = Section(parent, "Штампы ИИ-текста и канцелярит (phrase_check)")
@@ -70,22 +136,26 @@ class VaultTab(ctk.CTkFrame):
                                    tooltip="Добавит фразу в phrases.yaml — она будет "
                                            "искаться всегда.")
         self.c_pc_add.pack(anchor="w")
-        btns_pc = ctk.CTkFrame(s2.inner, fg_color="transparent")
-        btns_pc.pack(fill="x", pady=6)
-        BigButton(btns_pc, "Найти штампы", self._run_phrase_check,
-                  tooltip="Ищет шаблонные нейросетевые обороты и канцелярит по всем "
-                          ".md/.txt/.docx. Только отчёт, ничего не изменяет."
-                  ).pack(side="left", padx=(0, 8))
+        btns_pc = button_row(s2.inner, pady=(6, 0))
+        ActionButton(btns_pc, "Найти штампы", self._run_phrase_check,
+                     kind="safe", width=160,
+                     tooltip="Ищет шаблонные нейросетевые обороты и канцелярит "
+                             "по всем .md/.txt/.docx. Только отчёт, ничего "
+                             "не изменяет.").pack(side="left", padx=(0, 8))
         self.c_pc_dry = CheckField(btns_pc, "Только отчёт (не менять)", "pc_dry", CFG,
                                    default=True,
                                    tooltip="ВКЛ — показывается план замен без правки файлов. "
                                            "ВЫКЛ — реальные замены (с бэкапом).")
         self.c_pc_dry.pack(side="left", padx=(0, 12))
-        BigButton(btns_pc, "Почистить штампы", self._run_phrase_clean,
-                  tooltip="Удаляет/заменяет штампы по словарю очистки "
-                          "(phrases_clean.yaml можно дополнить своими правилами). "
-                          "Например: «в современном мире» -> «сегодня», "
-                          "«стоит отметить, что» -> удалить. С бэкапом.")
+        b_pc_clean = ActionButton(
+            btns_pc, "Почистить штампы", self._run_phrase_clean,
+            kind="primary", width=190,
+            tooltip="Удаляет/заменяет штампы по словарю очистки "
+                    "(phrases_clean.yaml можно дополнить своими правилами). "
+                    "Например: «в современном мире» -> «сегодня», "
+                    "«стоит отметить, что» -> удалить. С бэкапом.")
+        b_pc_clean.pack(side="left", padx=(0, 8))
+        b_pc_clean.link_danger(self.c_pc_dry.var, invert=True)
         # 01.10: витрина — каждое вхождение с контекстом и галочками
         self.c_pc_review = CheckField(btns_pc, "Выборочно (витрина)",
                                       "pc_review", CFG, default=False,
@@ -108,9 +178,12 @@ class VaultTab(ctk.CTkFrame):
                                               "reports/stats_log.csv — удобно "
                                               "следить за прогрессом в Excel.")
         self.c_stats_csv.pack(anchor="w")
-        BigButton(s3.inner, "Построить статистику", self._run_stats,
-                  tooltip="Объём, средняя длина предложения, доля диалогов, "
-                          "частотные слова-паразиты на 1000 слов.")
+        row_stats = button_row(s3.inner)
+        ActionButton(row_stats, "Построить статистику", self._run_stats,
+                     kind="safe", width=235,
+                     tooltip="Объём, средняя длина предложения, доля диалогов, "
+                             "частотные слова-паразиты на 1000 слов."
+                     ).pack(side="left")
 
         # --- Стилистика (03.10) ---
         s4 = Section(parent, "Стилистика: повторы рядом и длинные предложения")
@@ -139,10 +212,13 @@ class VaultTab(ctk.CTkFrame):
                                        tooltip="Предложения длиннее этого числа "
                                                "слов попадают в отчёт.")
         self.e_style_long.pack(side="left", padx=0)
-        BigButton(s4.inner, "Построить стилистический отчёт", self._run_style,
-                  tooltip="Повторы слов в пределах окна (тавтологии, кроме "
-                          "служебных и форм имён) и слишком длинные "
-                          "предложения. Файлы не изменяются.")
+        row_style = button_row(s4.inner)
+        ActionButton(row_style, "Построить стилистический отчёт", self._run_style,
+                     kind="safe", width=260,
+                     tooltip="Повторы слов в пределах окна (тавтологии, кроме "
+                             "служебных и форм имён) и слишком длинные "
+                             "предложения. Файлы не изменяются."
+                     ).pack(side="left")
 
     def _log(self, msg, tag=None):
         # 01.10: раньше не было — кнопки штампов падали с AttributeError
@@ -158,9 +234,9 @@ class VaultTab(ctk.CTkFrame):
         args = ["--input", path]
         # 18.09: vault_save_report теперь реально пишет отчёт в reports/
         if self.c_report.get():
-            from gui_config import CONFIG_FILE
-            reports = CONFIG_FILE.parent / "reports"
-            reports.mkdir(exist_ok=True)
+            # 24.10: учитываем папку отчётов из настроек
+            from gui_ctk import _app
+            reports = _app._reports_dir()
             args += ["--out", str(reports / f"{modname}.md")]
         run_internal(modname, args)
 
@@ -176,6 +252,42 @@ class VaultTab(ctk.CTkFrame):
     def _run_integrity(self):
         self._run("integrity_check")
 
+    def _run_obsidian(self):
+        # 24.10: валидатор метафайлов Obsidian; --fix только по галочке
+        from gui_ctk import run_internal, _app
+        p = self.f_obs.get()
+        if not p:
+            _app.log_line("Укажите папку vault для проверки Obsidian.\n")
+            return
+        args = ["--input", p, "--exit-zero"]
+        if self.c_obs_fix.get():
+            args.append("--fix")
+            # 24.10: настройка «не создавать .bak» (папки под git)
+            if CFG.get("obs_no_bak", False) is True:
+                args.append("--no-bak")
+        if self.c_obs_report.get():
+            reports = _app._reports_dir()
+            args += ["--out", str(reports / "obsidian-check.md")]
+        run_internal("obsidian_check", args)
+
+    def _run_cjk(self):
+        # 24.10: find_cjk живёт в корне проекта, запуск отдельным процессом
+        from gui_ctk import run_cmd, _app
+        from gui_config import CONFIG_FILE
+        p = self.f_cjk.get()
+        if not p:
+            _app.log_line("Укажите папку или файл для поиска иероглифов.\n")
+            return
+        cmd = [sys.executable,
+               str(CONFIG_FILE.parent / "find_cjk.py"), p]
+        ext = str(CFG.get("cjk_ext", "") or "").strip()
+        if ext:
+            cmd += ["--ext", ext]
+        if self.c_cjk_json.get():
+            reports = _app._reports_dir()
+            cmd += ["--json", str(reports / "cjk_report.json")]
+        run_cmd(cmd)
+
     def _run_phrase_check(self):
         # 22.09: phrase_check — штампы ИИ-текста и канцелярит
         from gui_ctk import run_cmd
@@ -186,21 +298,24 @@ class VaultTab(ctk.CTkFrame):
             return
         phrase = self.f_pc_phrase.get()
         custom = self.f_pc_custom.get()
-        # 22.09: «запомнить» — добавляем фразу в постоянный словарь
-        # 01.10: subprocess в фоновом потоке — не блокируем интерфейс
+        # 22.09: «запомнить» — добавляем фразу в постоянный словарь.
+        # 24.10: делаем это до поиска и в главном потоке: короткий запуск
+        # скрипта, зато лог не пишется из чужого потока (Tk так нельзя).
         if phrase and self.c_pc_add.get():
             import subprocess
-            import threading
             script = str(CONFIG_FILE.parent / "tools" / "phrase_check.py")
-
-            def _add_phrase():
+            try:
                 r = subprocess.run(
                     [sys.executable, script, "--add", phrase],
-                    capture_output=True, text=True, encoding="utf-8", timeout=30)
+                    capture_output=True, text=True, encoding="utf-8",
+                    errors="replace", timeout=30)
                 if r.returncode == 0 and r.stdout:
                     self._log(r.stdout)
-
-            threading.Thread(target=_add_phrase, daemon=True).start()
+                else:
+                    self._log("Не удалось запомнить фразу в словарь.\n",
+                              "warn")
+            except Exception as e:
+                self._log(f"Не удалось запомнить фразу: {e}\n", "warn")
         cmd = [sys.executable,
                str(CONFIG_FILE.parent / "tools" / "phrase_check.py"),
                "--input", p]
@@ -255,25 +370,38 @@ class VaultTab(ctk.CTkFrame):
         if not p:
             self._log("Укажите папку или файл.\n")
             return
+        win = self.e_style_window.get()
+        long = self.e_style_long.get()
+        if win and not win.isdigit():
+            self._log("«Окно повтора»: введите целое число.\n", "warn")
+            return
+        if long and not long.isdigit():
+            self._log("«Длинное предложение»: введите целое число.\n", "warn")
+            return
         args = ["--input", p]
         reg = self.f_style_reg.get()
         if reg:
             args += ["--registry", reg]
-        if self.e_style_window.get().isdigit():
-            args += ["--window", self.e_style_window.get()]
-        if self.e_style_long.get().isdigit():
-            args += ["--long", self.e_style_long.get()]
+        if win:
+            args += ["--window", win]
+        if long:
+            args += ["--long", long]
         run_internal("style_report", args)
 
     def _run_review(self, path):
         # 01.10: витрина — subprocess собирает вхождения, диалог даёт выбрать.
         # Поток кладёт результат в очередь, главный поток опрашивает через
         # after() (звать after из чужого потока нельзя: main thread is not
-        # in main loop)
+        # in main loop). 24.10: задача идёт через общий «занято», «Стоп»
+        # умеет завершить процесс.
         import queue as _queue
         import subprocess
         import threading
         from gui_config import CONFIG_FILE
+        from gui_ctk import _app as app
+
+        if not app.begin_background("Витрина штампов"):
+            return
         script = str(CONFIG_FILE.parent / "tools" / "phrase_check.py")
         q = _queue.Queue()
 
@@ -281,16 +409,30 @@ class VaultTab(ctk.CTkFrame):
             # 20.10: любой сбой (таймаут, нет интерпретатора) кладёт в
             # очередь маркер — раньше полл после ошибки крутился вечно
             import sys
+            proc = None
             try:
-                r = subprocess.run(
+                proc = subprocess.Popen(
                     [sys.executable, script, "--input", path, "--review"],
-                    capture_output=True, text=True, encoding="utf-8",
-                    errors="replace", timeout=600)
+                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, encoding="utf-8", errors="replace",
+                    creationflags=subprocess.CREATE_NO_WINDOW)
+                app._bg_proc = proc
+                out, _ = proc.communicate(timeout=600)
+            except subprocess.TimeoutExpired:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+                q.put(("err", "Витрина не успела за 10 минут и была "
+                              "остановлена.\n"))
+                return
             except Exception as e:
                 q.put(("err", f"Витрина не запустилась: {e}\n"))
                 return
+            finally:
+                app._bg_proc = None
             hits = []
-            for line in (r.stdout or "").splitlines():
+            for line in (out or "").splitlines():
                 if line.startswith("REVIEW\t"):
                     parts = line.split("\t", 5)
                     if len(parts) == 6:
@@ -299,19 +441,30 @@ class VaultTab(ctk.CTkFrame):
             q.put(("ok", hits))
 
         def _check():
-            from gui_ctk import _app as app
+            from gui_ctk import _app as app2
             try:
                 kind, payload = q.get_nowait()
             except _queue.Empty:
-                app.after(150, _check)
+                app2.after(150, _check)
                 return
-            if kind == "err":
-                self._log(payload, "err")
-                return
-            self._open_review(payload)
+            try:
+                from gui_ctk import STOP_FILE
+                if STOP_FILE.exists():
+                    self._log("Витрина остановлена.\n", "warn")
+                    return
+                if kind == "err":
+                    self._log(payload, "err")
+                    return
+                self._open_review(payload)
+            finally:
+                app2.finish_background()
 
-        threading.Thread(target=_worker, daemon=True).start()
-        from gui_ctk import _app as app
+        try:
+            threading.Thread(target=_worker, daemon=True).start()
+        except Exception as e:
+            self._log(f"Витрина не запустилась: {e}\n", "err")
+            app.finish_background()
+            return
         app.after(150, _check)
         self._log("Витрина: собираю вхождения штампов...\n")
 
@@ -324,9 +477,11 @@ class VaultTab(ctk.CTkFrame):
 
         def _apply(pairs):
             from tools import phrase_check
+            out = []
             for msg in phrase_check.clean_selection(pairs):
-                _app.log_line(msg + "\n",
-                              "ok" if msg.startswith("[ОЧИЩЕН]") else None)
+                out.append((msg + "\n",
+                            "ok" if msg.startswith("[ОЧИЩЕН]") else None))
+            return out
 
         import review_dialog
         review_dialog.show(_app, hits, _apply)
