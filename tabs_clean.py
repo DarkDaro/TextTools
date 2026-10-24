@@ -4,7 +4,7 @@ import customtkinter as ctk
 
 from gui_config import CFG
 from widgets_ctk import (PathField, CheckField, HelpBox, Section,
-                         BigButton, FONT_SMALL)
+                         ActionButton, button_row, FONT_SMALL)
 from wrappers import cmd_emoji_clean, cmd_clean_text
 
 
@@ -44,9 +44,41 @@ class CleanTab(ctk.CTkFrame):
                                         "Сами копии не удаляются.")
         self.c_res.pack(side="left", padx=16)
 
-        BigButton(s1.inner, "Запустить чистку эмодзи", self._run_emoji,
-          tooltip="Удаляет эмодзи и текстовые смайлы. Шахматы, ноты "
-                  "и масти карт не трогаются.")
+        # 24.10: при восстановлении из .bak режим dry-run и бэкап
+        # бессмысленны — гасим их, чтобы не путать
+        def _sync_restore(*_):
+            state = "disabled" if self.c_res.get() else "normal"
+            try:
+                self.c_dry.configure(state=state)
+                self.c_bak.configure(state=state)
+            except Exception:
+                pass
+
+        try:
+            self.c_res.var.trace_add("write", _sync_restore)
+        except Exception:
+            pass
+        _sync_restore()
+
+        row1 = button_row(s1.inner)
+        self.b_emoji = ActionButton(
+            row1, "Запустить чистку эмодзи", self._run_emoji,
+            kind="safe", width=235,
+            tooltip="Удаляет эмодзи и текстовые смайлы. Шахматы, ноты "
+                    "и масти карт не трогаются.")
+        self.b_emoji.pack(side="left")
+
+        # 24.10: кнопка краснеет, если возможна реальная запись —
+        # снят dry-run или включено восстановление из .bak
+        def _sync_emoji(*_):
+            risky = bool(self.c_res.get()) or not bool(self.c_dry.get())
+            self.b_emoji.set_kind("danger" if risky else "safe")
+        for _v in (self.c_dry.var, self.c_res.var):
+            try:
+                _v.trace_add("write", _sync_emoji)
+            except Exception:
+                pass
+        _sync_emoji()
 
         # --- clean_text_files ---
         s2 = Section(parent, "2. Чистка мусора и CJK-символов (txt / md)")
@@ -61,8 +93,13 @@ class CleanTab(ctk.CTkFrame):
         ctk.CTkLabel(s2.inner, justify="left", anchor="w", font=FONT_SMALL,
                      text="Без галочки — только отчёт (что было бы удалено), файлы не меняются."
                      ).pack(anchor="w")
-        BigButton(s2.inner, "Запустить чистку мусора", self._run_clean_text,
-          tooltip="Удаляет служебный мусор и CJK-символы по белому списку разрешённых.")
+        row2 = button_row(s2.inner)
+        b_text = ActionButton(
+            row2, "Запустить чистку мусора", self._run_clean_text,
+            kind="safe", width=235,
+            tooltip="Удаляет служебный мусор и CJK-символы по белому списку разрешённых.")
+        b_text.pack(side="left")
+        b_text.link_danger(self.c_fix.var)
 
         # --- whitespace_clean (18.09) ---
         s3 = Section(parent, "3. Чистка пробелов и пустых строк (txt / md / docx)")
@@ -90,8 +127,14 @@ class CleanTab(ctk.CTkFrame):
             "Блоки кода ``` не трогаются. В docx правится только текст — "
             "форматирование (жирный, курсив, таблицы) сохраняется."
         )).pack(anchor="w", pady=(0, 2))
-        BigButton(s3.inner, "Запустить чистку пробелов", self._run_whitespace,
-          tooltip="Хвосты пробелов, табы, лишние пустые строки. Код-блоки не трогаются.")
+        row3 = button_row(s3.inner)
+        b_ws = ActionButton(
+            row3, "Запустить чистку пробелов", self._run_whitespace,
+            kind="safe", width=235,
+            tooltip="Хвосты пробелов, табы, лишние пустые строки. "
+                    "Код-блоки не трогаются.")
+        b_ws.pack(side="left")
+        b_ws.link_danger(self.c_ws_fix.var)
 
         # --- 4. кодировки (01.10) ---
         s4 = Section(parent, "4. Кодировки: приведение к UTF-8 (txt / md)")
@@ -106,8 +149,14 @@ class CleanTab(ctk.CTkFrame):
                                              "кодировке что». С галочкой — "
                                              "перекодирует (с .bak).")
         self.c_utf8_fix.pack(anchor="w")
-        BigButton(s4.inner, "Проверить кодировки", self._run_utf8,
-          tooltip="Покажет, какие файлы не в UTF-8; с галочкой «Применить» — перекодирует (koi8-r, cp1251 и т.п.).")
+        row4 = button_row(s4.inner)
+        b_utf8 = ActionButton(
+            row4, "Проверить кодировки", self._run_utf8,
+            kind="safe", width=235,
+            tooltip="Покажет, какие файлы не в UTF-8; с галочкой «Применить» — "
+                    "перекодирует (koi8-r, cp1251 и т.п.).")
+        b_utf8.pack(side="left")
+        b_utf8.link_danger(self.c_utf8_fix.var)
 
         # --- 5. типографика (03.10) ---
         s5 = Section(parent, "5. Типографика: «ёлочки», тире, многоточия (txt / md / docx)")
@@ -135,9 +184,14 @@ class CleanTab(ctk.CTkFrame):
             "«- Реплика» в начале строки → «— Реплика» (txt/docx; в .md списки "
             "не трогаются). Код-блоки, frontmatter и inline-код не трогаются."
         )).pack(anchor="w", pady=(0, 2))
-        BigButton(s5.inner, "Запустить типографику", self._run_typo,
-          tooltip="«Ёлочки», тире, многоточия, неразрывные пробелы (опция). "
-                  "Dry-run по умолчанию.")
+        row5 = button_row(s5.inner)
+        b_typo = ActionButton(
+            row5, "Запустить типографику", self._run_typo,
+            kind="safe", width=235,
+            tooltip="«Ёлочки», тире, многоточия, неразрывные пробелы (опция). "
+                    "Dry-run по умолчанию.")
+        b_typo.pack(side="left")
+        b_typo.link_danger(self.c_typo_fix.var)
 
     def _log(self, msg):
         from gui_ctk import _app

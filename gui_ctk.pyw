@@ -1,7 +1,12 @@
 """textools GUI на CustomTkinter. 18.09: полная переделка UI.
 Запуск: textools_gui.bat (pythonw) или python gui_ctk.pyw
 Все операции с записью по умолчанию в dry-run; реальная запись —
-только через чекбокс «Применить изменения»."""
+только через чекбокс «Применить изменения».
+
+24.10: интерфейс приведён к общему UI-стандарту (UI_DESIGN.md):
+шапка с акцентной полосой, статусбар над вкладками, вкладка «Журнал»
+с поиском и масштабом, семантические кнопки, горячие клавиши,
+сохранение геометрии окна и последней вкладки."""
 import queue
 import re
 import subprocess
@@ -27,6 +32,7 @@ os.chdir(HERE)
 REPORTS_DIR = HERE / "reports"
 HISTORY_FILE = HERE / "logs" / "history.log"  # 01.10: история операций
 STOP_FILE = HERE / "stop.flag"  # 01.10: мягкая остановка (совпадает с core.text_parser)
+LOG_TAB = "Журнал"
 
 
 def _log_history(detail):
@@ -105,9 +111,10 @@ def _pal(dark=None):
         dark = ctk.get_appearance_mode().lower() == "dark"
     return PALETTE["dark" if dark else "light"]
 
-from gui_config import CFG
-from widgets_ctk import (Tooltip, FONT, FONT_SMALL, FONT_MONO, BigButton,
-                         enable_dnd)
+
+from gui_config import CFG, CONFIG_FILE
+from widgets_ctk import (Tooltip, FONT, FONT_SMALL, BigButton,
+                         LogPanel, enable_dnd)
 
 # тема из конфига до построения окна
 _appearance = "dark" if str(CFG.get("theme", "dark")).lower() == "dark" else "light"
@@ -178,6 +185,13 @@ class Runner:
         self._t0 = 0.0
         self._had_progress = False
         self._result = None
+        # 24.10: этап и тик из служебных сообщений процесса
+        self._stage = ""
+        self._tick = 0
+        # 24.10: закрытие окна во время запуска и признак остановки
+        self._closing = False
+        self._stopped = False
+        self._run_id = 0
 
     def run(self, cmd, cwd=None, label=None):
         if self.running:
@@ -190,9 +204,14 @@ class Runner:
                 self.notify_fn(msg, "warn")
             return
         self.running = True
+        self._closing = False
+        self._stopped = False
+        self._run_id += 1
         self._label = label or _tool_label(cmd)
         self._t0 = time.monotonic()
         self._had_progress = False
+        self._stage = ""
+        self._tick = 0
         self._result = None
         self.q = queue.Queue()
         threading.Thread(target=self._worker, args=(cmd, cwd), daemon=True).start()
@@ -214,6 +233,14 @@ class Runner:
                 text=True, encoding="utf-8", errors="replace",
                 cwd=cwd, creationflags=subprocess.CREATE_NO_WINDOW,
                 env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+            # 24.10: окно закрыли раньше, чем процесс успел стартовать.
+            # Кладём stop.flag сразу после запуска, чтобы инструмент
+            # завершился между файлами, а не остался сиротой.
+            if self._closing:
+                try:
+                    STOP_FILE.write_text("stop", encoding="utf-8")
+                except Exception:
+                    pass
             for line in iter(self.proc.stdout.readline, ""):
                 self.q.put(line)
             self.proc.stdout.close()
@@ -250,11 +277,12 @@ class Runner:
                         self.progress_label.configure(text="")
                     res = self._result if self._result is not None else (0, 0.0)
                     self._result = None
-                    self.done_fn(res[0], res[1])
+                    self.done_fn(res[0], res[1], self._stopped)
                     return
-                # 22.09: PROGRESS:N/M — обновление прогресс-бара вместо лога
-                # 01.10: рядом с баром счётчик «N/M (x%)»
-                m = re.match(r"^PROGRESS:(\d+)/(\d+)", item)
+                # 24.10: служебные сообщения процесса. Старый контракт
+                # PROGRESS:N/M сохранён, добавочно читаются @@PROGRESS,
+                # @@STAGE и @@TICK (этап и пульс в статусе).
+                m = re.match(r"^(?:@@)?PROGRESS[:\s]+(\d+)/(\d+)", item)
                 if m and self.progress_bar is not None:
                     done, total = int(m.group(1)), int(m.group(2))
                     frac = done / total if total > 0 else 0
@@ -264,8 +292,25 @@ class Runner:
                         self.progress_label.configure(
                             text=f"{done}/{total} ({frac:.0%})")
                     continue
-                self.log_fn(item)
+                m = re.match(r"^@@STAGE\s+(.+?)\s*$", item)
+                if m:
+                    self._stage = m.group(1)
+                    continue
+                m = re.match(r"^@@TICK\s+(\d+)", item)
+                if m:
+                    self._tick = int(m.group(1))
+                    continue
+                # 24.10: сбой обработчика строки не должен убивать поток
+                # чтения вывода (ошибка видна по пропущенной строке)
+                try:
+                    self.log_fn(item)
+                except Exception:
+                    pass
         except queue.Empty:
+            pass
+        except Exception:
+            # 24.10: сбой отрисовки не должен оставлять running=True
+            # навсегда; поток уже пишет в очередь, следующий тик догонит
             pass
         if self.running:
             # 21.10: пока движок не присылает PROGRESS (нештатные и внешние
@@ -279,38 +324,54 @@ class Runner:
                     self.progress_label.configure(text="идёт работа…")
             if self.status_fn:
                 s = int(time.monotonic() - self._t0)
-                self.status_fn(
-                    f"выполняется: {self._label} • {s // 60}:{s % 60:02d}")
+                if self._stage:
+                    self.status_fn(f"этап «{self._stage}» идёт "
+                                   f"{self._tick or s} с…")
+                else:
+                    self.status_fn(
+                        f"выполняется: {self._label} • {s // 60}:{s % 60:02d}")
             self.root.after(100, self._poll)
 
     def stop(self):
-        if self.proc and self.running:
-            # 01.10: мягкая остановка — кладём stop.flag; инструменты
-            # сами завершаются между файлами. 20.10: окно ожидания с
-            # 3 до 15 с — долгий docx файла мог быть убит на середине
-            # записи (раньше kill сразу рисковал побить файл в момент записи)
+        # 24.10: остановка работает и в окне между «нажал» и «процесс
+        # стартовал». Флаг ставится сразу, поток-сторож ждёт до 15 с.
+        if not self.running or self._stopped:
+            return
+        self._stopped = True
+        # 01.10: мягкая остановка — кладём stop.flag; инструменты
+        # сами завершаются между файлами. 20.10: окно ожидания с
+        # 3 до 15 с — долгий docx файла мог быть убит на середине
+        # записи (раньше kill сразу рисковал побить файл в момент записи)
+        try:
+            STOP_FILE.write_text("stop", encoding="utf-8")
+            self.log_fn("\n[остановка: жду окончания текущего файла…]\n")
+            if self.notify_fn:
+                self.notify_fn("Останавливаю операцию — текущий файл "
+                               "будет докончен", "warn")
+        except Exception:
+            pass
+
+        def _force():
+            import time as _t
+            rid = self._run_id
+            # 24.10: ждём полные 15 секунд, чтобы инструмент успел
+            # докончить текущий файл. Раньше цикл выходил на первом
+            # появлении proc и убивал процесс сразу.
+            for _ in range(150):
+                _t.sleep(0.1)
+                # 24.10: не трогаем следующий запуск, если этот уже кончился
+                if self._run_id != rid or not self.running:
+                    return
             try:
-                STOP_FILE.write_text("stop", encoding="utf-8")
-                self.log_fn("\n[остановка: жду окончания текущего файла…]\n")
-                if self.notify_fn:
-                    self.notify_fn("Останавливаю операцию — текущий файл "
-                                   "будет докончен", "warn")
+                if self.proc is not None:
+                    self.proc.kill()
+                    # 24.10: из потока нельзя трогать Tk — кладём строку
+                    # в очередь, её напечатает _poll в главном потоке
+                    self.q.put("\n[остановлено принудительно]\n")
             except Exception:
                 pass
 
-            def _force():
-                import time as _t
-                for _ in range(150):
-                    _t.sleep(0.1)
-                    if not self.running:
-                        return
-                try:
-                    self.proc.kill()
-                    self.log_fn("\n[остановлено принудительно]\n")
-                except Exception:
-                    pass
-
-            threading.Thread(target=_force, daemon=True).start()
+        threading.Thread(target=_force, daemon=True).start()
 
 
 def run_cmd(cmd):
@@ -334,7 +395,8 @@ def run_cmd(cmd):
                 "(раздел «Пути к внешним скриптам»).\n", "err")
             _app.toast(f"Скрипт не найден: {Path(cmd[1]).name}", "err")
             return
-    _app.runner.run(cmd)
+    if _app.begin_run():
+        _app.runner.run(cmd)
 
 
 def run_internal(modname, args):
@@ -343,7 +405,8 @@ def run_internal(modname, args):
     # 20.10: sys.executable вместо «python» из PATH — при двух питонах
     # на машине (3.14 с пакетами / 3.15 пустой) гарантированно тот же
     # интерпретатор, что питает сам GUI
-    _app.runner.run([sys.executable, "-c", code])
+    if _app.begin_run():
+        _app.runner.run([sys.executable, "-c", code])
 
 
 _app = None
@@ -366,8 +429,21 @@ class App(ctk.CTk):
             pass
 
         self.title("textools — текстовые инструменты")
-        self.geometry("1100x800")
         self.minsize(900, 640)
+        self._restore_geometry()
+
+        # 24.10: состояние вкладок и обход кнопок
+        self._tab_guard = False
+        self._current_tab = ""
+        self._tab_check_job = None
+        self._tabs = {}
+        self._big_buttons = []
+        # 24.10: фоновые задачи вне Runner (витрины, ё/е-аудит)
+        self._bg_active = False
+        self._bg_label = ""
+        self._bg_t0 = 0.0
+        self._bg_job = None
+        self._bg_proc = None
 
         self.runner = Runner(self.log_line, self._on_done, self)
         # 21.10: тосты (всплывающие сообщения) из Runner — «уже запущено» и т.п.
@@ -376,177 +452,277 @@ class App(ctk.CTk):
         # запись аккуратно, вместо жёсткого обрыва с недописанным файлом
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # --- Верхняя панель ---
-        top = ctk.CTkFrame(self, fg_color="transparent")
-        top.pack(fill="x", padx=16, pady=(12, 0))
-        ctk.CTkLabel(top, text="textools",
-                     font=("Segoe UI", 20, "bold")).pack(side="left")
-        ctk.CTkLabel(top, text="  текстовые инструменты",
-                     font=FONT).pack(side="left")
+        self._build_header()
+        self._build_statusbar()
+        self._build_tabs()
+        self._collect_big_buttons()
+        self._apply_log_theme()
+        self._bind_hotkeys()
+        # 24.10: восстановление вкладки после первой отрисовки: configure
+        # до рендера ломает pack-геометрию (окно 200x200, кнопки мёртвые)
+        self.after(300, self._apply_saved_tab)
+
+    # --- построение окна ---
+
+    def _build_header(self):
+        p = _pal()
+        self._header = ctk.CTkFrame(self, fg_color="transparent")
+        self._header.pack(fill="x", padx=16, pady=(12, 0))
+
+        left = ctk.CTkFrame(self._header, fg_color="transparent")
+        left.pack(side="left")
+        ctk.CTkLabel(left, text="textools",
+                     font=("Segoe UI", 22, "bold")).pack(side="left")
+        ctk.CTkLabel(left, text="  текстовые инструменты для авторов",
+                     font=FONT_SMALL, text_color=("gray45", "gray55")).pack(
+            side="left", padx=(2, 0), pady=(6, 0))
+
+        right = ctk.CTkFrame(self._header, fg_color="transparent")
+        right.pack(side="right")
 
         self.theme_var = tk.StringVar(value=_appearance)
-        tb = ctk.CTkSegmentedButton(top, values=["light", "dark"],
+        tb = ctk.CTkSegmentedButton(right, values=["light", "dark"],
                                     command=self._on_theme_change,
-                                    height=28)
+                                    width=160, height=28,
+                                    dynamic_resizing=False,
+                                    font=FONT_SMALL)
         tb.set(_appearance)
         tb.pack(side="right")
+        tb.configure(
+            fg_color=p["seg_fg"], selected_color=p["accent"],
+            selected_hover_color=p["accent_hover"],
+            unselected_color=p["card"], unselected_hover_color=p["card"],
+            text_color=p["seg_text"], text_color_disabled=p["dim"])
         # 18.09: CTkSegmentedButton.bind не работает — Tooltip на внутренние кнопки
         for ch in tb.winfo_children():
             try:
                 Tooltip(ch, "Светлая или тёмная тема. Выбор сохраняется.")
             except Exception:
                 pass
-        ctk.CTkLabel(top, text="Тема:", font=FONT_SMALL).pack(
+        ctk.CTkLabel(right, text="Тема:", font=FONT_SMALL).pack(
             side="right", padx=(0, 6))
 
-        # 22.09: акцентные сегменты (тема + вкладки)
-        p = _pal()
-        tb.configure(
-            fg_color=p["seg_fg"], selected_color=p["accent"],
-            selected_hover_color=p["accent_hover"],
-            unselected_color=p["card"], unselected_hover_color=p["card"],
-            text_color=p["seg_text"], text_color_disabled=p["dim"])
-
-        # --- Вкладки ---
-        # 22.09: акцентный сегмент вкладок
-        self.nb = ctk.CTkTabview(self, anchor="nw",
-                                 segmented_button_fg_color=p["seg_fg"],
-                                 segmented_button_selected_color=p["accent"],
-                                 segmented_button_selected_hover_color=p["accent_hover"],
-                                 segmented_button_unselected_color=p["seg_fg"],
-                                 segmented_button_unselected_hover_color=p["card"],
-                                 text_color=p["seg_text"])
-        self.nb.pack(fill="both", expand=True, padx=16, pady=(10, 0))
+        # 24.10: индикатор текущего раздела (аналог индикатора режима)
+        self._tab_pill = ctk.CTkLabel(right, text="", height=26,
+                                      corner_radius=13, padx=12,
+                                      font=("Segoe UI", 11, "bold"),
+                                      fg_color=p["accent"],
+                                      text_color="#ffffff")
+        self._tab_pill.pack(side="right", padx=(0, 10))
         self._theme_segment = tb
 
-        # --- Лог ---
-        log_frame = ctk.CTkFrame(self, fg_color=("gray92", "gray14"),
-                                 corner_radius=8)
-        log_frame.pack(fill="both", expand=True, padx=16, pady=10)
-        ctk.CTkLabel(log_frame, text="Вывод (результат работы инструмента)",
-                     font=("Segoe UI", 12, "bold"), anchor="w").pack(
-            fill="x", padx=12, pady=(8, 2))
+        # 24.10: акцентная полоса под шапкой
+        self._accent_bar = ctk.CTkFrame(self, height=2,
+                                        fg_color=p["accent"],
+                                        corner_radius=0)
+        self._accent_bar.pack(fill="x", padx=16, pady=(8, 0))
 
-        # 22.09: прогресс-бар (для долгих сканов)
-        # 01.10: строка прогресса — бар + ярлык «N/M (x%)»
-        prog_row = ctk.CTkFrame(log_frame, fg_color="transparent")
-        prog_row.pack(fill="x", padx=12, pady=(0, 2))
-        self.progress_bar = ctk.CTkProgressBar(prog_row, height=8,
+    def _build_statusbar(self):
+        """24.10: статус и прогресс над вкладками — на маленьком окне
+        не исчезают, как исчезал подвал. «Стоп» всегда под рукой."""
+        p = _pal()
+        bar = ctk.CTkFrame(self, fg_color=("gray92", "gray14"),
+                           corner_radius=8)
+        bar.pack(fill="x", padx=16, pady=(8, 0))
+
+        self.status = ctk.CTkLabel(bar, text="готов", font=FONT_SMALL,
+                                   anchor="w")
+        self.status.pack(side="left", padx=12, pady=7)
+
+        self._stop_btn = ctk.CTkButton(
+            bar, text="Стоп", width=70, height=28, font=FONT_SMALL,
+            fg_color=("#fee2e2", "#3b1d1d"),
+            hover_color=("#fecaca", "#5b2626"),
+            text_color=("#991b1b", "#fecaca"),
+            state="disabled", command=self.stop_all)
+        self._stop_btn.pack(side="right", padx=(6, 10), pady=5)
+        Tooltip(self._stop_btn, "Мягко остановить операцию: программа "
+                                "завершает текущий файл и корректно "
+                                "заканчивает работу.")
+
+        self.progress_label = ctk.CTkLabel(bar, text="", font=FONT_SMALL,
+                                           width=120, anchor="e",
+                                           text_color=("gray40", "gray60"))
+        self.progress_label.pack(side="right", padx=(6, 0), pady=7)
+
+        self.progress_bar = ctk.CTkProgressBar(bar, height=8,
                                                progress_color=p["accent"])
         self.progress_bar.set(0)
-        self.progress_bar.pack(side="left", fill="x", expand=True)
-        self.progress_label = ctk.CTkLabel(prog_row, text="", font=FONT_SMALL,
-                                           width=150, anchor="e")
-        self.progress_label.pack(side="left", padx=(10, 0))
+        self.progress_bar.pack(side="left", fill="x", expand=True,
+                               padx=(8, 0), pady=7)
         self.runner.progress_bar = self.progress_bar
         self.runner.progress_label = self.progress_label
+        # 24.10: configure(text=...) — иначе positional-строка уходила
+        # в require_redraw, и статус во время работы не обновлялся
+        self.runner.status_fn = lambda text: self.status.configure(text=text)
 
-        # tk.Text для лога (цветные теги) + свой скроллбар
-        # 22.09: начальные цвета из палитры
-        log_inner = ctk.CTkFrame(log_frame, fg_color="transparent")
-        log_inner.pack(fill="both", expand=True, padx=12)
-        self.log = tk.Text(log_inner, height=8, wrap="word",
-                           font=FONT_MONO, borderwidth=0, relief="flat",
-                           bg=p["log_bg"], fg=p["log_fg"],
-                           insertbackground=p["insert"],
-                           selectbackground=p["sel"])
-        log_sb = ctk.CTkScrollbar(log_inner, command=self.log.yview)
-        self.log.configure(yscrollcommand=log_sb.set)
-        log_sb.pack(side="right", fill="y")
-        self.log.pack(side="left", fill="both", expand=True)
-        self._apply_log_theme()
-
-        btns = ctk.CTkFrame(log_frame, fg_color="transparent")
-        btns.pack(fill="x", padx=12, pady=(6, 10))
-        # 22.09: компактные кнопки с фиолетовым ховером
-        stop_b = ctk.CTkButton(btns, text="Стоп", width=70, height=28,
-                               fg_color=("gray75", "gray30"),
-                               hover_color=_pal()["accent"],
-                               command=self.runner.stop)
-        stop_b.pack(side="left")
-        Tooltip(stop_b, "Мягко остановить операцию: программа завершает "
-                        "текущий файл и корректно заканчивает работу.")
-        rep_b = ctk.CTkButton(btns, text="Отчёт", width=70, height=28,
-                              fg_color=("gray75", "gray30"),
-                              hover_color=_pal()["accent"],
-                              command=self._save_report)
-        rep_b.pack(side="left", padx=6)
-        Tooltip(rep_b, "Сохранить содержимое окна вывода в файл "
-                       "(reports/ или выбранная папка).")
-        clr_b = ctk.CTkButton(btns, text="Очистить", width=80, height=28,
-                              fg_color=("gray75", "gray30"),
-                              hover_color=_pal()["accent"],
-                              command=lambda: self.log.delete("1.0", "end"))
-        clr_b.pack(side="left")
-        Tooltip(clr_b, "Очистить окно вывода (файлы не затрагиваются).")
-        self._compact_btns = (stop_b, rep_b, clr_b)
-        self.status = ctk.CTkLabel(btns, text="готов", font=FONT_SMALL)
-        self.status.pack(side="right")
-        # 21.10: статус рисует Runner (имя инструмента + таймер работы);
-        # после создания лейбла — раньше он ещё не существует
-        self.runner.status_fn = self.status.configure
-
-        # --- Вкладки инструментов ---
+    def _build_tabs(self):
         from tabs_names import NamesTab
         from tabs_vault import VaultTab
         from tabs_clean import CleanTab
         from tabs_replace import ReplaceTab
         from tabs_settings import SettingsTab
 
+        p = _pal()
+        self.nb = ctk.CTkTabview(
+            self, anchor="nw", command=self._on_tab,
+            segmented_button_fg_color=p["seg_fg"],
+            segmented_button_selected_color=p["accent"],
+            segmented_button_selected_hover_color=p["accent_hover"],
+            segmented_button_unselected_color=p["seg_fg"],
+            segmented_button_unselected_hover_color=p["card"],
+            text_color=p["seg_text"])
+        self.nb.pack(fill="both", expand=True, padx=16, pady=(8, 12))
+
         for cls in (NamesTab, VaultTab, CleanTab, ReplaceTab, SettingsTab):
             tab = self.nb.add(cls.LABEL)
             # скролл-контейнер вкладки
-            scroll = ctk.CTkScrollableFrame(self.nb.tab(cls.LABEL),
-                                            fg_color="transparent")
-            scroll.pack(fill="both", expand=True)
-            t = cls(scroll)
+            scroll = ctk.CTkScrollableFrame(tab, fg_color="transparent")
+            scroll.pack(fill="both", expand=True, padx=(4, 8), pady=(4, 8))
+            t = cls(scroll, fg_color="transparent")
             t._build(t)
             t.pack(fill="x", anchor="n")
+            self._tabs[cls.LABEL] = t
 
+        log_tab = self.nb.add(LOG_TAB)
+        self._log_panel = LogPanel(log_tab, CFG,
+                                   on_save_report=self._save_report)
+        self._log_panel.pack(fill="both", expand=True, padx=6, pady=(6, 8))
+        self._tabs[LOG_TAB] = self._log_panel
+        self._log_panel.apply_theme(_pal())
+        # 24.10: даже без запоминания вкладки индикатор должен быть заполнен
+        try:
+            self._update_tab_ui(self.nb.get(), save=False)
+        except Exception:
+            pass
+
+    def _collect_big_buttons(self):
         # 21.10: реестр «крупных» кнопок инструментов — на время операции
         # они блокируются, чтобы нельзя было запустить вторую параллельно
-        self._big_buttons = []
         for frame in self.nb._tab_dict.values():
             for w in _walk_widgets(frame):
                 if isinstance(w, BigButton):
                     self._big_buttons.append(w)
 
-    def _set_busy(self, busy):
-        """21.10: блокировка кнопок инструментов на время операции.
-        «Стоп», «Отчёт» и «Очистить» остаются доступны."""
-        state = "disabled" if busy else "normal"
-        for b in self._big_buttons:
+    # --- геометрия и состояние ---
+
+    def _restore_geometry(self):
+        """24.10: геометрия из конфига с защитой от выхода за экран."""
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        geo = str(CFG.get("ui.geometry", "") or "")
+        if not _cfg_flag("remember_geometry", True):
+            geo = ""
+        m = re.match(r"^(\d+)x(\d+)([+-]\d+)([+-]\d+)$", geo)
+        if m:
+            w, h, x, y = (int(m.group(1)), int(m.group(2)),
+                          int(m.group(3)), int(m.group(4)))
+            w = max(900, min(w, sw - 40))
+            h = max(640, min(h, sh - 80))
+            x = max(0, min(x, sw - w))
+            y = max(0, min(y, sh - h))
+        else:
+            w = min(1120, sw - 40)
+            h = min(860, sh - 80)
+            x = (sw - w) // 2
+            y = max(0, (sh - h) // 2 - 20)
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+    def reset_geometry(self):
+        """24.10: вернуть окно в рабочий размер и по центру экрана."""
+        try:
+            CFG.set("ui.geometry", "")
+        except Exception:
+            pass
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        w = min(1120, sw - 40)
+        h = min(860, sh - 80)
+        x = (sw - w) // 2
+        y = max(0, (sh - h) // 2 - 20)
+        try:
+            self.state("normal")
+        except Exception:
+            pass
+        self.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _apply_saved_tab(self):
+        if not _cfg_flag("remember_tab", True):
+            return
+        name = CFG.get("ui.last_tab", "")
+        if isinstance(name, str) and name in self._tabs:
+            self._goto_tab(name)
+
+    def _save_ui_state(self):
+        try:
+            # свернутое окно отдаёт бессмысленный размер, не сохраняем его
+            if _cfg_flag("remember_geometry", True) and \
+                    self.state() != "iconic":
+                CFG.set("ui.geometry", self.geometry())
+        except Exception:
+            pass
+        try:
+            if _cfg_flag("remember_tab", True) and self._current_tab:
+                CFG.set("ui.last_tab", self._current_tab)
+        except Exception:
+            pass
+
+    # --- вкладки ---
+
+    def _on_tab(self):
+        """Выбор вкладки мышью: обновляем индикатор и запоминаем раздел."""
+        if self._tab_guard:
+            return
+        self._update_tab_ui(self.nb.get())
+
+    def _goto_tab(self, name, save=True):
+        """Программный переход: set() не вызывает command вкладки,
+        поэтому состояние обновляем явно (как в UI-стандарте)."""
+        if name not in self._tabs:
+            return
+        if self.nb.get() != name:
+            self._tab_guard = True
             try:
-                b.configure(state=state)
+                self.nb.set(name)
+            finally:
+                self._tab_guard = False
+        self._update_tab_ui(name, save=save)
+
+    def _update_tab_ui(self, name, save=True):
+        self._current_tab = name
+        try:
+            self._tab_pill.configure(text=name)
+        except Exception:
+            pass
+        if save and _cfg_flag("remember_tab", True):
+            try:
+                CFG.set("ui.last_tab", name)
+            except Exception:
+                pass
+        # 24.10: защита от гонки CTkTabview. При быстрой смене вкладок
+        # отложенные grid_forget_all_tabs выполняются в обратном порядке
+        # и могут скрыть текущую вкладку (пустое окно). Через 180 мс
+        # проверяем, что текущая вкладка снова на месте.
+        try:
+            if self._tab_check_job:
+                self.after_cancel(self._tab_check_job)
+            self._tab_check_job = self.after(180, self._ensure_current_tab)
+        except Exception:
+            pass
+
+    def _ensure_current_tab(self):
+        self._tab_check_job = None
+        name = self._current_tab
+        frame = self.nb._tab_dict.get(name)
+        if frame is not None and not frame.winfo_ismapped():
+            try:
+                self.nb.set(name)
             except Exception:
                 pass
 
-    def _on_close(self):
-        """20.10: мягкое закрытие: если процесс пишет файлы — даём ему
-        докончить текущий файл (до 15 с), затем закрываем окно."""
-        try:
-            if self.runner.running and self.runner.proc:
-                self.runner.stop()
-                p = self.runner.proc
-                try:
-                    p.wait(timeout=15)
-                except Exception:
-                    pass
-        except Exception:
-            pass
-        try:
-            STOP_FILE.unlink(missing_ok=True)
-        except Exception:
-            pass
-        self.destroy()
-
-    # --- Тема ---
+    # --- тема ---
 
     def _on_theme_change(self, value):
         ctk.set_appearance_mode(value)
         CFG.set("theme", value)
-        self._apply_log_theme()
-        # 22.09: перекраска акцентных элементов при смене темы
         p = _pal()
         self._theme_segment.configure(
             fg_color=p["seg_fg"], selected_color=p["accent"],
@@ -560,46 +736,22 @@ class App(ctk.CTk):
             segmented_button_unselected_color=p["seg_fg"],
             segmented_button_unselected_hover_color=p["card"],
             text_color=p["seg_text"])
-        for b in self._compact_btns:
-            b.configure(hover_color=p["accent"])
-        # 01.10: крупные кнопки тоже перекрашиваются (раньше держали цвет
-        # темы на момент создания)
-        self._restyle_big_buttons(p)
-
-    def _restyle_big_buttons(self, p):
-        def walk(w):
-            yield w
-            for c in w.winfo_children():
-                yield from walk(c)
-        for frame in self.nb._tab_dict.values():
-            for w in walk(frame):
-                if isinstance(w, BigButton):
-                    w.configure(fg_color=p["accent"],
-                                hover_color=p["accent_hover"])
+        self._accent_bar.configure(fg_color=p["accent"])
+        self._tab_pill.configure(fg_color=p["accent"])
+        self._apply_log_theme()
 
     def _apply_log_theme(self):
-        # 22.09: цвета из единой палитры
         p = _pal()
         self.progress_bar.configure(progress_color=p["accent"])
-        self.log.configure(
-            bg=p["log_bg"], fg=p["log_fg"],
-            insertbackground=p["insert"],
-            selectbackground=p["sel"])
-        self.log.tag_configure("ok", foreground=p["ok"])
-        self.log.tag_configure("warn", foreground=p["warn"])
-        self.log.tag_configure("err", foreground=p["err"])
-        self.log.tag_configure("cmd", foreground=p["accent"],
-                               font=(FONT_MONO[0], 11, "bold"))
-        self.log.tag_configure("dim", foreground=p["dim"])
+        if getattr(self, "_log_panel", None) is not None:
+            self._log_panel.apply_theme(p)
 
-    # --- Лог и статус ---
+    # --- лог и статус ---
 
     def log_line(self, text, tag=None):
-        if tag:
-            self.log.insert("end", text, tag)
-        else:
-            self.log.insert("end", text)
-        self.log.see("end")
+        if tag is None and str(text).startswith("> "):
+            tag = "cmd"
+        self._log_panel.append(text, tag)
 
     # 21.10: активные тосты — новые выстраиваются стопкой выше предыдущих
     _toast_stack = []
@@ -630,7 +782,10 @@ class App(ctk.CTk):
                     App._toast_stack.remove(win)
                 except ValueError:
                     pass
-                win.destroy()
+                try:
+                    win.destroy()
+                except Exception:
+                    pass
 
             for w in (win, outer, inner):
                 w.bind("<Button-1>", lambda e: _drop())
@@ -644,44 +799,301 @@ class App(ctk.CTk):
                     y = min(y, other.winfo_y() - win.winfo_height() - 8)
                 except Exception:
                     pass
+            # 24.10: не выпускаем стопку за верх экрана и не копим её
+            y = max(8, y)
+            while len(App._toast_stack) >= 5:
+                old = App._toast_stack.pop(0)
+                try:
+                    old.destroy()
+                except Exception:
+                    pass
             App._toast_stack.append(win)
             win.geometry(f"+{x}+{y}")
             win.after(4200, _drop)
         except Exception:
             pass  # тост никогда не мешает работе инструментов
 
-    def _on_done(self, code=0, elapsed=0.0):
+    def begin_run(self):
+        """24.10: старт операции — блокировка кнопок и переход в журнал.
+        Если уже идёт процесс или фоновая витрина, второй запуск не
+        начинается: пишем предупреждение и возвращаем False."""
+        if self.runner.running or self._bg_active:
+            label = (self.runner._label if self.runner.running
+                     else self._bg_label)
+            msg = (f"Уже запущено: {label}. Дождитесь окончания "
+                   "или нажмите «Стоп».")
+            self.log_line(msg + "\n", "warn")
+            self.toast(msg, "warn")
+            return False
+        self._set_busy(True)
+        try:
+            self._stop_btn.configure(state="normal")
+        except Exception:
+            pass
+        if _cfg_flag("jump_log", True) and self._current_tab != LOG_TAB:
+            self._goto_tab(LOG_TAB)
+        return True
+
+    def begin_background(self, label):
+        """24.10: фоновая задача без subprocess (ё/е-аудит, сбор витрины).
+        Ведёт себя как обычный запуск: блокирует кнопки, включает «Стоп»,
+        показывает время в статусе."""
+        if self.runner.running or self._bg_active:
+            msg = (f"Уже запущено: {self._bg_label or self.runner._label}. "
+                   "Дождитесь окончания или нажмите «Стоп».")
+            self.log_line(msg + "\n", "warn")
+            self.toast(msg, "warn")
+            return False
+        self._bg_active = True
+        self._bg_label = label
+        self._bg_t0 = time.monotonic()
+        self._bg_proc = None
+        self._set_busy(True)
+        try:
+            self._stop_btn.configure(state="normal")
+        except Exception:
+            pass
+        self.status.configure(text=f"выполняется: {label}")
+        if _cfg_flag("jump_log", True) and self._current_tab != LOG_TAB:
+            self._goto_tab(LOG_TAB)
+        self._bg_job = self.after(100, self._bg_pulse)
+        return True
+
+    def _bg_pulse(self):
+        self._bg_job = None
+        if not self._bg_active:
+            return
+        try:
+            s = int(time.monotonic() - self._bg_t0)
+            self.status.configure(
+                text=f"выполняется: {self._bg_label} • "
+                     f"{s // 60}:{s % 60:02d}")
+            if self.progress_bar is not None:
+                t = (time.monotonic() - self._bg_t0) % 2.4
+                tri = t if t <= 1.2 else 2.4 - t
+                self.progress_bar.set(0.08 + 0.82 * (tri / 1.2))
+                self.progress_label.configure(text="идёт работа…")
+        except Exception:
+            pass
+        self._bg_job = self.after(100, self._bg_pulse)
+
+    def finish_background(self):
+        """24.10: завершение фоновой задачи: снять блокировку и пульс."""
+        was_stopped = False
+        try:
+            was_stopped = STOP_FILE.exists()
+        except Exception:
+            pass
+        if self._bg_job:
+            try:
+                self.after_cancel(self._bg_job)
+            except Exception:
+                pass
+            self._bg_job = None
+        self._bg_active = False
+        self._bg_proc = None
+        self._set_busy(False)
+        try:
+            self._stop_btn.configure(state="disabled")
+        except Exception:
+            pass
+        try:
+            self.progress_bar.set(0)
+            self.progress_label.configure(text="")
+            self.status.configure(
+                text="остановлено" if was_stopped else "готов")
+        except Exception:
+            pass
+        try:
+            STOP_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    def stop_all(self):
+        """24.10: единая кнопка «Стоп» для Runner и фоновых витрин."""
+        if self.runner.running:
+            self.runner.stop()
+            return
+        if not self._bg_active:
+            return
+        try:
+            STOP_FILE.write_text("stop", encoding="utf-8")
+        except Exception:
+            pass
+        proc = self._bg_proc
+        if proc is not None:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+        self.log_line("\n[остановка фоновой задачи…]\n")
+        self.toast("Останавливаю фоновую задачу", "warn")
+
+    def _set_busy(self, busy):
+        """21.10: блокировка кнопок инструментов на время операции.
+        «Стоп» и инструменты журнала остаются доступны."""
+        state = "disabled" if busy else "normal"
+        for b in self._big_buttons:
+            try:
+                b.configure(state=state)
+            except Exception:
+                pass
+
+    def _on_close(self):
+        """20.10: мягкое закрытие: если процесс пишет файлы — даём ему
+        докончить текущий файл (до 15 с), затем закрываем окно.
+        24.10: спрашиваем подтверждение, если операция ещё идёт."""
+        try:
+            if self.runner.running or self._bg_active:
+                if _cfg_flag("confirm_close", True):
+                    from tkinter import messagebox
+                    if not messagebox.askyesno(
+                            "Операция выполняется",
+                            "Инструмент ещё работает.\n\n"
+                            "Остановить его и закрыть окно? Программа "
+                            "докончит текущий файл, чтобы не повредить его.",
+                            icon="warning", parent=self):
+                        return
+                self.runner._closing = True
+                self.stop_all()
+                # 24.10: процесс мог ещё не успеть стартовать — ждём его
+                # появления, иначе окно закроется, а процесс останется
+                deadline = time.monotonic() + 5
+                while (self.runner.proc is None and self.runner.running
+                       and time.monotonic() < deadline):
+                    time.sleep(0.05)
+                p = self.runner.proc
+                if p is not None:
+                    try:
+                        p.wait(timeout=15)
+                    except Exception:
+                        # 24.10: не оставляем процесс жить после закрытия
+                        try:
+                            p.kill()
+                        except Exception:
+                            pass
+                # 24.10: фоновая витрина может писать файлы в потоке —
+                # даём ей докончить и обработать очередь, чтобы не
+                # оборвать запись на середине
+                if self._bg_active:
+                    deadline = time.monotonic() + 15
+                    while self._bg_active and time.monotonic() < deadline:
+                        try:
+                            self.update()
+                        except Exception:
+                            break
+                        time.sleep(0.05)
+        except Exception:
+            pass
+        try:
+            STOP_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
+        self._save_ui_state()
+        self.destroy()
+
+    def _on_done(self, code=0, elapsed=0.0, stopped=False):
         """21.10: завершение операции — разблокировка кнопок, тост и звук.
         Тост завершения и звук разъединены: тост выключается галочкой
         «Тост при завершении», звук — «Звуковые сигналы» (ошибка всегда
-        и тостится и звучит, если звук включён)."""
+        и тостится и звучит, если звук включён).
+        24.10: остановка пользователем — отдельное сообщение, не ошибка."""
         self._set_busy(False)
+        try:
+            self._stop_btn.configure(state="disabled")
+        except Exception:
+            pass
         label = getattr(self.runner, "_label", "операция")
         mins = f"{int(elapsed) // 60}:{int(elapsed) % 60:02d}"
+        if stopped:
+            self.status.configure(text="остановлено")
+            self.toast(f"Остановлено: {label} ({mins}).\n"
+                       "Текущий файл докончен.", "warn")
+            return
         if code == 0:
             self.status.configure(text="готов")
             _toast_beep("ok")  # звук независим от тоста завершения
             if _cfg_flag("toast_done", True):
                 self.toast(
-                    f"Готово: {label} ({mins}).\nПодробности — в окне вывода.",
+                    f"Готово: {label} ({mins}).\nПодробности — в журнале.",
                     "ok", beep=False)
         else:
             self.status.configure(text=f"готов (код {code})")
             self.toast(f"Ошибка: {label} завершился с кодом {code}.\n"
-                       "Подробности — в окне вывода.", "err")
+                       "Подробности — в журнале.", "err")
 
-    def _save_report(self):
-        text = self.log.get("1.0", "end").rstrip()
+    # --- горячие клавиши ---
+
+    def _bind_hotkeys(self):
+        for i, name in enumerate(list(self._tabs), 1):
+            if i > 9:
+                break
+            self.bind_all(f"<Control-Key-{i}>",
+                          lambda e, n=name: self._hotkey_tab(n))
+        self.bind_all("<Control-s>", lambda e: self._save_cfg_hotkey())
+        self.bind_all("<Control-f>", lambda e: self._focus_search())
+
+    def _hotkey_tab(self, name):
+        self._goto_tab(name)
+        return "break"
+
+    def _focus_search(self):
+        self._goto_tab(LOG_TAB)
+        self._log_panel.focus_search()
+        return "break"
+
+    def _save_cfg_hotkey(self):
+        import json
+        from gui_config import _load
+        try:
+            CONFIG_FILE.write_text(
+                json.dumps(_load(), ensure_ascii=False, indent=2),
+                encoding="utf-8")
+            self.log_line("Настройки сохранены.\n", "ok")
+            self.toast("Настройки сохранены", "ok", beep=False)
+        except Exception as e:
+            self.log_line(f"Ошибка сохранения настроек: {e}\n", "err")
+        return "break"
+
+    def _save_report(self, text=None):
+        if text is None:
+            text = self._log_panel.get_text()
+        text = (text or "").strip()
         if not text:
+            self.toast("Журнал пуст — сохранять нечего", "warn", beep=False)
             return
-        REPORTS_DIR.mkdir(exist_ok=True)
+        base = self._reports_dir()
         pth = filedialog.asksaveasfilename(
-            initialdir=str(REPORTS_DIR), defaultextension=".txt",
+            initialdir=str(base), defaultextension=".txt",
             filetypes=[("Текст", "*.txt"), ("Markdown", "*.md")])
-        if pth:
+        if not pth:
+            return
+        try:
             Path(pth).write_text(text, encoding="utf-8")
-            self.log_line("Отчёт сохранён: ", "ok")
-            self.log_line(f"{pth}\n")
+        except Exception as e:
+            self.log_line(f"Ошибка сохранения отчёта: {e}\n", "err")
+            self.toast("Не удалось сохранить отчёт: проверьте папку",
+                       "err")
+            return
+        self.log_line("Отчёт сохранён: ", "ok")
+        self.log_line(f"{pth}\n")
+        self.toast(f"Отчёт сохранён: {Path(pth).name}", "ok", beep=False)
+
+    def _reports_dir(self):
+        """24.10: папка отчётов из настроек, иначе reports/ рядом."""
+        custom = str(CFG.get("report_dir", "") or "").strip()
+        if custom:
+            custom = os.path.expandvars(os.path.expanduser(custom))
+        base = Path(custom) if custom else REPORTS_DIR
+        try:
+            base.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            base = REPORTS_DIR
+            try:
+                base.mkdir(exist_ok=True)
+            except Exception:
+                pass
+        return base
 
 
 def main():

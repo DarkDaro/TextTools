@@ -4,7 +4,7 @@ import customtkinter as ctk
 
 from gui_config import CFG
 from widgets_ctk import (PathField, EntryField, CheckField, HelpBox,
-                         Section, BigButton, Tooltip)
+                         Section, Tooltip, ActionButton, button_row)
 from wrappers import (cmd_md_replace, cmd_md_find_bad, cmd_md_fix_encoding,
                       cmd_md_strip_bad, cmd_char_search, cmd_refile)
 
@@ -53,8 +53,14 @@ class ReplaceTab(ctk.CTkFrame):
                                   default=False,
                                   tooltip="Не создавать бэкап. Не рекомендуется.")
         self.c_nobak.pack(side="left", padx=16)
-        BigButton(s1.inner, "Заменить", self._run_md_replace,
-          tooltip="Массовая замена по всем .md/.txt/.docx. Без «Применить» — только отчёт.")
+        row1 = button_row(s1.inner)
+        b_md = ActionButton(
+            row1, "Заменить", self._run_md_replace,
+            kind="safe", width=235,
+            tooltip="Массовая замена по всем .md/.txt/.docx. Без «Применить» — "
+                    "только отчёт.")
+        b_md.pack(side="left")
+        b_md.link_danger(self.c_apply.var)
 
         # --- 2. спецрежимы ---
         s2 = Section(parent, "2. Спецрежимы md_replace (диагностика и починка)")
@@ -62,21 +68,20 @@ class ReplaceTab(ctk.CTkFrame):
                                   file_mode="both",
                                   tooltip="Тот же vault, что и выше (общее поле). "
                                           "Можно папку или один файл.")
-        r2 = ctk.CTkFrame(s2.inner, fg_color="transparent")
-        r2.pack(fill="x", pady=4)
-        b1 = ctk.CTkButton(r2, text="Найти проблемные символы", height=30,
-                           command=self._run_find_bad)
+        r2 = button_row(s2.inner, pady=(4, 0))
+        b1 = ActionButton(r2, "Найти проблемные символы", self._run_find_bad,
+                          kind="safe", width=215, tooltip=None)
         b1.pack(side="left", padx=(0, 8))
         Tooltip(b1, "Показать все подозрительные unicode-символы в .md файлах "
                     "(битые кавычки, невидимые символы и т.п.). Ничего не меняет.")
-        b2 = ctk.CTkButton(r2, text="Починить UTF-8", height=30,
-                           command=self._run_fix_encoding)
-        b2.pack(side="left", padx=8)
+        b2 = ActionButton(r2, "Починить UTF-8", self._run_fix_encoding,
+                          kind="safe", width=160)
+        b2.pack(side="left", padx=(0, 8))
         Tooltip(b2, "Пересохранить файлы в нормальную кодировку UTF-8. "
                     "С «Применить» — реально исправляет, с бэкапом.")
-        b3 = ctk.CTkButton(r2, text="Вырезать мусор", height=30,
-                           command=self._run_strip_bad)
-        b3.pack(side="left", padx=8)
+        b3 = ActionButton(r2, "Вырезать мусор", self._run_strip_bad,
+                          kind="safe", width=160)
+        b3.pack(side="left", padx=(0, 8))
         Tooltip(b3, "Удалить мусорные unicode-символы из .md файлов. "
                     "С «Применить» — реально вырезает, с бэкапом.")
         self.c_spec = CheckField(r2, "Применить", "mdspec_apply", CFG,
@@ -84,6 +89,8 @@ class ReplaceTab(ctk.CTkFrame):
                                  tooltip="Без галочки — только отчёт. С галочкой — "
                                          "реально исправляет.")
         self.c_spec.pack(side="left", padx=16)
+        b2.link_danger(self.c_spec.var)
+        b3.link_danger(self.c_spec.var)
 
         # --- 3. char_search ---
         s3 = Section(parent, "3. Имена персонажей по реестру (char_search)")
@@ -92,7 +99,7 @@ class ReplaceTab(ctk.CTkFrame):
                                     tooltip="Папка хранилища или один файл "
                                             "(.md/.txt/.docx) для проверки имён.")
         self.f_cs_char = EntryField(s3.inner, "Персонаж:", "cs_char",
-                                    CFG, placeholder="все",
+                                    CFG, placeholder="пусто = все",
                                     tooltip="Имя одного персонажа для проверки. "
                                             "Пусто = проверить всех из реестра.")
         self.c_fix = CheckField(s3.inner, "Исправить старые имена (--fix)", "cs_fix",
@@ -113,12 +120,20 @@ class ReplaceTab(ctk.CTkFrame):
                                    tooltip="С галочкой — показать что заменится. "
                                            "Без — реально заменить (с бэкапом).")
         self.c_fw_dry.pack(anchor="w")
-        BigButton(s3.inner, "Проверить", self._run_char_search,
-          tooltip="Ищет формы персонажа по реестру characters.yaml (у внешнего скрипта).")
-        self.b_fix_word = BigButton(s3.inner, "Заменить слово",
-                                    self._run_char_fix_word,
-                                    tooltip="Точечная замена одного слова по всем "
-                                            ".md/.txt/.docx хранилища.")
+        row3 = button_row(s3.inner)
+        b_cs = ActionButton(
+            row3, "Проверить", self._run_char_search,
+            kind="safe", width=180,
+            tooltip="Ищет формы персонажа по реестру characters.yaml "
+                    "(у внешнего скрипта).")
+        b_cs.pack(side="left", padx=(0, 8))
+        b_cs.link_danger(self.c_fix.var)
+        self.b_fix_word = ActionButton(
+            row3, "Заменить слово", self._run_char_fix_word,
+            kind="safe", width=200,
+            tooltip="Точечная замена одного слова по всем .md/.txt/.docx хранилища.")
+        self.b_fix_word.pack(side="left")
+        self.b_fix_word.link_danger(self.c_fw_dry.var, invert=True)
 
         # --- 4. refile ---
         s4 = Section(parent, "4. Regex-замена по папке (refile)")
@@ -137,8 +152,14 @@ class ReplaceTab(ctk.CTkFrame):
                                tooltip="Без галочки — dry-run. С галочкой — реально "
                                        "меняет файлы.")
         self.c_rf.pack(anchor="w")
-        BigButton(s4.inner, "Запустить", self._run_refile,
-          tooltip="Regex-замена по файлам с выбранными расширениями. Без «Применить» — только отчёт.")
+        row4 = button_row(s4.inner)
+        b_rf = ActionButton(
+            row4, "Запустить", self._run_refile,
+            kind="safe", width=235,
+            tooltip="Regex-замена по файлам с выбранными расширениями. "
+                    "Без «Применить» — только отчёт.")
+        b_rf.pack(side="left")
+        b_rf.link_danger(self.c_rf.var)
 
     def _log(self, msg):
         from gui_ctk import _app
@@ -188,6 +209,10 @@ class ReplaceTab(ctk.CTkFrame):
             return
         fix = self.c_fix.get()
         char = self.f_cs_char.get()
+        # 24.10: «все» в поле — это не имя персонажа, а просьба проверить
+        # всех; раньше внешний скрипт падал с «персонаж не найден»
+        if char.strip().lower() in ("все", "all", "*"):
+            char = ""
         cmd = cmd_char_search(v, char=char or None, fix=fix, dry_run=not fix)
         if not fix:
             cmd = [c for c in cmd if c != "--dry-run"]

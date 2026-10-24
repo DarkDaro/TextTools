@@ -4,7 +4,8 @@ import customtkinter as ctk
 
 from gui_config import CFG
 from widgets_ctk import (PathField, EntryField, CheckField, HelpBox,
-                         Section, Tooltip, FONT_SMALL, FONT_MONO)
+                         Section, Tooltip, FONT_SMALL, FONT_MONO,
+                         ActionButton, button_row)
 
 
 class NamesTab(ctk.CTkFrame):
@@ -66,9 +67,11 @@ class NamesTab(ctk.CTkFrame):
         ctk.CTkLabel(r, text="5–10 для больших текстов — меньше мусора",
                      font=FONT_SMALL).pack(side="left", padx=8)
 
-        from widgets_ctk import BigButton
-        BigButton(s1.inner, "Найти кандидатов", self._run_builder,
-                  tooltip="Сканирует тексты и показывает слова-кандидаты в имена.")
+        row1 = button_row(s1.inner)
+        ActionButton(row1, "Найти кандидатов", self._run_builder,
+                     kind="safe", width=235,
+                     tooltip="Сканирует тексты и показывает слова-кандидаты "
+                             "в имена.").pack(side="left")
 
         # --- Шаг 2: consistency ---
         s2 = Section(parent, "Шаг 2 — проверить тексты по реестру (consistency)")
@@ -79,9 +82,12 @@ class NamesTab(ctk.CTkFrame):
                                     file_mode="file",
                                     tooltip="Файл реестра со списком персонажей "
                                             "(см. пример выше).")
-        BigButton(s2.inner, "Проверить имена", self._run_consistency,
-                  tooltip="Проверяет тексты по реестру: старые имена, опечатки. "
-                          "Падежные формы находятся автоматически (pymorphy3).")
+        row2 = button_row(s2.inner)
+        ActionButton(row2, "Проверить имена", self._run_consistency,
+                     kind="safe", width=235,
+                     tooltip="Проверяет тексты по реестру: старые имена, опечатки. "
+                             "Падежные формы находятся автоматически (pymorphy3)."
+                     ).pack(side="left")
 
         # --- Шаг 3: матрица упоминаний (01.10) ---
         s3 = Section(parent, "Шаг 3 — матрица упоминаний (кто где встречается)")
@@ -91,9 +97,12 @@ class NamesTab(ctk.CTkFrame):
         self.f_mat_reg = PathField(s3.inner, "Реестр (yaml):", "mat_registry", CFG,
                                    file_mode="file",
                                    tooltip="Реестр персонажей (тот же, что в шаге 2).")
-        BigButton(s3.inner, "Построить матрицу", self._run_matrix,
-                  tooltip="Таблица «персонаж × файл»: где и сколько раз "
-                          "упоминается каждый персонаж (включая падежи).")
+        row3 = button_row(s3.inner)
+        ActionButton(row3, "Построить матрицу", self._run_matrix,
+                     kind="safe", width=235,
+                     tooltip="Таблица «персонаж × файл»: где и сколько раз "
+                             "упоминается каждый персонаж (включая падежи)."
+                     ).pack(side="left")
 
         # --- Падежные формы реестра (01.10) ---
         s4 = Section(parent, "Падежные формы реестра (pymorphy3)")
@@ -101,14 +110,19 @@ class NamesTab(ctk.CTkFrame):
                      text="Показывает, каких падежных форм не хватает в реестре. "
                           "Дописывает по кнопке ниже, с .bak-бэкапом."
                      ).pack(anchor="w")
-        BigButton(s4.inner, "Показать недостающие падежи", self._run_forms,
-                  tooltip="Сравнивает реестр с формами pymorphy3 и выводит "
-                          "недостающие (тот же реестр, что в шаге 2).")
         self.f_forms_fill = CheckField(s4.inner, "Дописать в реестр",
                                        "forms_fill", CFG, default=False,
                                        tooltip="Не только показать, но и дописать "
                                                "формы в YAML (с .bak).")
         self.f_forms_fill.pack(anchor="w")
+        row4 = button_row(s4.inner)
+        b_forms = ActionButton(
+            row4, "Показать недостающие падежи", self._run_forms,
+            kind="safe", width=260,
+            tooltip="Сравнивает реестр с формами pymorphy3 и выводит "
+                    "недостающие (тот же реестр, что в шаге 2).")
+        b_forms.pack(side="left")
+        b_forms.link_danger(self.f_forms_fill.var)
 
         # --- Кандидаты -> реестр (01.10) ---
         s5 = Section(parent, "Кандидаты -> реестр (без ручного копирования)")
@@ -130,9 +144,14 @@ class NamesTab(ctk.CTkFrame):
                                       tooltip="Без галочки — только отчёт. "
                                               "С галочкой — дописывает (с .bak).")
         self.c_merge_add.pack(anchor="w")
-        BigButton(s5.inner, "Добавить кандидатов в реестр", self._run_merge_registry,
-                  tooltip="Сводит кандидатов registry-builder'а с реестром "
-                          "и дописывает недостающих персонажей.")
+        row5 = button_row(s5.inner)
+        b_merge = ActionButton(
+            row5, "Добавить кандидатов в реестр", self._run_merge_registry,
+            kind="safe", width=260,
+            tooltip="Сводит кандидатов registry-builder'а с реестром "
+                    "и дописывает недостающих персонажей.")
+        b_merge.pack(side="left")
+        b_merge.link_danger(self.c_merge_add.var)
 
         # --- MOC-заметки персонажей (01.10) ---
         s6 = Section(parent, "MOC-заметки персонажей (Obsidian)")
@@ -153,9 +172,14 @@ class NamesTab(ctk.CTkFrame):
                                               "<Имя>.md со ссылками на файлы "
                                               "с упоминаниями.")
         self.c_moc_apply.pack(anchor="w")
-        BigButton(s6.inner, "MOC-заметки персонажей", self._run_moc,
-                  tooltip="Заметка на каждого персонажа: кто где встречается, "
-                          "вики-ссылками — Obsidian покажет обратные ссылки.")
+        row6 = button_row(s6.inner)
+        b_moc = ActionButton(
+            row6, "MOC-заметки персонажей", self._run_moc,
+            kind="safe", width=235,
+            tooltip="Заметка на каждого персонажа: кто где встречается, "
+                    "вики-ссылками — Obsidian покажет обратные ссылки.")
+        b_moc.pack(side="left")
+        b_moc.link_danger(self.c_moc_apply.var)
 
         # --- Ё/Е-аудит (20.10) ---
         s7 = Section(parent, "Ё/Е-аудит (спорные места с ё)")
@@ -167,14 +191,17 @@ class NamesTab(ctk.CTkFrame):
                                   file_mode="file",
                                   tooltip="Реестр персонажей: имена с ё (Семён) "
                                           "сверяются с написанием в тексте (Семен).")
-        BigButton(s7.inner, "Ё/Е-аудит (витрина)", self._run_yo,
-                  tooltip="Собирает спорные места: имена из реестра, словарные "
-                          "пары и омографы (все/всё). Замена — только по "
-                          "выбранным вхождением в диалоге.")
+        row7 = button_row(s7.inner)
+        ActionButton(row7, "Ё/Е-аудит (витрина)", self._run_yo,
+                     kind="safe", width=235,
+                     tooltip="Собирает спорные места: имена из реестра, словарные "
+                             "пары и омографы (все/всё). Замена — только по "
+                             "выбранным вхождением в диалоге."
+                     ).pack(side="left")
 
-    def _log(self, msg):
+    def _log(self, msg, tag=None):
         from gui_ctk import _app
-        _app.log_line(msg)
+        _app.log_line(msg, tag)
 
     def _run_builder(self):
         from gui_ctk import run_internal
@@ -182,8 +209,14 @@ class NamesTab(ctk.CTkFrame):
         if not self.f_input.get():
             self._log("Укажите папку текстов.\n")
             return
+        # 24.10: порог должен быть целым числом, иначе движок падает
+        min_count = self.min_count.get() or "2"
+        if not min_count.isdigit() or int(min_count) < 1:
+            self._log("Мин. упоминаний: введите целое число 1 или больше.\n",
+                      "warn")
+            return
         args = ["--input", self.f_input.get(),
-                "--min-count", self.min_count.get() or "2"]
+                "--min-count", min_count]
         if self.f_out.get():
             args += ["--out", self.f_out.get()]
         if self.f_registry.get():
@@ -253,6 +286,8 @@ class NamesTab(ctk.CTkFrame):
         if not p:
             self._log("Укажите папку или файл для Ё/Е-аудита.\n")
             return
+        if not _app.begin_background("Ё/Е-аудит"):
+            return
         reg = self.f_yo_reg.get() or None
         q = _queue.Queue()
 
@@ -269,10 +304,15 @@ class NamesTab(ctk.CTkFrame):
                 targets = yo_audit.yowords_all(dictionary, name_p)
                 hits = []
                 stats = {"ё_всего": 0}
+                stopped = False
                 for f in yo_audit.iter_text_files(p):
                     if yo_audit.stop_requested():
+                        stopped = True
                         break
                     hits.extend(yo_audit.scan(f, targets, stats))
+                if stopped:
+                    q.put(("stopped", None, None))
+                    return
                 # docx в этой итерации не правится (решение пользователя)
                 hits = [h for h in hits
                         if not h[2].lower().endswith(".docx")]
@@ -287,12 +327,23 @@ class NamesTab(ctk.CTkFrame):
             except _queue.Empty:
                 app.after(150, _check)
                 return
-            if kind == "err":
-                self._log(payload + "\n", "err")
-                return
-            self._open_yo(payload, targets)
+            try:
+                if kind == "stopped":
+                    self._log("Ё/Е-аудит остановлен.\n", "warn")
+                    return
+                if kind == "err":
+                    self._log(payload + "\n", "err")
+                    return
+                self._open_yo(payload, targets)
+            finally:
+                app.finish_background()
 
-        threading.Thread(target=_worker, daemon=True).start()
+        try:
+            threading.Thread(target=_worker, daemon=True).start()
+        except Exception as e:
+            self._log(f"Ё/Е-аудит не запустился: {e}\n", "err")
+            _app.finish_background()
+            return
         _app.after(150, _check)
         self._log("Ё/Е-аудит: собираю спорные места...\n")
 
@@ -314,9 +365,11 @@ class NamesTab(ctk.CTkFrame):
             for w, fs in pairs:
                 by_file.setdefault(fs, []).append(
                     (w, wrong_to_right.get(w.lower(), "")))
+            out = []
             for msg in yo_audit.clean_selection(by_file):
-                _app.log_line(msg + "\n",
-                              "ok" if msg.startswith("[Ё]") else None)
+                out.append((msg + "\n",
+                            "ok" if msg.startswith("[Ё]") else None))
+            return out
 
         import review_dialog
         review_dialog.show(_app, hits, _apply)
