@@ -1,5 +1,5 @@
 {
-  "_note": "Минимальный пример конфига. Рабочий gui_config.json создаётся программой автоматически и в git не входит.",
+  "_note": "Минимальный пример конфига. Рабочий gui_config.json создаётся программой автоматически и в git не входит. Пресет script_preset: auto ищет внешние скрипты рядом с проектом, manual оставляет пути как есть, off отключает их.",
   "theme": "dark",
   "default_vault": "",
   "show_cmd": true,
@@ -11,6 +11,7 @@
   "ui.log_limit": 5000,
   "cjk_ext": "",
   "obs_no_bak": false,
+  "script_preset": "auto",
   "script_emoji_cleaner": "",
   "script_clean_text": "",
   "script_md_replace": "",

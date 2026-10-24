@@ -10,7 +10,19 @@ from gui_config import CFG, CONFIG_FILE
 from widgets_ctk import (PathField, EntryField, CheckField, HelpBox,
                          Section, Tooltip, ActionButton, button_row,
                          FONT_SMALL)
-from wrappers import DEFAULTS
+from wrappers import (default_scripts, find_scripts, script_path,
+                     script_source, script_preset)
+
+HERE = Path(__file__).resolve().parent
+
+SCRIPT_FIELDS = (("emoji-cleaner:", "emoji_cleaner"),
+                 ("clean_text_files:", "clean_text"),
+                 ("md_replace:", "md_replace"),
+                 ("char_search:", "char_search"),
+                 ("refile:", "refile"))
+
+PRESET_LABELS = {"auto": "Авто", "manual": "Вручную", "off": "Выкл"}
+PRESET_KEYS = {v: k for k, v in PRESET_LABELS.items()}
 
 
 class SettingsTab(ctk.CTkFrame):
@@ -18,26 +30,55 @@ class SettingsTab(ctk.CTkFrame):
 
     def _build(self, parent):
         HelpBox(parent, text=(
-            "Здесь задаются пути к внешним скриптам (в репозиторий они не "
-            "входят). Пока путь не указан, соответствующие кнопки сообщат "
-            "об этом. Все настройки сохраняются автоматически."))
+            "Внешние скрипты (эмодзи, замены, имена, refile) лежат отдельно "
+            "от textools. Пресет «Авто» ищет их рядом с проектом и "
+            "подставляет пути; «Вручную» оставляет поля как есть; «Выкл» "
+            "отключает внешние инструменты. Все настройки сохраняются "
+            "автоматически."))
 
         s1 = Section(parent, "Пути к внешним скриптам")
-        for label, key in (("emoji-cleaner:", "emoji_cleaner"),
-                           ("clean_text_files:", "clean_text"),
-                           ("md_replace:", "md_replace"),
-                           ("char_search:", "char_search"),
-                           ("refile:", "refile")):
-            default = DEFAULTS[key]
-            tip = (f"Путь к скрипту. По умолчанию: {default}" if default else
-                   "Путь к скрипту. По умолчанию не задан — укажите вручную.")
-            PathField(s1.inner, label, f"script_{key}", CFG, file_mode="file",
-                      tooltip=tip)
+        row_p = ctk.CTkFrame(s1.inner, fg_color="transparent")
+        row_p.pack(fill="x", pady=(2, 4))
+        ctk.CTkLabel(row_p, text="Пресет:", font=FONT_SMALL).pack(side="left")
+        self.preset = ctk.CTkSegmentedButton(
+            row_p, values=list(PRESET_LABELS.values()),
+            command=self._on_preset, width=250, height=28,
+            dynamic_resizing=False, font=FONT_SMALL)
+        self.preset.pack(side="left", padx=(8, 12))
+        self.preset_hint = ctk.CTkLabel(
+            row_p, text="", font=FONT_SMALL,
+            text_color=("gray45", "gray60"))
+        self.preset_hint.pack(side="left")
+
+        self._script_fields = {}
+        for label, key in SCRIPT_FIELDS:
+            default = default_scripts().get(key, "")
+            tip = (f"Путь к скрипту. Авто: {default}" if default else
+                   "Путь к скрипту. Автопоиск не нашёл файл — укажите вручную "
+                   "или нажмите «Найти скрипты».")
+            field = PathField(s1.inner, label, f"script_{key}", CFG,
+                              file_mode="file", tooltip=tip)
+            self._script_fields[key] = field
+
         ctk.CTkLabel(s1.inner, anchor="w", font=FONT_SMALL,
                      text_color=("gray45", "gray60"),
-                     text="Пусто = путь по умолчанию (встроенный или не задан)."
+                     text="Пусто = автопоиск рядом с проектом; если скрипт "
+                          "лежит в другом месте, укажите путь вручную."
                      ).pack(anchor="w", pady=(2, 0))
+
+        current = PRESET_LABELS[script_preset()]
+        self.preset.set(current)
+        if current == PRESET_LABELS["auto"]:
+            self._autofill_silent()
+        self._update_preset_hint()
+
         row1 = button_row(s1.inner)
+        ActionButton(row1, "Найти скрипты",
+                     lambda: self._fill_auto(switch=False),
+                     kind="safe", width=180,
+                     tooltip="Найти скрипты в знакомых папках рядом с "
+                             "проектом и заполнить пустые поля.").pack(
+                                 side="left", padx=(0, 8))
         ActionButton(row1, "Проверить пути", self._check_scripts,
                      kind="safe", width=200,
                      tooltip="Проверить все пути: настроен ли скрипт и "
@@ -414,7 +455,7 @@ class SettingsTab(ctk.CTkFrame):
             self._log(f"Не удалось скопировать сведения: {e}\n", "err")
 
     def _open_readme(self):
-        readme = CONFIG_FILE.parent / "README.md"
+        readme = HERE / "README.md"
         if not readme.exists():
             self._log(f"README не найден: {readme}\n", "warn")
             return
@@ -427,31 +468,121 @@ class SettingsTab(ctk.CTkFrame):
     def _open_project_dir(self):
         import os
         try:
-            os.startfile(str(CONFIG_FILE.parent))
+            os.startfile(str(HERE))
         except Exception as e:
             self._log(f"Не удалось открыть папку проекта: {e}\n", "err")
 
+    def _autofill_silent(self):
+        """Заполнить пустые поля найденными скриптами без записи в журнал."""
+        found = find_scripts()
+        for key, field in self._script_fields.items():
+            p = found.get(key)
+            if p and not field.get():
+                field.set(p)
+
+    def _update_preset_hint(self):
+        if script_preset() == "off":
+            text = "внешние скрипты отключены"
+        else:
+            available = 0
+            for key in self._script_fields:
+                p = script_path(key)
+                if p and Path(p).is_file():
+                    available += 1
+            text = f"найдено {available} из {len(self._script_fields)}"
+        try:
+            self.preset_hint.configure(text=text)
+        except Exception:
+            pass
+
+    def _fill_auto(self, force=False, switch=True):
+        """Найти скрипты и заполнить пустые пути.
+
+        switch=True — вызвано пресетом «Авто»: переключить режим.
+        switch=False — кнопка «Найти скрипты»: в «Вручную» режим не менять.
+        """
+        if script_preset() == "off":
+            self._log("Пресет «Выкл»: сначала включите «Авто» или "
+                      "«Вручную».\n", "warn")
+            return
+        if script_preset() != "auto":
+            if switch:
+                CFG.set("script_preset", "auto")
+                self.preset.set(PRESET_LABELS["auto"])
+            else:
+                self._log("Ручной режим: ищу только незаполненные пути, "
+                          "пресет не меняю.\n", "ok")
+        found = find_scripts()
+        added = 0
+        for key, field in self._script_fields.items():
+            p = found.get(key)
+            if p and (force or not field.get()):
+                field.set(p)
+                added += 1
+        available = 0
+        for key in self._script_fields:
+            p = script_path(key)
+            if p and Path(p).is_file():
+                available += 1
+        self._update_preset_hint()
+        if added:
+            self._log(f"Найдено и записано скриптов: {added}. "
+                      f"Доступно: {available} из "
+                      f"{len(self._script_fields)}.\n", "ok")
+        elif available:
+            self._log(f"Все доступные пути уже заполнены: {available} из "
+                      f"{len(self._script_fields)}.\n", "ok")
+        else:
+            self._log("Скрипты рядом с проектом не найдены. Укажите пути "
+                      "вручную или проверьте раскладку папок.\n", "warn")
+
+    def _on_preset(self, label):
+        value = PRESET_KEYS.get(label, "auto")
+        CFG.set("script_preset", value)
+        from gui_ctk import _app
+        try:
+            _app._script_warned.clear()
+        except Exception:
+            pass
+        if value == "off":
+            # 25.10: «Выкл» только запрещает запуск (script_path вернёт ""),
+            # введённые вручную пути остаются в полях и конфиге.
+            self._log("Внешние скрипты отключены: их кнопки будут "
+                      "пропускать запуск. Пути сохранены.\n", "warn")
+        elif value == "auto":
+            self._fill_auto()
+        else:
+            self._log("Ручной режим: пути к внешним скриптам не меняются.\n",
+                      "ok")
+        self._update_preset_hint()
+
     def _check_scripts(self):
         # 20.10: проверка путей без запуска операций
-        import wrappers as _wrappers
-        from gui_config import CFG
+        if script_preset() == "off":
+            self._log("Внешние скрипты отключены пресетом «Выкл».\n", "warn")
+            return
         ok = miss = notset = 0
-        for key in _wrappers.DEFAULTS:
-            custom = CFG.get(f"script_{key}")
-            if not custom:
-                self._log(f"  {key}: не настроен\n", "warn")
-                notset += 1
-            elif Path(custom).is_file():
-                self._log(f"  {key}: найден ({custom})\n", "ok")
+        for key in self._script_fields:
+            p = script_path(key)
+            source = script_source(key)
+            if p and Path(p).is_file():
+                suffix = " (авто)" if source == "auto" else ""
+                self._log(f"  {key}: найден{suffix} ({p})\n", "ok")
                 ok += 1
-            else:
-                self._log(f"  {key}: файл не найден ({custom})\n", "err")
+            elif p:
+                self._log(f"  {key}: файл не найден ({p})\n", "err")
                 miss += 1
+            else:
+                self._log(f"  {key}: не настроен — нажмите «Найти скрипты»\n",
+                          "warn")
+                notset += 1
         if ok + miss == 0:
-            self._log("Ни один внешний скрипт не настроен. Кнопки, которые "
-                      "их используют, сообщат об этом в логе.\n", "warn")
+            self._log("Ни один внешний скрипт не настроен. Нажмите "
+                      "«Найти скрипты» или укажите пути вручную.\n", "warn")
         self._log(f"Итого: найдено {ok}, не найдено {miss}, не настроено "
-                  f"{notset}.\n", "ok" if miss == 0 and notset == 0 else "warn")
+                  f"{notset}. Пресет: {PRESET_LABELS[script_preset()]}.\n",
+                  "ok" if miss == 0 and notset == 0 else "warn")
+        self._update_preset_hint()
         # 24.10: проверка путей не запускает процесс — возвращаем статус
         # «готов», а не оставляем код прошлой неудачной операции
         from gui_ctk import _app
@@ -531,7 +662,7 @@ class SettingsTab(ctk.CTkFrame):
         # 24.10: пошаговая инструкция по окну рядом с программой
         import os
         import subprocess
-        guide = CONFIG_FILE.parent / "GUI_GUIDE.md"
+        guide = HERE / "GUI_GUIDE.md"
         if not guide.exists():
             self._log(f"Инструкция не найдена: {guide}\n", "warn")
             return

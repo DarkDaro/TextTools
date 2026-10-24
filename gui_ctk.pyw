@@ -375,25 +375,28 @@ class Runner:
 
 
 def run_cmd(cmd):
-    # Дружелюбное сообщение, если внешний скрипт не настроен или не найден
+    # Дружелюбное сообщение, если внешний скрипт не настроен или не найден.
+    # 25.10: подробная подсказка и тост — один раз за сессию на скрипт,
+    # дальше короткая строка, чтобы журнал не забивался одинаковым текстом.
     if len(cmd) > 2 and cmd[0] == sys.executable \
             and not cmd[1].startswith("-"):
         from pathlib import Path as _P
         if cmd[1] == "":
-            _app.log_line(
+            _app.warn_script(
+                "external",
                 "Внешний скрипт не настроен.\n"
-                "Укажите путь на вкладке «Настройки» "
-                "(раздел «Пути к внешним скриптам»).\n", "err")
-            # 21.10: тост и звук ошибки — не только строка в логе
-            _app.toast("Скрипт не настроен: укажите путь на вкладке "
-                       "«Настройки»", "err")
+                "Откройте «Настройки» → «Пути к внешним скриптам» "
+                "и нажмите «Найти скрипты» (или укажите путь вручную).\n",
+                key=("external", tuple(str(x) for x in cmd[2:])))
             return
-        if not _P(cmd[1]).is_file():
-            _app.log_line(
+        script = _P(cmd[1])
+        if not script.is_file():
+            _app.warn_script(
+                script.name,
                 f"Скрипт не найден: {cmd[1]}\n"
-                "Укажите правильный путь на вкладке «Настройки» "
-                "(раздел «Пути к внешним скриптам»).\n", "err")
-            _app.toast(f"Скрипт не найден: {Path(cmd[1]).name}", "err")
+                "Нажмите «Найти скрипты» на вкладке «Настройки» "
+                "или укажите правильный путь вручную.\n",
+                key=str(script.resolve()))
             return
     if _app.begin_run():
         _app.runner.run(cmd)
@@ -444,6 +447,8 @@ class App(ctk.CTk):
         self._bg_t0 = 0.0
         self._bg_job = None
         self._bg_proc = None
+        # 25.10: чтобы «скрипт не настроен» не повторялось в журнале и тостах
+        self._script_warned = set()
 
         self.runner = Runner(self.log_line, self._on_done, self)
         # 21.10: тосты (всплывающие сообщения) из Runner — «уже запущено» и т.п.
@@ -753,6 +758,22 @@ class App(ctk.CTk):
             tag = "cmd"
         self._log_panel.append(text, tag)
 
+    def warn_script(self, name, message, key=None):
+        """25.10: один подробный текст на скрипт за сессию, дальше коротко.
+
+        key — отдельный признак для дедупликации: полный путь, а не имя
+        файла, чтобы два разных clean.py не схлопнулись в одно сообщение.
+        """
+        dedup = key if key is not None else name
+        if dedup not in self._script_warned:
+            self._script_warned.add(dedup)
+            self.log_line(message, "err")
+            first = message.splitlines()[0] if message else "Скрипт недоступен"
+            self.toast(first, "err")
+        else:
+            self.log_line(f"{name}: скрипт недоступен (см. «Настройки»).\n",
+                          "warn")
+
     # 21.10: активные тосты — новые выстраиваются стопкой выше предыдущих
     _toast_stack = []
 
@@ -1009,6 +1030,15 @@ class App(ctk.CTk):
             self.status.configure(text="остановлено")
             self.toast(f"Остановлено: {label} ({mins}).\n"
                        "Текущий файл докончен.", "warn")
+            return
+        # 25.10: для find_cjk код 1 — штатные находки, а не сбой.
+        if code == 1 and label == "find_cjk":
+            self.status.configure(text="есть замечания")
+            _toast_beep("warn")
+            if _cfg_flag("toast_done", True):
+                self.toast(
+                    f"Есть замечания: {label} ({mins}).\n"
+                    "Подробности — в журнале.", "warn", beep=False)
             return
         if code == 0:
             self.status.configure(text="готов")
