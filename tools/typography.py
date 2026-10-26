@@ -27,7 +27,8 @@ docx: правится только текст w:t; кавычки — в пре
 """
 import argparse
 import re
-import shutil
+# 26.10: shutil не используется (мёртвый импорт) — отключён
+# import shutil
 import sys
 from pathlib import Path
 

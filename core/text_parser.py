@@ -5,6 +5,7 @@ textools core: text_parser
 """
 import re
 import shutil
+import sys
 from pathlib import Path
 
 # 22.09: docx — бинарный zip, читается через docx_io
@@ -54,7 +55,16 @@ def norm_yo(s):
 
 # 01.10: мягкая остановка — GUI кладёт файл-флаг, инструменты проверяют
 # между файлами и завершаются сами (жёсткий kill рискует побить docx)
-STOP_FILE = Path(__file__).resolve().parent.parent / "stop.flag"
+# 26.10: exe (PyInstaller one-file): __file__ указывает во временный
+# _MEIPASS; stop.flag рядом с exe доступен на запись. Обычный запуск
+# ведёт себя как раньше.
+def _frozen_flag(name):
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "executable")).parent / name
+    return Path(__file__).resolve().parent.parent / name
+
+
+STOP_FILE = _frozen_flag("stop.flag")
 
 
 def stop_requested():

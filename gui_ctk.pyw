@@ -27,11 +27,20 @@ import customtkinter as ctk
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 import os
-os.chdir(HERE)
+# 26.10: режим PyInstaller one-file (exe): BUNDLE_DIR — распакованные
+# пакеты во временном _MEIPASS (read-only), APP_DIR — папка рядом с exe:
+# конфиг, логи, отчёты, stop.flag живут там и переживают перезапуски.
+if getattr(sys, "frozen", False):
+    BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", str(HERE)))
+    APP_DIR = Path(sys.executable).parent
+else:
+    BUNDLE_DIR = HERE
+    APP_DIR = HERE
+os.chdir(APP_DIR)
 
-REPORTS_DIR = HERE / "reports"
-HISTORY_FILE = HERE / "logs" / "history.log"  # 01.10: история операций
-STOP_FILE = HERE / "stop.flag"  # 01.10: мягкая остановка (совпадает с core.text_parser)
+REPORTS_DIR = APP_DIR / "reports"
+HISTORY_FILE = APP_DIR / "logs" / "history.log"  # 01.10: история операций
+STOP_FILE = APP_DIR / "stop.flag"  # 01.10: мягкая остановка (совпадает с core.text_parser)
 LOG_TAB = "Журнал"
 
 
@@ -52,7 +61,7 @@ def _log_crash(prefix=""):
     просто стоит пустым и причина теряется (как при пустом экране 20.10)."""
     import traceback
     try:
-        LOG = HERE / "logs" / "gui_crash.log"
+        LOG = APP_DIR / "logs" / "gui_crash.log"  # 26.10: APP_DIR (frozen-safe)
         LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(LOG, "a", encoding="utf-8") as f:
             f.write(f"\n===== {datetime.now():%Y-%m-%d %H:%M:%S} "
@@ -66,7 +75,7 @@ def _log_info(prefix):
     """20.10: маркер старта без трейсбека — что питон, дошло ли до
     построения, mainloop и закрытия."""
     try:
-        LOG = HERE / "logs" / "gui_crash.log"
+        LOG = APP_DIR / "logs" / "gui_crash.log"  # 26.10: APP_DIR (frozen-safe)
         LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(LOG, "a", encoding="utf-8") as f:
             f.write(f"{datetime.now():%H:%M:%S} | {prefix}\n")
@@ -113,7 +122,9 @@ def _pal(dark=None):
 
 
 from gui_config import CFG, CONFIG_FILE
-from widgets_ctk import (Tooltip, FONT, FONT_SMALL, BigButton,
+# 26.10: FONT не используется (везде локальные ctk-шрифты), pyflakes — отключён
+# from widgets_ctk import (Tooltip, FONT, FONT_SMALL, BigButton,
+from widgets_ctk import (Tooltip, FONT_SMALL, BigButton,
                          LogPanel, enable_dnd)
 
 # тема из конфига до построения окна
@@ -398,21 +409,52 @@ def run_cmd(cmd):
                 "или укажите правильный путь вручную.\n",
                 key=str(script.resolve()))
             return
+        # 26.10 (exe): find_cjk/phrase_check — внутренние скрипты
+        # проекта; в frozen-режиме их нельзя запустить как .py-файл,
+        # поэтому сам exe перезапускается с --tool-run и вызывает
+        # их main(). В обычном запуске путь прежний (python + файл).
+        if getattr(sys, "frozen", False):
+            base = script.name.lower()
+            if base == "find_cjk.py":
+                cmd = [sys.executable, "--tool-run", "find_cjk"] + cmd[2:]
+            elif base == "phrase_check.py":
+                cmd = [sys.executable, "--tool-run", "phrase_check"] + cmd[2:]
     if _app.begin_run():
         _app.runner.run(cmd)
 
 
 def run_internal(modname, args):
-    code = (f"import sys; sys.path.insert(0, r'{HERE}'); "
-            f"from tools.{modname} import main; main({args!r})")
+    # 26.10 (exe): в PyInstaller one-file sys.executable — сам exe;
+    # кодовая строка "-c" не работает. Заменяем self-run: exe
+    # перезапускает себя с --tool-run, main() его разбирает и вызывает
+    # tools.<modname>.main(args). В обычном (не frozen) запуске путь
+    # прежний: sys.executable -c "...", тот же интерпретатор, что GUI.
+    if getattr(sys, "frozen", False):
+        cmd = [sys.executable, "--tool-run", modname, *args]
+    else:
+        code = (f"import sys; sys.path.insert(0, r'{HERE}'); "
+                f"from tools.{modname} import main; main({args!r})")
+        cmd = [sys.executable, "-c", code]
     # 20.10: sys.executable вместо «python» из PATH — при двух питонах
     # на машине (3.14 с пакетами / 3.15 пустой) гарантированно тот же
     # интерпретатор, что питает сам GUI
     if _app.begin_run():
-        _app.runner.run([sys.executable, "-c", code])
+        _app.runner.run(cmd)
 
 
 _app = None
+
+
+def tool_cmd(modname, *rest):
+    """26.10: единая точка запуска внутренних .py-инструментов
+    (find_cjk, phrase_check) как отдельного процесса.
+    exe (frozen): [exe, --tool-run, modname, *rest] — сам exe
+    разбирает флаг и вызывает main(). Обычный запуск: python + файл."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable, "--tool-run", modname, *rest]
+    paths = {"find_cjk": HERE / "find_cjk.py",
+             "phrase_check": HERE / "tools" / "phrase_check.py"}
+    return [sys.executable, str(paths[modname]), *rest]
 
 
 class App(ctk.CTk):
@@ -1128,6 +1170,31 @@ class App(ctk.CTk):
 
 def main():
     sys.excepthook = _sys_excepthook  # 20.10: runtime падения тоже в журнал
+    # 26.10 (exe): self-run внутренних инструментов. exe перезапускает
+    # себя с "--tool-run <modname> [args...]"; здесь распаковываем и
+    # вызываем tools.<modname>.main(args) (find_cjk — отдельный модуль).
+    # Никакого GUI: тихий процесс, результат в stdout как обычно.
+    if "--tool-run" in sys.argv:
+        i = sys.argv.index("--tool-run")
+        modname = sys.argv[i + 1] if len(sys.argv) > i + 1 else ""
+        args = sys.argv[i + 2:]
+        try:
+            if modname == "find_cjk":
+                import find_cjk
+                sys.exit(find_cjk.main(args))
+            import importlib
+            m = importlib.import_module(f"tools.{modname}")
+            sys.exit(m.main(args))
+        except SystemExit:
+            raise
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            try:
+                _log_crash(f"tool-run {modname}")
+            except Exception:
+                pass
+            sys.exit(1)
     _log_info(f"START pid={os.getpid()} py={sys.version.split()[0]} "
               f"exe={sys.executable}")
     try:

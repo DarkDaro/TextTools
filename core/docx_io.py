@@ -13,7 +13,8 @@ API:
   save_docx_part(...)      — служебное
 """
 import re
-import shutil
+# 26.10: shutil не используется (мёртвый импорт, pyflakes) — отключён
+# import shutil
 from pathlib import Path
 
 from core import text_parser
@@ -175,7 +176,7 @@ def replace_in_docx(path, old, new, is_regex=False, backup=True):
 
     if total and backup:
         # 20.10: существующий .bak не затирается
-        tp_src.backup_once(path)
+        text_parser.backup_once(path)
         doc.save(path)
     elif total:
         doc.save(path)

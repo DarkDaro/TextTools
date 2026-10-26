@@ -83,7 +83,8 @@ def scan_vault(vault, exts=(".md",), limit=None):
                 links.add(target)
         hash_ = None
         try:
-            import hashlib
+            # 26.10: локальный import hashlib был мёртвым (хеш берёт hashlib_md5 ниже) — отключён
+            # import hashlib
             norm = "\n".join(text.split())  # без различий пробелов
             hash_ = hashlib_md5(norm)
         except Exception:

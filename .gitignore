@@ -24,7 +24,34 @@ desktop.ini
 
 # Сборка пакета
 build/
+dist/
+*.spec
 *.egg-info/
+
+# PyInstaller и локальные артефакты
+build_artifacts*/
+
+# IDE/среда
+.idea/
+*.code-workspace
 
 # UI-стандарт проекта — рабочая копия, в git не входит
 UI_DESIGN.md
+
+# Проектные доки (рабочие заметки)
+docs/
+
+# Локальный ярлык запуска
+*.lnk
+
+# Релизные сборки
+release/
+dist_dir/
+dist_of/
+dist_debug/
+build_dir/
+build_of/
+build_release/
+build_debug/
+textools_debug*.spec
+

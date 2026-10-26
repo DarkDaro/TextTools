@@ -40,10 +40,11 @@ def run(input_path, registry_path, limit=None, verbose=False, out=None):
     for c in chars:
         for fld in nr.FIELDS[1:]:
             all_terms.update(c[fld])
-    # регистронезависимо: ищем точные строки как в реестре;
-    # для скорости приводим строки файлов к lower и ищем lower-термины
-    terms_lower = sorted({t.lower() for t in all_terms},
-                         key=lambda s: -len(s))  # длинные первыми
+    # 26.10: terms_lower (lower-копия терминов для старого lower-поиска)
+    # не используется — реальный поиск идёт через morph.term_patterns
+    # (комбинированные паттерны ниже). Отключено, оставлено для истории:
+    # terms_lower = sorted({t.lower() for t in all_terms},
+    #                      key=lambda s: -len(s))  # длинные первыми
 
     totals = {c["имя"]: {"ок": 0, "старое": 0, "опасное": 0, "опечатки": 0}
               for c in chars}

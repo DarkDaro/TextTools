@@ -30,7 +30,8 @@ wikilinks-списки, '|' внутри `кода` в таблицах, пос�
 import argparse
 import os
 import re
-import shutil
+# 26.10: shutil не используется (мёртвый импорт) — отключён
+# import shutil
 import sys
 from collections import Counter
 from pathlib import Path
