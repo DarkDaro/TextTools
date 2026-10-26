@@ -18,7 +18,8 @@ style_report — стилистический отчёт: повторы сло�
 Блоки кода ``` и frontmatter .md не проверяются.
 """
 import argparse
-import re
+# 26.10: re не используется (мёртвый импорт) — отключён
+# import re
 import sys
 from pathlib import Path
 

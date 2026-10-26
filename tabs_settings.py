@@ -14,6 +14,15 @@ from wrappers import (default_scripts, find_scripts, script_path,
                      script_source, script_preset)
 
 HERE = Path(__file__).resolve().parent
+# 26.10: exe-режим (PyInstaller one-file): HERE указывает во временный
+# _MEIPASS. Доки пакуются в exe (DOC_DIR = _MEIPASS), «Открыть папку
+# проекта» показывает папку рядом с exe (APP_DIR).
+if getattr(sys, "frozen", False):
+    DOC_DIR = Path(getattr(sys, "_MEIPASS", str(HERE)))
+    APP_DIR = Path(sys.executable).parent
+else:
+    DOC_DIR = HERE
+    APP_DIR = HERE
 
 SCRIPT_FIELDS = (("emoji-cleaner:", "emoji_cleaner"),
                  ("clean_text_files:", "clean_text"),
@@ -455,7 +464,7 @@ class SettingsTab(ctk.CTkFrame):
             self._log(f"Не удалось скопировать сведения: {e}\n", "err")
 
     def _open_readme(self):
-        readme = HERE / "README.md"
+        readme = DOC_DIR / "README.md"  # 26.10: DOC_DIR (frozen-safe)
         if not readme.exists():
             self._log(f"README не найден: {readme}\n", "warn")
             return
@@ -468,7 +477,7 @@ class SettingsTab(ctk.CTkFrame):
     def _open_project_dir(self):
         import os
         try:
-            os.startfile(str(HERE))
+            os.startfile(str(APP_DIR))  # 26.10: APP_DIR (frozen-safe)
         except Exception as e:
             self._log(f"Не удалось открыть папку проекта: {e}\n", "err")
 
@@ -662,7 +671,7 @@ class SettingsTab(ctk.CTkFrame):
         # 24.10: пошаговая инструкция по окну рядом с программой
         import os
         import subprocess
-        guide = HERE / "GUI_GUIDE.md"
+        guide = DOC_DIR / "GUI_GUIDE.md"  # 26.10: DOC_DIR (frozen-safe)
         if not guide.exists():
             self._log(f"Инструкция не найдена: {guide}\n", "warn")
             return

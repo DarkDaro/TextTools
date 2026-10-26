@@ -1,7 +1,6 @@
 """Вкладка «Хранилище»: orphan-finder, broken-links, merge-finder, integrity,
 obsidian-check и поиск иероглифов (find_cjk).
 18.09: переделана на CustomTkinter (widgets_ctk)."""
-import sys
 from pathlib import Path
 
 import customtkinter as ctk
@@ -282,8 +281,9 @@ class VaultTab(ctk.CTkFrame):
             return
         # 25.10: код 1 у find_cjk — находки. GUI показывает статус
         # «есть замечания», поэтому --exit-zero здесь не нужен.
-        cmd = [sys.executable,
-               str(HERE / "find_cjk.py"), p]
+        # 26.10: tool_cmd покрывает exe (self-run) и обычный запуск
+        from gui_ctk import tool_cmd
+        cmd = tool_cmd("find_cjk", p)
         ext = str(CFG.get("cjk_ext", "") or "").strip()
         if ext:
             cmd += ["--ext", ext]
@@ -306,10 +306,10 @@ class VaultTab(ctk.CTkFrame):
         # скрипта, зато лог не пишется из чужого потока (Tk так нельзя).
         if phrase and self.c_pc_add.get():
             import subprocess
-            script = str(HERE / "tools" / "phrase_check.py")
+            from gui_ctk import tool_cmd
             try:
                 r = subprocess.run(
-                    [sys.executable, script, "--add", phrase],
+                    tool_cmd("phrase_check", "--add", phrase),
                     capture_output=True, text=True, encoding="utf-8",
                     errors="replace", timeout=30)
                 if r.returncode == 0 and r.stdout:
@@ -319,9 +319,8 @@ class VaultTab(ctk.CTkFrame):
                               "warn")
             except Exception as e:
                 self._log(f"Не удалось запомнить фразу: {e}\n", "warn")
-        cmd = [sys.executable,
-               str(HERE / "tools" / "phrase_check.py"),
-               "--input", p]
+        from gui_ctk import tool_cmd
+        cmd = tool_cmd("phrase_check", "--input", p)
         if custom:
             cmd += ["--custom", custom]
         if phrase:
@@ -343,8 +342,8 @@ class VaultTab(ctk.CTkFrame):
             self._run_review(p)
             return
         dry = self.c_pc_dry.get()
-        script = HERE / "tools" / "phrase_check.py"
-        cmd = [sys.executable, str(script), "--input", p, "--clean"]
+        from gui_ctk import tool_cmd
+        cmd = tool_cmd("phrase_check", "--input", p, "--clean")
         if dry:
             cmd += ["--dry-run"]
         else:
@@ -403,17 +402,16 @@ class VaultTab(ctk.CTkFrame):
 
         if not app.begin_background("Витрина штампов"):
             return
-        script = str(HERE / "tools" / "phrase_check.py")
+        from gui_ctk import tool_cmd
         q = _queue.Queue()
 
         def _worker():
             # 20.10: любой сбой (таймаут, нет интерпретатора) кладёт в
             # очередь маркер — раньше полл после ошибки крутился вечно
-            import sys
             proc = None
             try:
                 proc = subprocess.Popen(
-                    [sys.executable, script, "--input", path, "--review"],
+                    tool_cmd("phrase_check", "--input", path, "--review"),
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, encoding="utf-8", errors="replace",
                     creationflags=subprocess.CREATE_NO_WINDOW)

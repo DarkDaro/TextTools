@@ -8,7 +8,8 @@ merge_finder — кандидаты на слияние: дубликаты по
 import argparse
 import re
 import sys
-from collections import defaultdict
+# 26.10: defaultdict не используется (мёртвый импорт) — отключён
+# from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -101,7 +102,7 @@ def run(input_path, limit=None, verbose=False, out=None):
     print(f"Близких дубликатов (>= {NEAR_THRESHOLD:.0%}): {len(near)} пар")
 
     if verbose and near:
-        print(f"  Ближайшие пары:")
+        print("  Ближайшие пары:")
         for a, b, j in near[:15]:
             print(f"    {j:.0%}  {a.rel}  <->  {b.rel}")
 

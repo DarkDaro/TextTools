@@ -37,7 +37,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core import name_registry as nr
-from core import text_parser as tp
+# 26.10: tp не используется (мёртвый импорт) — отключён
+# from core import text_parser as tp
 
 SKIP_DIRS = {".git", ".obsidian", ".trash", "reports", "__pycache__",
              "md_replace_backups", ".smart-env"}
@@ -223,14 +224,18 @@ def run(input_path, registry=None, dict_path=None, review=False,
     hits = []
     stats = {"ё_всего": 0}
     n_pairs = [[w, r, 0] for w, r, _c in targets]
-    by_wrong = {w.lower(): idx for idx, (w, r, c) in enumerate(targets)}
+    # 26.10: by_wrong был нужен старой ветке подсчёта (idx выше отключён) —
+    # реально считаем перебором targets ниже. Отключено:
+    # by_wrong = {w.lower(): idx for idx, (w, r, c) in enumerate(targets)}
     for i, f in enumerate(files, 1):
         if stop_requested():
             print("Остановлено пользователем.")
             break
         for h in scan(f, targets, stats):
             hits.append((h[0], h[1], h[2], h[3], h[4]))
-            idx = by_wrong.get(h[0].lower())
+            # 26.10: мёртвое присваивание idx (реальный подсчёт — циклом
+            # ниже по targets) — отключено
+            # idx = by_wrong.get(h[0].lower())
             # h[0] — написание как в тексте; считаем по словарной форме
             for j, (w, r, c) in enumerate(targets):
                 if w.lower() == h[0].lower():

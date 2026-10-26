@@ -1,9 +1,15 @@
 """Обёртка конфига для виджетов (get/set с автосохранением)."""
+import sys
 from pathlib import Path
 import json
 import os
 
-CONFIG_FILE = Path(__file__).parent / "gui_config.json"
+# 26.10: exe (PyInstaller one-file): конфиг рядом с exe, не во
+# временном _MEIPASS — иначе настройки молча теряются при перезапусках.
+if getattr(sys, "frozen", False):
+    CONFIG_FILE = Path(sys.executable).parent / "gui_config.json"
+else:
+    CONFIG_FILE = Path(__file__).parent / "gui_config.json"
 
 _config = None
 

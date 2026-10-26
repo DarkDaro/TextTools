@@ -16,7 +16,8 @@ import shutil
 import sys
 from pathlib import Path
 
-import yaml
+# 26.10: yaml не используется (мёртвый импорт) — отключён
+# import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core import name_registry as nr

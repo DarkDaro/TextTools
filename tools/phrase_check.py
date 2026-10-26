@@ -16,10 +16,13 @@ phrase_check — поиск фраз-паттернов и штампов ИИ-�
 import argparse
 import sys
 from pathlib import Path
-from collections import Counter
+# 26.10: Counter не используется (мёртвый импорт) — отключён
+# from collections import Counter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core.text_parser import iter_text_files, read_text, norm_yo
+# 26.10: read_text не используется (читаем через docx_io ниже) — отключён
+# from core.text_parser import iter_text_files, read_text, norm_yo
+from core.text_parser import iter_text_files, norm_yo
 
 # --- Встроенный словарь штампов ИИ-текста --------------------------------
 
@@ -234,7 +237,9 @@ def _replace_preserving_case(text, phrase, repl):
         else:
             # удаление связки: съедаем пробелы ПЕРЕД фразой (чтобы не было « Кайдзо»)
             # но не если это начало строки
-            k = len("".join(out))  # позиция в уже собранном
+            # 26.10: мёртвое вычисление k (позиция нигде не читалась; реально
+            # работает rstrip последнего куска ниже) — отключено
+            # k = len("".join(out))  # позиция в уже собранном
             # проще: отрезаем пробелы с конца последнего куска
             if out:
                 out[-1] = out[-1].rstrip(" \t")

@@ -17,7 +17,8 @@ docx: правится только текст параграфов (w:t) — т
 создавая <имя>.bak рядом. .bak, .git, отчёты не трогаются.
 """
 import argparse
-import shutil
+# 26.10: shutil не используется (мёртвый импорт) — отключён
+# import shutil
 import sys
 from pathlib import Path
 

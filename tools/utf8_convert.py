@@ -11,7 +11,8 @@ utf8_convert — проверка и массовое приведение .md/.
   python utf8_convert.py --input <...> --fix             — перекодировать
 """
 import argparse
-import shutil
+# 26.10: shutil не используется (мёртвый импорт) — отключён
+# import shutil
 import sys
 from pathlib import Path
 
