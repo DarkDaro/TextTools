@@ -18,6 +18,8 @@ class CleanTab(ctk.CTkFrame):
             "Шахматы, ноты, масти карт и Mac-символы НЕ трогаются.\n"
             "• Чистка мусора — удаляет служебный мусор и CJK-символы (китайские/японские) "
             "из .txt/.md по белому списку разрешённых символов.\n"
+            "• Эмодзи → SVG-иконки — заменяет эмодзи-иконки интерфейса на векторные "
+            "SVG в html-файлах (вид одинаковый на любой системе).\n"
             "Безопасность: по умолчанию всё в режиме dry-run (только отчёт). "
             "Чтобы реально изменить файлы — снимите dry-run / поставьте «Применить». "
             "С бэкапом (.bak рядом с файлом) всегда можно откатить."))
@@ -193,6 +195,42 @@ class CleanTab(ctk.CTkFrame):
         b_typo.pack(side="left")
         b_typo.link_danger(self.c_typo_fix.var)
 
+        # --- 6. эмодзи → SVG-иконки в html (04.11) ---
+        s6 = Section(parent, "6. Эмодзи → SVG-иконки в интерфейсе (html)")
+        self.f_icons = PathField(s6.inner, "Папка или файл:", "icons_input", CFG,
+                                 file_mode="both",
+                                 tooltip="HTML-файл или папка с html-файлами "
+                                         "(обход рекурсивный).")
+        r6 = ctk.CTkFrame(s6.inner, fg_color="transparent")
+        r6.pack(fill="x", pady=4)
+        self.c_icons_fix = CheckField(r6, "Применить изменения", "icons_fix", CFG,
+                                      default=False,
+                                      tooltip="Без галочки — отчёт: какие файлы "
+                                              "и сколько иконок будут заменены. "
+                                              "С галочкой — замена, копия .bak "
+                                              "рядом с файлом.")
+        self.c_icons_fix.pack(side="left", padx=(0, 16))
+        self.c_icons_nobak = CheckField(r6, "Без бэкапа .bak", "icons_no_bak", CFG,
+                                        default=False,
+                                        tooltip="Для папок под git: копии .bak "
+                                                "не создаются. Внимание: без "
+                                                "бэкапа откатить замену нечем.")
+        self.c_icons_nobak.pack(side="left", padx=16)
+        ctk.CTkLabel(s6.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+            "Эмодзи-иконки интерфейса (💰 ❤️ ⏩ 🔊 …) заменяются на векторные "
+            "SVG: вид одинаковый на любой системе и не зависит от шрифтов "
+            "эмодзи. Повторный запуск безопасен — уже обработанные файлы "
+            "пропускаются. Свой набор замен — ключ --map в командной строке."
+        )).pack(anchor="w", pady=(0, 2))
+        row6 = button_row(s6.inner)
+        b_icons = ActionButton(
+            row6, "Заменить иконки", self._run_icons,
+            kind="safe", width=235,
+            tooltip="Эмодзи-иконки → SVG в html. Dry-run по умолчанию, "
+                    "с галочкой «Применить» — замена с .bak.")
+        b_icons.pack(side="left")
+        b_icons.link_danger(self.c_icons_fix.var)
+
     def _log(self, msg):
         from gui_ctk import _app
         _app.log_line(msg)
@@ -233,6 +271,19 @@ class CleanTab(ctk.CTkFrame):
         if self.c_typo_nbsp.get():
             args.append("--nbsp")
         run_internal("typography", args)
+
+    def _run_icons(self):
+        from gui_ctk import run_internal
+        p = self.f_icons.get()
+        if not p:
+            self._log("Укажите папку или файл.\n")
+            return
+        args = ["--input", p]
+        if self.c_icons_fix.get():
+            args.append("--fix")
+        if self.c_icons_nobak.get():
+            args.append("--no-bak")
+        run_internal("icon_replace", args)
 
     def _run_emoji(self):
         p = self.f_emoji.get()

@@ -191,6 +191,8 @@ python textools.py moc              --input <vault> --registry <yaml> --out-dir 
 python textools.py stats            --input <папка> [--out report.md] [--csv]
 python textools.py typography       --input <папка> [--fix] [--nbsp]
 python textools.py style-report     --input <папка> [--registry <yaml>] [--window 5] [--long 25]
+python textools.py whitespace       --input <папка> [--fix] [--keep-breaks]
+python textools.py emoji-icons      --input <файл/папка> [--fix] [--map icons.json]
 ```
 
 Общие опции: `--out <файл>` (отчёт), `--limit N`, `--verbose`.
@@ -271,7 +273,8 @@ python textools.py style-report     --input <папка> [--registry <yaml>] [--
   broken_links, merge_finder, integrity_check, obsidian_check,
   phrase_check, whitespace_clean, utf8_convert, morph_forms,
   character_matrix, registry_merge, backup_restore, backup_archive,
-  moc_builder, text_stats, typography, style_report, yo_audit) и словари
+  moc_builder, text_stats, typography, style_report, icon_replace,
+  yo_audit) и словари
   `phrases*.yaml`, `parasites.yaml`, `yo_dict.yaml`
 * `find_cjk.py`: поиск иероглифов, мойбейка и порчи кодировки (CLI `cjk`,
   карточка на вкладке «Хранилище»)

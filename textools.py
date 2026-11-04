@@ -4,12 +4,24 @@ textools — единый CLI текстовых инструментов.
 Команды:
   registry-builder   найти имена-кандидаты в текстах
   consistency        проверить имена по реестру (старые/опасные/опечатки)
+  forms              недостающие падежные формы реестра (pymorphy3)
+  merge-registry     добавить кандидатов в реестр персонажей
+  matrix             матрица «персонаж × файл»
+  moc                MOC-заметки персонажей для Obsidian
   orphan-finder      заметки без входящих и исходящих ссылок
   broken-links       вики-ссылки на несуществующие заметки
   merge-finder       дубликаты по содержимому и по именам файлов
   integrity          целостность .md: пустые, битый UTF-8, frontmatter, заголовки
   obsidian-check     валидатор метафайлов Obsidian: таблицы, заголовки, теги, ссылки
   cjk                иероглифы (CJK), мойбейк и порча кодировки (только чтение)
+  utf8               проверка/приведение текстов к UTF-8
+  typography         типографика: «ёлочки», тире, многоточия
+  style-report       стилистика: повторы слов рядом, длинные предложения
+  stats              статистика текстов (объём, диалоги, паразиты)
+  whitespace         чистка пробелов и пустых строк
+  emoji-icons        эмодзи-иконки → SVG в HTML
+  restore            обзор/восстановление из бэкапов
+  archive-backups    архивация старых бэкапов
 """
 import sys
 from pathlib import Path
@@ -150,6 +162,32 @@ def main():
     p12.add_argument("--limit", type=int)
     p12.add_argument("--out")
 
+    p13 = sub.add_parser("emoji-icons",
+                         help="эмодзи-иконки → SVG в HTML (с .bak)")
+    p13.add_argument("--input", required=True)
+    p13.add_argument("--fix", action="store_true",
+                     help="заменить (по умолчанию только отчёт)")
+    p13.add_argument("--ext", default="html,htm",
+                     help="расширения через запятую (по умолчанию html,htm)")
+    p13.add_argument("--no-bak", action="store_true",
+                     help="не делать .bak-копию (для папок под git)")
+    p13.add_argument("--no-markers", action="store_true",
+                     help="не переводить служебные textContent-присвоения "
+                          "без эмодзи на innerHTML")
+    p13.add_argument("--map", dest="map_file",
+                     help="JSON со своими заменами: {\"эмодзи\": HTML}")
+    p13.add_argument("--limit", type=int)
+    p13.add_argument("--out")
+
+    p14 = sub.add_parser("whitespace",
+                         help="чистка пробелов и пустых строк (с .bak)")
+    p14.add_argument("--input", required=True)
+    p14.add_argument("--fix", action="store_true",
+                     help="реально править (по умолчанию dry-run)")
+    p14.add_argument("--keep-breaks", action="store_true",
+                     help="сохранять markdown-переносы (2 пробела в конце строки)")
+    p14.add_argument("--out")
+
     args = ap.parse_args()
 
     here = Path(__file__).parent
@@ -276,6 +314,26 @@ def main():
             ["--input", args.input, "--registry", args.registry,
              *(["--limit", str(args.limit)] if args.limit is not None else []),
              *(["--verbose"] if args.verbose else []),
+             *(["--out", args.out] if args.out else [])]))
+    elif args.cmd == "emoji-icons":
+        sys.path.insert(0, str(here))
+        from tools import icon_replace
+        sys.exit(icon_replace.main(
+            ["--input", args.input,
+             *(["--fix"] if args.fix else []),
+             *(["--ext", args.ext] if args.ext else []),
+             *(["--no-bak"] if args.no_bak else []),
+             *(["--no-markers"] if args.no_markers else []),
+             *(["--map", args.map_file] if args.map_file else []),
+             *(["--limit", str(args.limit)] if args.limit is not None else []),
+             *(["--out", args.out] if args.out else [])]))
+    elif args.cmd == "whitespace":
+        sys.path.insert(0, str(here))
+        from tools import whitespace_clean
+        sys.exit(whitespace_clean.main(
+            ["--input", args.input,
+             *(["--fix"] if args.fix else []),
+             *(["--keep-breaks"] if args.keep_breaks else []),
              *(["--out", args.out] if args.out else [])]))
 
 
