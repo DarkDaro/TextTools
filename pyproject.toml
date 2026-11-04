@@ -50,7 +50,6 @@ py-modules = [
     "textools",
     "find_cjk",
     "gui_config",
-    "gui_theme",
     "review_dialog",
     "widgets_ctk",
     "tabs_names",
