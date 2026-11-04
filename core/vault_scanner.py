@@ -13,6 +13,11 @@ SKIP_DIRS = {".obsidian", ".git", "md_replace_backups", ".trash", ".smart-env"}
 WIKILINK_RE = re.compile(r"!?\[\[([^\]]+)\]\]")
 FENCE_OPEN_RE = re.compile(r"^\s*(```+|~~~+)")
 INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+# markdown-ссылка [текст](цель) и вложение ![альт](цель); цель без скобок
+MDLINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)\s][^)]*)\)")
+# внешние адреса и якоря без пути ссылками на заметки не считаются
+MD_SKIP_PREFIXES = ("http://", "https://", "ftp://", "ftps://", "mailto:",
+                    "data:", "obsidian://", "#", "tel:")
 
 
 def _clean_link(raw):
@@ -66,14 +71,76 @@ def links_from_text(text):
     return links
 
 
-class Note:
-    __slots__ = ("path", "rel", "stem", "links", "hash")
+def _clean_md_target(raw):
+    """(цель.md#глава) -> ('путь/цель', 'цель.md#глава'):
+    чистая цель для сравнения с индексом (lower, без якоря и .md,
+    проценты-эквивы раскрыты) и исходная для показа в отчёте."""
+    from urllib.parse import unquote
+    raw = raw.strip()
+    if raw.startswith("<") and raw.endswith(">"):
+        raw = raw[1:-1].strip()
+    if not raw or raw.lower().startswith(MD_SKIP_PREFIXES):
+        return None
+    target = unquote(raw).strip()
+    target = target.split("#", 1)[0].strip()  # якорь внутри файла
+    if not target:
+        return None
+    low = target.replace("\\", "/").lower()
+    if low.endswith(".md"):
+        low = low[:-3]
+    return low, target
 
-    def __init__(self, path, rel, links, hash_):
+
+def md_links_from_text(text):
+    """Markdown-ссылки [текст](цель) вне кода — те же фенсы, инлайн-код
+    и отступные блоки, что у вики-ссылок. Возвращает set пар
+    (чистая_цель, исходная_цель). Внешние адреса (http, mailto и т.п.)
+    и чистые якоря пропускаются; изображения ![]() считаются ссылками
+    на вложения — тоже проверяются."""
+    out = set()
+    in_fence = False
+    marker = ""
+    in_indented = False
+    prev_blank = True
+    for line in text.splitlines():
+        m = FENCE_OPEN_RE.match(line)
+        if m:
+            if not in_fence:
+                in_fence, marker = True, m.group(1)
+            elif m.group(1).startswith(marker):
+                in_fence, marker = False, ""
+            prev_blank = False
+            continue
+        if in_fence:
+            continue
+        if not line.strip():
+            prev_blank = True
+            continue
+        indented = line.startswith("    ")
+        if in_indented:
+            if indented:
+                continue
+            in_indented = False
+        elif indented and prev_blank:
+            in_indented = True
+            continue
+        prev_blank = False
+        for mm in MDLINK_RE.finditer(INLINE_CODE_RE.sub(" ", line)):
+            pair = _clean_md_target(mm.group(1))
+            if pair:
+                out.add(pair)
+    return out
+
+
+class Note:
+    __slots__ = ("path", "rel", "stem", "links", "md_links", "hash")
+
+    def __init__(self, path, rel, links, hash_, md_links=None):
         self.path = path      # Path абсолютный
         self.rel = rel        # относительный путь (str, осн. регистр)
         self.stem = path.stem.lower()   # имя файла без .md, lower
-        self.links = links    # set чистых ссылок (lower)
+        self.links = links    # set чистых вики-ссылок (lower)
+        self.md_links = md_links or set()  # set пар (чистая, исходная)
         self.hash = hash_     # md5 контента (hex) или None
 
     @property
@@ -132,6 +199,7 @@ def scan_vault(vault, exts=(".md",), limit=None):
             notes.append(Note(f, str(rel), set(), None))
             continue
         links = links_from_text(text)
+        md_links = md_links_from_text(text)
         hash_ = None
         try:
             # 26.10: локальный import hashlib был мёртвым (хеш берёт hashlib_md5 ниже) — отключён
@@ -140,7 +208,7 @@ def scan_vault(vault, exts=(".md",), limit=None):
             hash_ = hashlib_md5(norm)
         except Exception:
             pass
-        notes.append(Note(f, str(rel), links, hash_))
+        notes.append(Note(f, str(rel), links, hash_, md_links))
     return notes, basenames, relpaths, attachments
 
 
