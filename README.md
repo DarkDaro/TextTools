@@ -7,7 +7,7 @@
 мусор, где абзац состоит из одного и того же слова. Потом она это
 исправляет, если разрешить.
 
-Облака, подписки и искусственного интеллекта здесь нет. Есть 23
+Облака, подписки и искусственного интеллекта здесь нет. Есть 24
 подкоманды CLI, окно на шесть вкладок и ваша папка с текстами, к которой
 всё это применяется.
 
@@ -182,6 +182,7 @@ python textools.py utf8             --input <папка> [--fix]
 python textools.py orphan-finder    --input <папка>
 python textools.py broken-links     --input <папка>
 python textools.py phrase-check     --input <папка> [--clean --yes] [--out отчёт.md]
+python textools.py antiresolve      --input <папка> [--clean] [--log файл] [--out отчёт.md] [--json]
 python textools.py check-all        --input <папка> [--json сводка.json]
 python textools.py merge-finder     --input <папка>
 python textools.py integrity        --input <папка>
@@ -279,11 +280,13 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
   кросс-run замену), морфология (pymorphy3), кодировки
 * `tools/`: движки команд (registry_builder, consistency, orphan_finder,
   broken_links, merge_finder, integrity_check, obsidian_check,
-  phrase_check, whitespace_clean, separator_clean, utf8_convert,
-  full_check, morph_forms, character_matrix, registry_merge,
-  backup_restore, backup_archive, moc_builder, text_stats, typography,
-  style_report, icon_replace, yo_audit) и словари
-  `phrases*.yaml`, `parasites.yaml`, `yo_dict.yaml`
+  phrase_check, antiresolve, whitespace_clean, separator_clean,
+  utf8_convert, full_check, morph_forms, character_matrix,
+  registry_merge, backup_restore, backup_archive, moc_builder,
+  text_stats, typography, style_report, icon_replace, yo_audit)
+  и словари `phrases*.yaml`, `parasites.yaml`, `yo_dict.yaml`
+* `data/`: YAML-словари правил режима АНТИРЕШИМОСТЬ
+  (`resolve_db.yaml`, `pathos_db.yaml`, атрибуция — `SOURCES.md`)
 * `find_cjk.py`: поиск иероглифов, мойбейка и порчи кодировки (CLI `cjk`,
   карточка на вкладке «Хранилище»)
 * `wrappers/`: сборка командных строк для внешних скриптов
