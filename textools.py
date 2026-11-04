@@ -20,6 +20,7 @@ textools — единый CLI текстовых инструментов.
   stats              статистика текстов (объём, диалоги, паразиты)
   whitespace         чистка пробелов и пустых строк
   separators         чистка мусорных разделителей (///// **** =====)
+  phrase-check       поиск и чистка фраз-штампов (--clean из консоли)
   emoji-icons        эмодзи-иконки → SVG в HTML
   restore            обзор/восстановление из бэкапов
   archive-backups    архивация старых бэкапов
@@ -207,6 +208,27 @@ def main():
                      help="пустых строк на месте разделителя (по умолчанию 1)")
     p15.add_argument("--out")
 
+    p16 = sub.add_parser("phrase-check",
+                         help="поиск и чистка фраз-штампов ИИ (с .bak)")
+    p16.add_argument("--input", help="папка или файл")
+    p16.add_argument("--out", help="отчёт в .md (или «-» — в stdout)")
+    p16.add_argument("--custom", help="свой YAML-словарь фраз (список строк)")
+    p16.add_argument("--phrase", action="append", default=[],
+                     help="своя фраза для поиска (можно несколько раз)")
+    p16.add_argument("--limit", type=int)
+    p16.add_argument("--add", help="добавить фразу в словарь и выйти")
+    p16.add_argument("--clean", action="store_true",
+                     help="очистка штампов по словарю замен (с бэкапами)")
+    p16.add_argument("--review", action="store_true",
+                     help="витрина: каждое вхождение с контекстом")
+    p16.add_argument("--clean-map", help="свой YAML-словарь (фраза: замена)")
+    p16.add_argument("--dry-run", action="store_true",
+                     help="очистка: только показать план")
+    p16.add_argument("--yes", action="store_true",
+                     help="реальная чистка (без неё — только план)")
+    p16.add_argument("--no-backup", action="store_true",
+                     help="не делать бэкапы при чистке")
+
     args = ap.parse_args()
 
     here = Path(__file__).parent
@@ -367,6 +389,35 @@ def main():
              "--min-run", str(args.min_run),
              "--max-blank", str(args.max_blank),
              *(["--out", args.out] if args.out else [])]))
+    elif args.cmd == "phrase-check":
+        sys.path.insert(0, str(here))
+        from tools import phrase_check
+        opts = []
+        if args.input:
+            opts += ["--input", args.input]
+        if args.out:
+            opts += ["--out", args.out]
+        if args.custom:
+            opts += ["--custom", args.custom]
+        for ph in args.phrase:
+            opts += ["--phrase", ph]
+        if args.limit is not None:
+            opts += ["--limit", str(args.limit)]
+        if args.add:
+            opts += ["--add", args.add]
+        if args.clean:
+            opts.append("--clean")
+        if args.review:
+            opts.append("--review")
+        if args.clean_map:
+            opts += ["--clean-map", args.clean_map]
+        if args.dry_run:
+            opts.append("--dry-run")
+        if args.yes:
+            opts.append("--yes")
+        if args.no_backup:
+            opts.append("--no-backup")
+        sys.exit(phrase_check.main(opts))
 
 
 if __name__ == "__main__":
