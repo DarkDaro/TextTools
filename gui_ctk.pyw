@@ -403,6 +403,25 @@ class Runner:
         threading.Thread(target=_force, daemon=True).start()
 
 
+_ext_python = None
+
+
+def _external_python():
+    """04.11 (exe): интерпретатор для внешних .py-скриптов, которые не
+    входят в exe. Ищется один раз за сессию: python, python3, py."""
+    global _ext_python
+    if _ext_python is None:
+        import shutil
+        for name in ("python", "python3", "py"):
+            found = shutil.which(name)
+            if found:
+                _ext_python = found
+                break
+        else:
+            _ext_python = ""
+    return _ext_python
+
+
 def run_cmd(cmd):
     # Дружелюбное сообщение, если внешний скрипт не настроен или не найден.
     # 25.10: подробная подсказка и тост — один раз за сессию на скрипт,
@@ -437,6 +456,23 @@ def run_cmd(cmd):
                 cmd = [sys.executable, "--tool-run", "find_cjk"] + cmd[2:]
             elif base == "phrase_check.py":
                 cmd = [sys.executable, "--tool-run", "phrase_check"] + cmd[2:]
+            else:
+                # 04.11 (exe): остальные скрипты — внешние, в exe их нет.
+                # Раньше команда вида [exe, script.py, ...] запускала
+                # сам exe и открывала второе окно GUI вместо инструмента;
+                # теперь внешний .py запускает найденный интерпретатор
+                # Python. Если Python не найден — понятное сообщение.
+                py = _external_python()
+                if py:
+                    cmd = [py] + cmd[1:]
+                else:
+                    _app.warn_script(
+                        script.name,
+                        "Для внешнего скрипта нужен Python: интерпретатор "
+                        "не найден (PATH).\nУстановите Python и "
+                        "перезапустите программу.\n",
+                        key=str(script.resolve()))
+                    return
     if _app.begin_run():
         _app.runner.run(cmd)
 
