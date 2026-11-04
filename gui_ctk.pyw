@@ -1145,7 +1145,10 @@ class App(ctk.CTk):
         # 04.11: то же для obsidian-check — найденные ERROR это результат
         # проверки, а не сбой (флаг --exit-zero из запуска убран).
         # 04.11: phrase_check присоединился — код 1 означает найденные штампы.
-        if code == 1 and label in ("find_cjk", "obsidian_check", "phrase_check"):
+        # 05.11: full_check («проверить всё») — код 1 это серьёзные находки,
+        # а не сбой; раньше профиль показывал «Ошибка» вместо замечаний.
+        if code == 1 and label in ("find_cjk", "obsidian_check",
+                                   "phrase_check", "full_check"):
             self.status.configure(text="есть замечания")
             _toast_beep("warn")
             if _cfg_flag("toast_done", True):
