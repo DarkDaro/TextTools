@@ -8,6 +8,7 @@
   "remember_geometry": true,
   "remember_tab": true,
   "report_dir": "",
+  "ui.editor": "",
   "ui.log_limit": 5000,
   "cjk_ext": "",
   "obs_no_bak": false,

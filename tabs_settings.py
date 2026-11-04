@@ -121,6 +121,17 @@ class SettingsTab(ctk.CTkFrame):
                            "справа снизу экрана. Ошибки и предупреждения "
                            "показываются независимо от этой галочки."
                    ).pack(anchor="w")
+        # 11.26: редактор для конфига/журнала/паразитов вместо жёсткого
+        # notepad.exe
+        self.f_editor = EntryField(
+            s2.inner, "Редактор (путь к программе):", "ui.editor", CFG,
+            width_label=230, placeholder="необязательно",
+            tooltip="Чем открывать конфиг, журнал операций и список "
+                    "паразитов: путь к редактору (например notepad++). "
+                    "Пусто = Блокнот на Windows, системный способ на "
+                    "других ОС.")
+        self.f_editor.pack(fill="x")
+        self.f_editor.entry.bind("<FocusOut>", self._check_editor, add="+")
 
         # --- Проверки заметок (24.10) ---
         s_checks = Section(parent, "Проверки заметок")
@@ -391,6 +402,13 @@ class SettingsTab(ctk.CTkFrame):
         if normalized != raw:
             self.f_cjk_ext.set(normalized)
 
+    def _check_editor(self, _e=None):
+        # 11.26: мягкая проверка пути к редактору, как у остальных полей
+        p = self.f_editor.get()
+        if p and not Path(p).is_file():
+            self._log(f"Редактор не найден, файлы будут открыты "
+                      f"по умолчанию: {p}\n", "warn")
+
     # --- о программе (24.10) ---
 
     @staticmethod
@@ -469,17 +487,18 @@ class SettingsTab(ctk.CTkFrame):
             self._log(f"README не найден: {readme}\n", "warn")
             return
         import os
+        import subprocess
         try:
-            os.startfile(str(readme))
+            if sys.platform == "win32":
+                os.startfile(str(readme))
+            else:
+                opener = "open" if sys.platform == "darwin" else "xdg-open"
+                subprocess.Popen([opener, str(readme)])
         except Exception as e:
             self._log(f"Не удалось открыть README: {e}\n", "err")
 
     def _open_project_dir(self):
-        import os
-        try:
-            os.startfile(str(APP_DIR))  # 26.10: APP_DIR (frozen-safe)
-        except Exception as e:
-            self._log(f"Не удалось открыть папку проекта: {e}\n", "err")
+        self._open_in_file_manager(APP_DIR)  # 26.10: APP_DIR (frozen-safe)
 
     def _autofill_silent(self):
         """Заполнить пустые поля найденными скриптами без записи в журнал."""
@@ -637,24 +656,54 @@ class SettingsTab(ctk.CTkFrame):
             args.append("--move")
         run_internal("backup_archive", args)
 
-    def _open_config(self):
+    # --- открытие файлов и папок (11.26) ---
+
+    def _open_text_file(self, path):
+        """Текстовый файл (конфиг, журнал, паразиты): редактор из
+        настройки ui.editor, иначе Блокнот на Windows, системный способ
+        на других ОС. Раньше notepad.exe был жёстко — на других ОС
+        кнопки падали с FileNotFoundError."""
         import subprocess
-        subprocess.Popen(["notepad.exe", str(CONFIG_FILE)])
+        editor = str(CFG.get("ui.editor", "") or "").strip()
+        try:
+            if editor:
+                subprocess.Popen([editor, str(path)])
+            elif sys.platform == "win32":
+                subprocess.Popen(["notepad.exe", str(path)])
+            else:
+                opener = "open" if sys.platform == "darwin" else "xdg-open"
+                subprocess.Popen([opener, str(path)])
+        except Exception as e:
+            self._log(f"Не удалось открыть файл: {e}\n", "err")
+
+    def _open_in_file_manager(self, path):
+        """Папка в проводнике: explorer на Windows, системный способ
+        на других ОС (раньше — жёсткий explorer)."""
+        import subprocess
+        try:
+            if sys.platform == "win32":
+                subprocess.Popen(["explorer", str(path)])
+            else:
+                opener = "open" if sys.platform == "darwin" else "xdg-open"
+                subprocess.Popen([opener, str(path)])
+        except Exception as e:
+            self._log(f"Не удалось открыть папку: {e}\n", "err")
+
+    def _open_config(self):
+        self._open_text_file(CONFIG_FILE)
 
     def _open_history(self):
         from gui_ctk import HISTORY_FILE
         if not HISTORY_FILE.exists():
             self._log("Журнал пуст — ещё ни одной операции не было.\n")
             return
-        import subprocess
-        subprocess.Popen(["notepad.exe", str(HISTORY_FILE)])
+        self._open_text_file(HISTORY_FILE)
 
     def _open_reports(self):
         # 24.10: учитываем папку отчётов из настроек
         from gui_ctk import _app
-        import subprocess
         reports = _app._reports_dir()
-        subprocess.Popen(["explorer", str(reports)])
+        self._open_in_file_manager(reports)
 
     def _reset_geometry(self):
         from gui_ctk import _app
@@ -674,9 +723,13 @@ class SettingsTab(ctk.CTkFrame):
             self._log(f"Инструкция не найдена: {guide}\n", "warn")
             return
         try:
-            os.startfile(str(guide))
+            if sys.platform == "win32":
+                os.startfile(str(guide))
+            else:
+                opener = "open" if sys.platform == "darwin" else "xdg-open"
+                subprocess.Popen([opener, str(guide)])
         except Exception:
-            subprocess.Popen(["notepad.exe", str(guide)])
+            self._open_text_file(guide)
 
     def _open_parasites(self):
         from tools.text_stats import PARASITE_FILE, PARASITES
@@ -694,8 +747,7 @@ class SettingsTab(ctk.CTkFrame):
             lines += [f"- {p}" for p in PARASITES]
             PARASITE_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
             self._log(f"Создан шаблон списка паразитов: {PARASITE_FILE}\n")
-        import subprocess
-        subprocess.Popen(["notepad.exe", str(PARASITE_FILE)])
+        self._open_text_file(PARASITE_FILE)
 
     def _reset_all(self):
         # 24.10: сброс удаляет файл настроек — спрашиваем подтверждение,
