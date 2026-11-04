@@ -121,7 +121,7 @@ class SettingsTab(ctk.CTkFrame):
                            "справа снизу экрана. Ошибки и предупреждения "
                            "показываются независимо от этой галочки."
                    ).pack(anchor="w")
-        # 11.26: редактор для конфига/журнала/паразитов вместо жёсткого
+        # 04.11: редактор для конфига/журнала/паразитов вместо жёсткого
         # notepad.exe
         self.f_editor = EntryField(
             s2.inner, "Редактор (путь к программе):", "ui.editor", CFG,
@@ -132,7 +132,7 @@ class SettingsTab(ctk.CTkFrame):
                     "других ОС.")
         self.f_editor.pack(fill="x")
         self.f_editor.entry.bind("<FocusOut>", self._check_editor, add="+")
-        # 11.26: поведенческие тайминги из жёстких констант — в настройки
+        # 04.11: поведенческие тайминги из жёстких констант — в настройки
         self.f_toast_ms = EntryField(
             s2.inner, "Тост, мс:", "toast_ms", CFG,
             width_label=230, placeholder="4200",
@@ -197,7 +197,7 @@ class SettingsTab(ctk.CTkFrame):
                     "Старые строки сверх лимита убираются только из окна, "
                     "файлы не затрагиваются. По умолчанию 5000.")
         self.f_log_limit.pack(fill="x")
-        # 11.26: шрифт и масштаб интерфейса — применяются после перезапуска
+        # 04.11: шрифт и масштаб интерфейса — применяются после перезапуска
         self.f_ui_scale = EntryField(
             s_view.inner, "Масштаб интерфейса:", "ui.scale", CFG,
             width_label=170, placeholder="1.0",
@@ -481,14 +481,14 @@ class SettingsTab(ctk.CTkFrame):
             self.f_cjk_ext.set(normalized)
 
     def _check_editor(self, _e=None):
-        # 11.26: мягкая проверка пути к редактору, как у остальных полей
+        # 04.11: мягкая проверка пути к редактору, как у остальных полей
         p = self.f_editor.get()
         if p and not Path(p).is_file():
             self._log(f"Редактор не найден, файлы будут открыты "
                       f"по умолчанию: {p}\n", "warn")
 
     def _check_ui_scale(self, _e=None):
-        # 11.26: масштаб 0.5–2.0; дробная часть — и с точкой, и с запятой
+        # 04.11: масштаб 0.5–2.0; дробная часть — и с точкой, и с запятой
         raw = self.f_ui_scale.get().strip().replace(",", ".")
         if not raw:
             return
@@ -506,7 +506,7 @@ class SettingsTab(ctk.CTkFrame):
                       f"поставлено {fixed}.\n", "warn")
 
     def _check_font_family(self, _e=None):
-        # 11.26: шрифт проверяем мягко — неверное имя Tk подменит своим
+        # 04.11: шрифт проверяем мягко — неверное имя Tk подменит своим
         name = self.f_font_family.get().strip()
         if not name:
             return
@@ -521,7 +521,7 @@ class SettingsTab(ctk.CTkFrame):
             pass
 
     def _check_font_size(self, _e=None):
-        # 11.26: базовый размер шрифта 8–24
+        # 04.11: базовый размер шрифта 8–24
         raw = self.f_font_size.get().strip()
         if not raw:
             return
@@ -531,7 +531,7 @@ class SettingsTab(ctk.CTkFrame):
                       "Возвращено 12.\n", "warn")
 
     def _check_mono_family(self, _e=None):
-        # 11.26: моношрифт журнала — та же мягкая проверка
+        # 04.11: моношрифт журнала — та же мягкая проверка
         name = self.f_mono_family.get().strip()
         if not name:
             return
@@ -546,7 +546,7 @@ class SettingsTab(ctk.CTkFrame):
             pass
 
     def _check_int_range(self, field, lo, hi, default, label):
-        """11.26: общий валидатор целочисленных полей (FocusOut):
+        """04.11: общий валидатор целочисленных полей (FocusOut):
         вне диапазона — вернуть значение по умолчанию и предупредить."""
         raw = field.get().strip()
         if not raw:
@@ -767,7 +767,7 @@ class SettingsTab(ctk.CTkFrame):
             pass
 
     def _save_now(self):
-        # 11.26: запись атомарная (tmp + replace), как у автосохранения
+        # 04.11: запись атомарная (tmp + replace), как у автосохранения
         from gui_config import save
         try:
             save()
@@ -803,7 +803,7 @@ class SettingsTab(ctk.CTkFrame):
             args.append("--move")
         run_internal("backup_archive", args)
 
-    # --- открытие файлов и папок (11.26) ---
+    # --- открытие файлов и папок (04.11) ---
 
     def _open_text_file(self, path):
         """Текстовый файл (конфиг, журнал, паразиты): редактор из

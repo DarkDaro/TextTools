@@ -159,7 +159,7 @@ def _cfg_flag(key, default=True):
 
 
 def _cfg_int(key, default, lo, hi):
-    """11.26: целочисленная настройка из конфига с безопасными границами."""
+    """04.11: целочисленная настройка из конфига с безопасными границами."""
     try:
         v = int(float(str(CFG.get(key, default) or default)))
     except Exception:
@@ -185,7 +185,7 @@ def _toast_beep(level):
             pass
 
 
-# 11.26: CREATE_NO_WINDOW существует только на Windows — доступ к
+# 04.11: CREATE_NO_WINDOW существует только на Windows — доступ к
 # атрибуту на других ОС падал AttributeError, и каждый запуск инструмента
 # получал «ошибка запуска». На Windows по-прежнему без консольного окна.
 CREATE_FLAGS = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
@@ -384,7 +384,7 @@ class Runner:
             # 24.10: ждём полные stop_wait_sec (по умолчанию 15 с), чтобы
             # инструмент успел докончить текущий файл. Раньше цикл выходил
             # на первом появлении proc и убивал процесс сразу.
-            # 11.26: таймаут настраивается («Ожидание «Стоп», сек»)
+            # 04.11: таймаут настраивается («Ожидание «Стоп», сек»)
             wait_s = _cfg_int("stop_wait_sec", 15, 5, 60)
             for _ in range(wait_s * 10):
                 _t.sleep(0.1)
@@ -890,7 +890,7 @@ class App(ctk.CTk):
                     pass
             App._toast_stack.append(win)
             win.geometry(f"+{x}+{y}")
-            # 11.26: длительность тоста — настройка toast_ms (1500–15000)
+            # 04.11: длительность тоста — настройка toast_ms (1500–15000)
             win.after(_cfg_int("toast_ms", 4200, 1500, 15000), _drop)
         except Exception:
             pass  # тост никогда не мешает работе инструментов

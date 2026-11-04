@@ -265,7 +265,7 @@ class VaultTab(ctk.CTkFrame):
         if self.c_obs_fix.get():
             args.append("--fix")
             # 24.10: настройка «не создавать .bak» (папки под git).
-            # 11.26: значение могло прийти строкой («true» из правки
+            # 04.11: значение могло прийти строкой («true» из правки
             # руками) — строгий `is True` молча игнорировал его
             from gui_ctk import _cfg_flag
             if _cfg_flag("obs_no_bak", False):
@@ -412,7 +412,7 @@ class VaultTab(ctk.CTkFrame):
             # 20.10: любой сбой (таймаут, нет интерпретатора) кладёт в
             # очередь маркер — раньше полл после ошибки крутился вечно
             proc = None
-            # 11.26: таймаут витрины — настройка review_timeout_min (1–60)
+            # 04.11: таймаут витрины — настройка review_timeout_min (1–60)
             from gui_ctk import _cfg_int
             timeout_s = _cfg_int("review_timeout_min", 10, 1, 60) * 60
             try:
