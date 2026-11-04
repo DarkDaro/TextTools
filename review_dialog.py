@@ -18,7 +18,9 @@ MAX_ROWS = 400
 def show(owner, hits, on_apply):
     """hits: [(phrase, repl, file, line_no, fragment)];
     on_apply(pairs) выполняется в фоновом потоке и возвращает список
-    (текст, тег) или просто строк; pairs=[(phrase, file)]."""
+    (текст, тег) или просто строк; pairs=[(phrase, файл, строка)] —
+    04.11: номер строки доходит до инструментов, правятся только
+    отмеченные вхождения."""
     win = ctk.CTkToplevel(owner)
     win.title("Выберите вхождения")
     win.geometry("980x640")
@@ -82,10 +84,10 @@ def show(owner, hits, on_apply):
                              variable=var, font=FONT_TINY,
                              checkbox_width=18, checkbox_height=18)
         cb.pack(fill="x", padx=22, pady=1)
-        groups[ph]["rows"].append((var, f))
+        groups[ph]["rows"].append((var, f, ln))
 
     def toggle_group(ph, val):
-        for var, _f in groups[ph]["rows"]:
+        for var, _f, _ln in groups[ph]["rows"]:
             var.set(val)
 
     for ph, g in groups.items():
@@ -98,8 +100,8 @@ def show(owner, hits, on_apply):
         m.pack(anchor="w", padx=10, pady=(0, 4))
 
     def apply_selected():
-        pairs = [(ph, f) for ph, g in groups.items()
-                 for var, f in g["rows"] if var.get()]
+        pairs = [(ph, f, ln) for ph, g in groups.items()
+                 for var, f, ln in g["rows"] if var.get()]
         if not pairs:
             # 24.10: пустой выбор не закрывает окно молча
             try:
@@ -107,17 +109,20 @@ def show(owner, hits, on_apply):
             except Exception:
                 pass
             return
-        close()
-        started = False
+        # 04.11: запуск проверяется ДО закрытия окна — раньше окно с
+        # галочками уничтожалось, и если операция уже шла, выбор
+        # пропадал безвозвратно
         begin = getattr(owner, "begin_background", None)
+        started = True
         if callable(begin):
             try:
                 started = bool(begin("Применение витрины"))
             except Exception:
                 started = False
             if not started:
-                # 24.10: другой запуск уже идёт — не пишем файлы параллельно
+                # другой запуск уже идёт — окно остаётся с выбором
                 return
+        close()
         results = queue.Queue()
 
         def worker():
