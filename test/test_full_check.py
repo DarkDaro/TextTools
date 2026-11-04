@@ -50,3 +50,17 @@ def test_cli_help_and_wiring():
     rc = full_check.main(["--input", "нет_такой_папки", "--limit", "1",
                           "--exit-zero"])
     assert rc == 2
+
+
+def test_json_stdout_is_pure(tmp_path, capsys):
+    # 05.11: «--json -» — stdout только JSON (сводка и вывод вложенных
+    # проверок уходят в stderr); раньше всё мешалось в одном потоке
+    (tmp_path / "плохо.md").write_text("## Ок\n\n```\nнезакрытый\n",
+                                       encoding="utf-8")
+    rc = full_check.run(str(tmp_path), json_out="-")
+    assert rc == 1
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)  # не-JSON в stdout заставит тест упасть
+    assert data["tool"] == "check-all"
+    assert data["serious"] is True
+    assert "СВОДКА" in captured.err  # человеческая сводка не потеряна

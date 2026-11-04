@@ -28,6 +28,21 @@ def run(input_path, limit=None, exit_zero=False, json_out=None):
     if not Path(input_path).exists():
         print(f"Путь не найден: {input_path}", file=sys.stderr)
         return 2
+    # 05.11: «--json -» — stdout целиком под JSON; весь человеческий
+    # вывод (включая вывод вложенных проверок) уходит в stderr —
+    # конвейеры (jq и т.п.) получают чистый JSON без примесей
+    to_stdout = str(json_out).strip() == "-"
+    _real_stdout = sys.stdout
+    if to_stdout:
+        sys.stdout = sys.stderr
+    try:
+        return _run(input_path, limit, exit_zero, json_out, _real_stdout)
+    finally:
+        sys.stdout = _real_stdout
+
+
+def _run(input_path, limit=None, exit_zero=False, json_out=None,
+         out_stream=None):
     from tools import obsidian_check, integrity_check, merge_finder
     from find_cjk import main as cjk_main
 
@@ -85,13 +100,20 @@ def run(input_path, limit=None, exit_zero=False, json_out=None):
         print("Итог: серьёзных замечаний нет.")
     if json_out:
         from core.report import write_json
-        write_json(json_out, {
+        payload = {
             "tool": "check-all",
             "input": str(input_path),
             "serious": serious,
             "checks": checks,
-        })
-        print(f"JSON-отчёт: {json_out}")
+        }
+        if str(json_out).strip() == "-":
+            # 05.11: печать в сохранённый stdout (при «-» он освобождён
+            # от человеческого вывода) — без строки «JSON-отчёт: -» после
+            print(json.dumps(payload, ensure_ascii=False, indent=2),
+                  file=out_stream)
+        else:
+            write_json(json_out, payload)
+            print(f"JSON-отчёт: {json_out}")
     if serious and not exit_zero:
         return 1
     return 0
