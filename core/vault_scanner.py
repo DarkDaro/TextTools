@@ -11,6 +11,8 @@ from core import encoding
 SKIP_DIRS = {".obsidian", ".git", "md_replace_backups", ".trash", ".smart-env"}
 
 WIKILINK_RE = re.compile(r"!?\[\[([^\]]+)\]\]")
+FENCE_OPEN_RE = re.compile(r"^\s*(```+|~~~+)")
+INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 
 
 def _clean_link(raw):
@@ -20,6 +22,48 @@ def _clean_link(raw):
     raw = raw.split("#")[0]      # убрать главу
     raw = raw.removesuffix(".md")
     return raw.strip().lower()
+
+
+def links_from_text(text):
+    """04.11: вики-ссылки вне кода — фенсы, инлайн-код и отступные блоки.
+    Пример в заметке ([[имя]]) — это пример, а не ссылка: раньше он
+    считался битой ссылкой и вешал на заметку ложные связи в графе.
+    Отступ в 4+ пробела считается кодом только после пустой строки —
+    отступ сразу после элемента списка это продолжение пункта (ссылка
+    там настоящая)."""
+    links = set()
+    in_fence = False
+    marker = ""
+    in_indented = False
+    prev_blank = True
+    for line in text.splitlines():
+        m = FENCE_OPEN_RE.match(line)
+        if m:
+            if not in_fence:
+                in_fence, marker = True, m.group(1)
+            elif m.group(1).startswith(marker):
+                in_fence, marker = False, ""
+            prev_blank = False
+            continue
+        if in_fence:
+            continue
+        if not line.strip():
+            prev_blank = True
+            continue
+        indented = line.startswith("    ")
+        if in_indented:
+            if indented:
+                continue
+            in_indented = False
+        elif indented and prev_blank:
+            in_indented = True
+            continue
+        prev_blank = False
+        for mm in WIKILINK_RE.finditer(INLINE_CODE_RE.sub(" ", line)):
+            target = _clean_link(mm.group(1))
+            if target:
+                links.add(target)
+    return links
 
 
 class Note:
@@ -87,11 +131,7 @@ def scan_vault(vault, exts=(".md",), limit=None):
         if text is None:
             notes.append(Note(f, str(rel), set(), None))
             continue
-        links = set()
-        for m in WIKILINK_RE.finditer(text):
-            target = _clean_link(m.group(1))
-            if target:
-                links.add(target)
+        links = links_from_text(text)
         hash_ = None
         try:
             # 26.10: локальный import hashlib был мёртвым (хеш берёт hashlib_md5 ниже) — отключён
