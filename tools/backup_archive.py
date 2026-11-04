@@ -49,11 +49,18 @@ def collect_old(root, days):
 
 
 def _unique(dest):
-    """Путь, которого ещё нет (конфликт — суффикс времени, без перезаписи)."""
+    """Путь, которого ещё нет (конфликт — суффикс времени, без перезаписи).
+    04.11: суффикс добавляется циклически — раньше второй конфликт в
+    ту же секунду молча перезаписывал уже заархивированный файл."""
     if not dest.exists():
         return dest
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    return dest.with_name(f"{dest.stem}.{stamp}{dest.suffix}")
+    candidate = dest.with_name(f"{dest.stem}.{stamp}{dest.suffix}")
+    n = 1
+    while candidate.exists():
+        candidate = dest.with_name(f"{dest.stem}.{stamp}-{n}{dest.suffix}")
+        n += 1
+    return candidate
 
 
 def run(input_path, days=30, move=False):
@@ -87,7 +94,12 @@ def run(input_path, days=30, move=False):
             rel = Path(f.name)
         dest = _unique(ARCHIVE_ROOT / src_name / rel)
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(str(f), str(dest))  # перенос, не удаление
+        try:
+            shutil.move(str(f), str(dest))  # перенос, не удаление
+        except (PermissionError, OSError) as e:
+            # 04.11: занятый файл не роняет прогон
+            print(f"  [ПРОПУСК] {f.name}: {e}")
+            continue
         n += 1
         print(f"  [архивирован] {f.name} -> {dest}")
     # пустые папки-обёртки снимков остаются на месте (ничего не удаляем)

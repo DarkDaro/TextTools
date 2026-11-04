@@ -134,9 +134,11 @@ def walk(root: Path):
     if root.is_file():
         yield root
         return
-    for entry in root.rglob("*"):
+    for entry in sorted(root.rglob("*")):
         # 24.10: служебные папки считаем относительно корня: явно
         # указанная папка reports/ не должна пропадать целиком
+        # 04.11: sorted — порядок файлов и прогресс стабильны между
+        # прогонами (rglob обходил в произвольном порядке)
         if any(part in SKIP_DIRS for part in entry.relative_to(root).parts):
             continue
         if entry.is_file():
@@ -239,8 +241,9 @@ def main(argv=None) -> int:
             print("ЧИСТО — иероглифов и порчи кодировки не найдено")
         if args.json_out:
             write_json({"root": str(root), "scanned": total_files,
-                        "stopped": stopped, "findings": []})
-        return 0
+                        "stopped": stopped, "results": {}})
+        # 04.11: прерванный прогон больше не неотличим от «чисто»
+        return 2 if stopped else 0
 
     print()
     print(f"НАЙДЕНО: {total_findings} вхождений в {len(results)} файлах")

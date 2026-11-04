@@ -816,7 +816,11 @@ class SettingsTab(ctk.CTkFrame):
         editor = str(CFG.get("ui.editor", "") or "").strip()
         try:
             if editor:
-                subprocess.Popen([editor, str(path)])
+                # 04.11: редактор с аргументами («notepad++ -multiInst»)
+                # запускается — строка разбирается на команду и флаги
+                import shlex
+                cmd = shlex.split(editor, posix=False) or [editor]
+                subprocess.Popen(cmd + [str(path)])
             elif sys.platform == "win32":
                 subprocess.Popen(["notepad.exe", str(path)])
             else:

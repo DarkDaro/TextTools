@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 """Проверка автопоиска внешних скриптов и пресетов.
 
-Запуск: py -3.14 test_script_presets.py
+Запуск: py -3 test_script_presets.py (или pytest test_script_presets.py)
 """
 import os
 import sys
 import tempfile
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent.parent
+# 04.11: корень проекта — папка теста, а не уровнем выше (import
+# gui_config/wrappers при PYTHONSAFEPATH падал)
+HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import gui_config

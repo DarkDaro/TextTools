@@ -76,7 +76,8 @@ def _note_text(note):
 
 
 def run(input_path, limit=None, verbose=False, out=None):
-    notes, basenames, relpaths = vs.scan_vault(input_path, limit=limit)
+    notes, basenames, relpaths, _attachments = vs.scan_vault(
+        input_path, limit=limit)
 
     # 1. точные дубликаты по нормализованному содержимому
     by_hash = {}
@@ -145,3 +146,7 @@ def main(argv=None):
     ap.add_argument("--out", help="файл отчёта")
     args = ap.parse_args(argv)
     return run(args.input, limit=args.limit, verbose=args.verbose, out=args.out)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

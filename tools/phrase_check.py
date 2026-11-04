@@ -99,7 +99,13 @@ def load_phrases(custom_path=None):
     phrases = list(BUILTIN_PHRASES)
     if custom_path and Path(custom_path).exists():
         import yaml
-        extra = yaml.safe_load(open(custom_path, encoding="utf-8")) or []
+        with open(custom_path, encoding="utf-8") as fh:
+            extra = yaml.safe_load(fh) or []
+        # 04.11: файл-словарь вместо списка раньше молча давал мусор
+        if not isinstance(extra, list):
+            print(f"ПРЕДУПРЕЖДЕНИЕ: {custom_path}: ожидался список строк — "
+                  "файл пропущен.")
+            extra = []
         phrases.extend(str(p).lower() for p in extra)
     return phrases
 
@@ -113,13 +119,18 @@ def add_phrase(phrase):
         return
     current = []
     if PHRASES_FILE.exists():
-        current = yaml.safe_load(open(PHRASES_FILE, encoding="utf-8")) or []
+        with open(PHRASES_FILE, encoding="utf-8") as fh:
+            current = yaml.safe_load(fh) or []
+        if not isinstance(current, list):
+            print(f"{PHRASES_FILE.name}: ожидался список строк — файл "
+                  "не тронут.")
+            return
     if phrase in current:
         print(f"Уже есть: {phrase}")
         return
     current.append(phrase)
-    yaml.dump(current, open(PHRASES_FILE, "w", encoding="utf-8"),
-              allow_unicode=True, sort_keys=False)
+    with open(PHRASES_FILE, "w", encoding="utf-8") as fh:
+        yaml.dump(current, fh, allow_unicode=True, sort_keys=False)
     print(f"Добавлено: {phrase} (всего в словаре: {len(current) + len(BUILTIN_PHRASES)})")
 
 
@@ -202,16 +213,26 @@ def load_phrases_list(custom=None, extra=None):
 
 
 def read_file(f):
-    """Чтение файла любого из 3 форматов (docx через docx_io)."""
+    """Чтение файла любого из 3 форматов (docx через docx_io).
+    04.11: с newline="" — переводы строк сохраняются как есть,
+    CRLF-файл при записи не превращается в LF и наоборот."""
     if f.suffix.lower() == ".docx":
         from core import docx_io
         t = docx_io.read_text(f)
         return t or ""
-    return f.read_text(encoding="utf-8")
+    with open(f, "r", encoding="utf-8", newline="") as fh:
+        return fh.read()
 
 
 def _replace_preserving_case(text, phrase, repl):
-    """Замена с сохранением регистра первой буквы оригинала."""
+    """Замена с сохранением регистра первой буквы оригинала.
+
+    04.11: правки локальны — убраны глобальные схлопывание двойных
+    пробелов и срез ведущих пробелов строк, которые ломали
+    markdown-переносы (2 пробела в конце строки) и отступы
+    код-блоков и вложенных списков во всём файле. Пробелы правятся
+    только на стыках с удалённой фразой; пробелы перед переводом
+    строки не трогаются."""
     if not phrase:
         return text
     # 01.10: ё=е; norm_yo не меняет длину — индексы валидны в оригинале
@@ -219,6 +240,7 @@ def _replace_preserving_case(text, phrase, repl):
     ph_low = norm_yo(phrase.lower())
     out = []
     pos = 0
+    n = len(text)
     while True:
         i = low.find(ph_low, pos)
         if i < 0:
@@ -234,33 +256,50 @@ def _replace_preserving_case(text, phrase, repl):
             if (repl and at_sentence_start) else repl
         if repl_cased:
             out.append(repl_cased)
+            pos = i + len(ph_low)
         else:
-            # удаление связки: съедаем пробелы ПЕРЕД фразой (чтобы не было « Кайдзо»)
-            # но не если это начало строки
-            # 26.10: мёртвое вычисление k (позиция нигде не читалась; реально
-            # работает rstrip последнего куска ниже) — отключено
-            # k = len("".join(out))  # позиция в уже собранном
-            # проще: отрезаем пробелы с конца последнего куска
+            # удаление связки: пробелы правятся только на стыках.
+            # Раньше (до 04.11) после удаления глобально схлопывались
+            # все двойные пробелы файла и срезались отступы строк
             if out:
                 out[-1] = out[-1].rstrip(" \t")
-        pos = i + len(ph_low)
-    result = "".join(out)
-    # хвостовые двойные пробелы после удаления (было «слово,  дальше»)
-    while "  " in result:
-        result = result.replace("  ", " ")
-    # строка не должна начинаться с пробела; без хвостового пробела
-    result = "\n".join(line.strip(" ") if line.strip() else line
-                       for line in result.split("\n"))
-    return result
+            pos = i + len(ph_low)
+            # пробелы после фразы: смотрим, кончаются ли они переводом
+            # строки — хвостовые два пробела это markdown-перенос
+            k = pos
+            while k < n and text[k] in " \t":
+                k += 1
+            tail_inner = k < n and text[k] not in "\r\n"
+            head_inner = bool(out) and out[-1] != "" \
+                and out[-1][-1] not in "\r\n"
+            # стык в середине строки оставляем с одним пробелом,
+            # на краях строки пробелы не добавляем
+            if head_inner and tail_inner:
+                out.append(" ")
+            if tail_inner:
+                pos = k
+    return "".join(out)
 
 
 def write_file(f, content):
-    """Запись файла (docx через docx_io)."""
-    if f.suffix.lower() == ".docx":
-        from core import docx_io
-        docx_io.replace_in_docx_text(f, content)
-        return
-    f.write_text(content, encoding="utf-8")
+    """Запись .md/.txt. 04.11: с newline="" — переводы строк файла
+    не меняются. Docx в чистке идёт через _clean_docx_phrases —
+    пофразовая замена с сохранением форматирования (прежняя перезапись
+    всего текста задваивала таблицы и колонтитулы)."""
+    with open(f, "w", encoding="utf-8", newline="") as fh:
+        fh.write(content)
+
+
+def _clean_docx_phrases(f, phrases):
+    """Пофразовая замена в docx (тело, таблицы, колонтитулы, сноски)
+    с сохранением форматирования run'ов. Возвращает число замен."""
+    from core import docx_io
+    total = 0
+    for ph, repl in phrases:
+        n, _changed, _broken = docx_io.replace_in_docx(f, ph, repl,
+                                                       backup=False)
+        total += n
+    return total
 
 
 # --- Очистка штампов (22.09) ----------------------------------------------
@@ -367,38 +406,79 @@ def review(input_path, clean_map_path=None, limit=None):
 
 
 def clean_selection(pairs, clean_map_path=None):
-    """Чистит только выбранные (фраза, файл). pairs: [(phrase, file_str)].
-    С бэкапом в md_replace_backups. Возвращает строки-результаты для лога."""
+    """Чистит только выбранные вхождения.
+    pairs: [(фраза, файл, строка)] — строка приходит из витрины (номер
+    строки текста, 1-базовый). 04.11: раньше витрина передавала только
+    (фраза, файл), и заменялись ВСЕ вхождения фразы в файле, а не
+    отмеченные. Для .docx строки текста не соответствуют строкам
+    документа — замена идёт пофразово во всём документе.
+    С бэкапом в md_replace_backups. Возвращает строки-результаты."""
     mapping = dict(DEFAULT_CLEAN_MAP)
     if clean_map_path and Path(clean_map_path).exists():
         import yaml
-        extra = yaml.safe_load(open(clean_map_path, encoding="utf-8")) or {}
+        with open(clean_map_path, encoding="utf-8") as fh:
+            extra = yaml.safe_load(fh) or {}
         mapping.update({str(k).lower(): v for k, v in extra.items()})
-    items = sorted(mapping.items(), key=lambda kv: len(kv[0]), reverse=True)
 
     by_file = {}
-    for ph, fstr in pairs:
-        by_file.setdefault(fstr, set()).add(ph.lower())
+    for ph, fstr, ln in pairs:
+        try:
+            ln_no = int(ln)
+        except (TypeError, ValueError):
+            ln_no = 0
+        by_file.setdefault(fstr, set()).add((ph.lower(), ln_no))
 
     results = []
     n_files = n_repl = 0
     import shutil
     import time as _t
-    for fstr, phrases in by_file.items():
+    for fstr, wanted in by_file.items():
         f = Path(fstr)
+        if f.suffix.lower() == ".docx":
+            # строки текста docx не соответствуют строкам документа
+            from core import docx_io
+            low_text = norm_yo((docx_io.read_text(f) or "").lower())
+            present = [(ph, mapping.get(ph, ""))
+                       for ph, _ln in sorted(wanted, key=lambda t: -len(t[0]))
+                       if norm_yo(ph) in low_text]
+            if not present:
+                continue
+            bak_dir = f.parent / "md_replace_backups" / \
+                _t.strftime("%Y-%m-%d_%H-%M-%S")
+            bak_dir.mkdir(parents=True, exist_ok=True)
+            bak = bak_dir / f.name
+            if not bak.exists():
+                shutil.copy2(f, bak)
+            n = _clean_docx_phrases(f, present)
+            if n:
+                n_files += 1
+                n_repl += n
+                results.append(f"[ОЧИЩЕН] {f}: {n} правок")
+            continue
         try:
             content = read_file(f)
-        except Exception:
+        except (PermissionError, OSError, UnicodeDecodeError):
             continue
-        present = [(ph, repl) for ph, repl in items
-                   # 20.10: ё=е при поиске вхождений
-                   if ph in phrases
-                   and norm_yo(ph) in norm_yo(content.lower())]
+        lines = content.split("\n")
+        # выбранные вхождения: (фраза, строка); длинные фразы первыми,
+        # чтобы короткая не съела часть длинной
+        present = sorted(
+            ((ph, ln) for ph, ln in wanted
+             if 1 <= ln <= len(lines)
+             # 20.10: ё=е при поиске вхождений
+             and norm_yo(ph) in norm_yo(lines[ln - 1].lower())),
+            key=lambda t: -len(t[0]))
         if not present:
             continue
-        new = content
-        for ph, repl in present:
-            new = _replace_preserving_case(new, ph, repl)
+        n_repl_file = 0
+        for ph, ln in present:
+            idx = ln - 1
+            old_line = lines[idx]
+            repl = mapping.get(ph, "")
+            lines[idx] = _replace_preserving_case(old_line, ph, repl)
+            # фактическое число правок в этой строке (до замены)
+            n_repl_file += norm_yo(old_line.lower()).count(norm_yo(ph))
+        new = "\n".join(lines)
         if new != content:
             bak_dir = f.parent / "md_replace_backups" / \
                 _t.strftime("%Y-%m-%d_%H-%M-%S")
@@ -408,8 +488,8 @@ def clean_selection(pairs, clean_map_path=None):
                 shutil.copy2(f, bak)
             write_file(f, new)
             n_files += 1
-            n_repl += len(present)
-            results.append(f"[ОЧИЩЕН] {f}: {len(present)} правок")
+            n_repl += n_repl_file
+            results.append(f"[ОЧИЩЕН] {f}: {n_repl_file} правок")
     results.append(f"Итого: файлов {n_files}, замен {n_repl}")
     return results
 
@@ -469,26 +549,44 @@ def clean(input_path, clean_map_path=None, limit=None, dry_run=True,
                 file_hits.append((ph, repl, c))
                 plan.setdefault(ph, []).append((str(f), c))
         if file_hits and not dry_run:
-            # замены: идём по убыванию длины, регистр оригинала теряем
-            # у заглавной первой буквы (фразы все в нижнем регистре)
-            new = content
-            for ph, repl, _ in file_hits:
-                new = _replace_preserving_case(new, ph, repl)
-            if new != content:
+            if f.suffix.lower() == ".docx":
+                # 04.11: docx — пофразовая замена с сохранением
+                # форматирования; перезапись всего текста задваивала
+                # таблицы и колонтитулы
                 if not no_backup:
                     bak_dir = Path(f).parent / "md_replace_backups" / \
                         _t.strftime("%Y-%m-%d_%H-%M-%S")
-                    # 20.10: одиночный файл — бэкап по имени; rel с
-                    # абсолютным путём делал bak самим файлом
-                    rel = f.relative_to(Path(input_path)) \
-                        if not Path(input_path).is_file() else f.name
-                    bak = bak_dir / rel
-                    bak.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(f, bak)
-                write_file(f, new)
-                n_changed += 1
-                n_replacements += sum(c for _, _, c in file_hits)
-                print(f"  [ОЧИЩЕН] {f}: {sum(c for _, _, c in file_hits)} правок")
+                    bak_dir.mkdir(parents=True, exist_ok=True)
+                    bak = bak_dir / f.name
+                    if not bak.exists():
+                        shutil.copy2(f, bak)
+                n_docx = _clean_docx_phrases(
+                    f, [(ph, repl) for ph, repl, _ in file_hits])
+                if n_docx:
+                    n_changed += 1
+                    n_replacements += n_docx
+                    print(f"  [ОЧИЩЕН] {f}: {n_docx} правок")
+            else:
+                # замены: идём по убыванию длины, регистр оригинала теряем
+                # у заглавной первой буквы (фразы все в нижнем регистре)
+                new = content
+                for ph, repl, _ in file_hits:
+                    new = _replace_preserving_case(new, ph, repl)
+                if new != content:
+                    if not no_backup:
+                        bak_dir = Path(f).parent / "md_replace_backups" / \
+                            _t.strftime("%Y-%m-%d_%H-%M-%S")
+                        # 20.10: одиночный файл — бэкап по имени; rel с
+                        # абсолютным путём делал bak самим файлом
+                        rel = f.relative_to(Path(input_path)) \
+                            if not Path(input_path).is_file() else f.name
+                        bak = bak_dir / rel
+                        bak.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(f, bak)
+                    write_file(f, new)
+                    n_changed += 1
+                    n_replacements += sum(c for _, _, c in file_hits)
+                    print(f"  [ОЧИЩЕН] {f}: {sum(c for _, _, c in file_hits)} правок")
         if n_files % 10 == 0 or n_files == total:
             print(f"PROGRESS:{n_files}/{total}", flush=True)
 

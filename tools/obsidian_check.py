@@ -314,8 +314,14 @@ def check_links(path, scanned, index, add):
             target = target.split("#")[0]
             if not target:
                 continue
-            if not (path.parent / target.replace("/", "\\")).exists():
-                add("MDLINK_BROKEN", lineno, "](%s) — файл не найден" % m.group(1))
+            # 04.11: %20 декодируется; проверка работает на любой ОС —
+            # раньше замена «/» на «\\» вне Windows давала ложные битые
+            from urllib.parse import unquote
+            t = unquote(target)
+            if not ((path.parent / t).exists()
+                    or (path.parent / t.replace("/", os.sep)).exists()):
+                add("MDLINK_BROKEN", lineno,
+                    "](%s) — файл не найден" % m.group(1))
 
 
 def build_index(files, vault_root):
@@ -367,9 +373,19 @@ def validate_file(path, index):
     check_frontmatter(lines, add)
     scanned = strip_code_lines(lines)
     open_fence = None
+    open_marker = None
     for lineno, line, _c in scanned:
-        if FENCE_RE.match(line):
-            open_fence = None if open_fence else lineno
+        m = FENCE_RE.match(line)
+        if not m:
+            continue
+        marker = m.group(1)[:3]
+        # 04.11: маркер учитывается — раньше '``` и следующий '~~~'
+        # взаимно гасились, и файл с двумя незакрытыми блоками
+        # признавался чистым
+        if open_fence is None:
+            open_fence, open_marker = lineno, marker
+        elif marker == open_marker:
+            open_fence = None
     if open_fence:
         add("FENCE_UNCLOSED", open_fence, "code fence не закрыт")
     for start, count in find_exploded_runs(lines):

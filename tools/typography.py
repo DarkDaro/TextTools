@@ -214,13 +214,24 @@ def run(input_path, fix=False, nbsp=False, out=None):
             if f.suffix.lower() == ".docx":
                 counts = fix_docx(f, nbsp, fix)
             else:
-                text = f.read_text(encoding="utf-8")
+                # 04.11: чтение и запись с newline="" — переводы строк
+                # файла не меняются; BOM сохраняется, иначе «\ufeff---»
+                # не распознавался как frontmatter и типографика
+                # портила YAML (--  ->  —)
+                with open(f, "r", encoding="utf-8", newline="") as fh:
+                    text = fh.read()
+                had_bom = text.startswith("\ufeff")
+                if had_bom:
+                    text = text[1:]
                 new_text, counts = transform_text(
                     text, nbsp=nbsp,
                     dialogue=f.suffix.lower() != ".md", frontmatter=True)
                 if sum(counts.values()) and fix:
                     tp.backup_once(f)  # 20.10: старый .bak не затирается
-                    f.write_text(new_text, encoding="utf-8")
+                    with open(f, "w",
+                              encoding="utf-8-sig" if had_bom else "utf-8",
+                              newline="") as fh:
+                        fh.write(new_text)
         except (UnicodeDecodeError, PermissionError, OSError) as e:
             print(f"ПРОПУСК {f.name}: {e}")
             print(f"PROGRESS:{idx}/{total}", flush=True)
@@ -267,9 +278,10 @@ def fix_docx(path, nbsp, fix):
     """Типографика docx: только текст w:t (тело, сноски, колонтитулы).
     Форматирование сохраняется. Кавычки конвертируются в пределах одного
     w:t — разорванные форматированием кавычки не трогаются (безопаснее)."""
-    from docx import Document
-
     try:
+        # 04.11: импорт внутри try — без python-docx будет ПРОПУСК,
+        # а не трейсбек посреди прогона
+        from docx import Document
         doc = Document(path)
     except Exception as e:
         print(f"ПРОПУСК (docx не читается): {Path(path).name}: {e}")

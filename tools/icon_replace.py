@@ -186,7 +186,11 @@ def transform(text, icons, use_markers=True):
     """Заменить эмодзи на SVG в тексте файла.
 
     Возвращает (новый текст, {эмодзи: сколько}, изменённых присвоений).
-    Если эмодзи из набора нет, текст возвращается как есть."""
+    Если эмодзи из набора нет, текст возвращается как есть.
+    04.11: пустая карта больше не даёт пустой regex (краш KeyError),
+    текст возвращается без изменений."""
+    if not icons:
+        return text, {}, 0
     order = sorted(icons.keys(), key=len, reverse=True)
     emoji_re = re.compile("|".join(re.escape(e) for e in order))
 
@@ -206,7 +210,17 @@ def transform(text, icons, use_markers=True):
 def run(input_path, fix=False, exts=None, no_bak=False, limit=None,
         out=None, map_file=None, no_markers=False):
     exts = exts or DEFAULT_EXTS
-    icons = load_map(map_file) if map_file else dict(ICONS)
+    # 04.11: битый/недоступный JSON карты — понятная ошибка, а не
+    # трейсбек; пустая карта отклоняется явно (защита на случай
+    # пустого встроенного набора)
+    try:
+        icons = load_map(map_file) if map_file else dict(ICONS)
+    except Exception as e:
+        print(f"ОШИБКА: карта замен не прочитана ({map_file}): {e}")
+        return 1
+    if not icons:
+        print("Карта иконок пуста — заменять нечего.")
+        return 1
     use_markers = not no_markers
     lines_out = []
 
@@ -271,7 +285,9 @@ def run(input_path, fix=False, exts=None, no_bak=False, limit=None,
             else:
                 _say(f"      ВНИМАНИЕ: {f.name}: не найден </style>, "
                      "стили иконок не добавлены")
-            f.write_text(new_text, encoding="utf-8")
+            # 04.11: с newline="" переводы строк файла не меняются
+            with open(f, "w", encoding="utf-8", newline="") as fh:
+                fh.write(new_text)
         print(f"PROGRESS:{i}/{total}", flush=True)
 
     _say()

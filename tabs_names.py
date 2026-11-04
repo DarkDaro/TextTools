@@ -366,10 +366,12 @@ class NamesTab(ctk.CTkFrame):
 
         def _apply(pairs):
             from tools import yo_audit
+            # 04.11: витрина передаёт (слово, файл, строка) — правятся
+            # только отмеченные вхождения, а не все в файле
             by_file = {}
-            for w, fs in pairs:
+            for w, fs, ln in pairs:
                 by_file.setdefault(fs, []).append(
-                    (w, wrong_to_right.get(w.lower(), "")))
+                    (w, wrong_to_right.get(w.lower(), ""), ln))
             out = []
             for msg in yo_audit.clean_selection(by_file):
                 out.append((msg + "\n",

@@ -30,7 +30,7 @@ def run(input_path, fix=False, limit=None):
     print(f"РЕЖИМ: {'ПЕРЕКОДИРОВАТЬ (с .bak)' if fix else 'ТОЛЬКО ОТЧЁТ'}")
     print()
 
-    n_bad = n_fixed = 0
+    n_bad = n_fixed = n_skip = 0
     n = 0
     for f in files:
         n += 1
@@ -51,12 +51,17 @@ def run(input_path, fix=False, limit=None):
                 try:
                     text = data.decode(detected)
                 except (UnicodeDecodeError, LookupError):
+                    # 04.11: файл остаётся в счётчике «Не в UTF-8» — раньше
+                    # вычитался и исчезал из отчёта, хотя реально битый
                     print(f"      ПРОПУСК: не декодируется как {detected}")
-                    n_bad -= 1
+                    n_skip += 1
                     print(f"PROGRESS:{n}/{total}", flush=True)
                     continue
                 tp.backup_once(f)  # 20.10: старый .bak не затирается
-                f.write_text(text, encoding="utf-8")
+                # 04.11: newline="" — \r\n исходника не превращается
+                # в \r\r\n на Windows
+                with open(f, "w", encoding="utf-8", newline="") as fh:
+                    fh.write(text)
                 n_fixed += 1
         print(f"PROGRESS:{n}/{total}", flush=True)
 
@@ -64,7 +69,8 @@ def run(input_path, fix=False, limit=None):
     if not fix:
         print(f"Не в UTF-8: {n_bad}. Для перекодирования: --fix / галочка «Применить».")
     else:
-        print(f"Не в UTF-8: {n_bad}, перекодировано: {n_fixed}")
+        print(f"Не в UTF-8: {n_bad}, перекодировано: {n_fixed}"
+              + (f", пропущено {n_skip}" if n_skip else ""))
     return 0
 
 

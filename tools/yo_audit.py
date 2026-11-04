@@ -194,7 +194,8 @@ def iter_text_files(root, limit=None):
              if f.is_file() and f.suffix.lower() in EXTS
              and not (set(f.parts) & SKIP_DIRS)
              and not f.name.endswith(".bak")]
-    if limit:
+    # 04.11: 0 и отрицательный limit, как и пустой, — без ограничения
+    if limit is not None and limit > 0:
         files = files[:limit]
     yield from files
 
@@ -292,9 +293,12 @@ def _replace_cased(text, wrong, right):
 
 
 def clean_selection(pairs_by_file):
-    """Применяет выбранные правки. pairs_by_file: {файл: [(wrong, right)]}.
-    Записи только .md/.txt (docx не трогается — решение пользователя).
-    Бэкап в md_replace_backups с датой. Возвращает строки-результаты."""
+    """Применяет выбранные правки. pairs_by_file:
+    {файл: [(wrong, right, строка)]} — строка приходит из витрины;
+    04.11: заменяются только отмеченные вхождения, а не все вхождения
+    слова в файле. Записи только .md/.txt (docx не трогается — решение
+    пользователя). Бэкап в md_replace_backups с датой.
+    Возвращает строки-результаты."""
     results = []
     stamp = _t.strftime("%Y-%m-%d_%H-%M-%S")
     n_files = n_repl = 0
@@ -304,28 +308,47 @@ def clean_selection(pairs_by_file):
             if not f.is_file() or f.suffix.lower() not in (".md", ".txt"):
                 results.append(f"[ПРОПУСК] {f.name}: только .md/.txt")
                 continue
-            content = f.read_text(encoding="utf-8")
+            # 04.11: с newline="" переводы строк файла не меняются
+            with open(f, "r", encoding="utf-8", newline="") as fh:
+                content = fh.read()
         except (PermissionError, OSError, UnicodeDecodeError) as e:
             results.append(f"[ПРОПУСК] {f.name}: {e}")
             continue
-        new = content
+        lines = content.split("\n")
+        wanted = set()
+        for w, r, ln in pairs:
+            if not r:
+                continue
+            try:
+                ln_no = int(ln)
+            except (TypeError, ValueError):
+                continue
+            wanted.add((w, r, ln_no))
+        # длинные слова первыми, чтобы короткое не съело часть длинного
         n_pairs = 0
-        for w, r in pairs:
-            if r and _word_pattern(w).search(new):
-                before = new
-                new = _replace_cased(new, w, r)
-                if new != before:
-                    n_pairs += 1
+        for w, r, ln in sorted(wanted, key=lambda t: -len(t[0])):
+            if not (1 <= ln <= len(lines)):
+                continue
+            idx = ln - 1
+            old_line = lines[idx]
+            rx = _word_pattern(w)
+            if not rx.search(old_line):
+                continue
+            lines[idx] = _replace_cased(old_line, w, r)
+            # фактическое число правок в этой строке (счётчик был завышен)
+            n_pairs += len(rx.findall(old_line))
+        new = "\n".join(lines)
         if n_pairs and new != content:
             bak_dir = f.parent / "md_replace_backups" / stamp
             bak_dir.mkdir(parents=True, exist_ok=True)
             bak = bak_dir / f.name
             if not bak.exists():
                 shutil.copy2(f, bak)
-            f.write_text(new, encoding="utf-8")
+            with open(f, "w", encoding="utf-8", newline="") as fh:
+                fh.write(new)
             n_files += 1
-            n_repl += len(pairs)
-            results.append(f"[Ё] {f}: {len(pairs)} прав(ок)")
+            n_repl += n_pairs
+            results.append(f"[Ё] {f}: {n_pairs} прав(ок)")
     results.append(f"Итого: файлов {n_files}, замено слов {n_repl}.")
     return results
 

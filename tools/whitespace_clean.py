@@ -139,11 +139,19 @@ def run(input_path, max_blank=1, keep_breaks=False, fix=False, out=None):
             if f.suffix.lower() == ".docx":
                 n = clean_docx(f, max_blank, keep_breaks, fix)
             else:
-                text = f.read_text(encoding="utf-8")
-                new_text, n = clean_text(text, max_blank, keep_breaks)
+                # 04.11: переводы строк сохраняются — чистка идёт в \n,
+                # CRLF-файл при записи собирается обратно
+                raw = f.read_bytes()
+                text = raw.decode("utf-8")
+                crlf = "\r\n" in text
+                new_text, n = clean_text(
+                    text.replace("\r\n", "\n"), max_blank, keep_breaks)
                 if n and fix:
                     tp.backup_once(f)  # 20.10: старый .bak не затирается
-                    f.write_text(new_text, encoding="utf-8")
+                    if crlf:
+                        new_text = new_text.replace("\n", "\r\n")
+                    with open(f, "w", encoding="utf-8", newline="") as fh:
+                        fh.write(new_text)
         except (UnicodeDecodeError, PermissionError, OSError) as e:
             print(f"ПРОПУСК {f.name}: {e}")
             print(f"PROGRESS:{idx}/{total}", flush=True)
@@ -174,9 +182,10 @@ DOC_PART_KEYWORDS = (
 def clean_docx(path, max_blank, keep_breaks, fix):
     """Чистка docx: только текст w:t. Форматирование полностью сохраняется.
     Пустые строки в docx — это пустые параграфы, сжимаем их серии."""
-    from docx import Document
-
     try:
+        # 04.11: импорт внутри try — без python-docx будет ПРОПУСК,
+        # а не трейсбек посреди прогона
+        from docx import Document
         doc = Document(path)
     except Exception as e:
         print(f"ПРОПУСК (docx не читается): {Path(path).name}: {e}")
@@ -228,14 +237,24 @@ def clean_docx(path, max_blank, keep_breaks, fix):
 
 def _compress_blank_paras(el, max_blank):
     """Сжатие серий пустых параграфов в одной части документа.
-    Пустой параграф = все w:t пустые/отсутствуют. Возвращает кол-во удалённых."""
+    Пустой параграф = все w:t пустые/отсутствуют. Возвращает кол-во удалённых.
+
+    04.11: обрабатываются только параграфы верхнего уровня части —
+    раньше плоский обход мог удалить единственный параграф ячейки
+    таблицы (битый docx); параграф с картинкой/объектом пустым
+    не считается (раньше --fix мог удалить изображение)."""
     body = el.find(W_NS + "body") if el.tag.endswith("}document") else None
     container = body if body is not None else el
-    paras = [c for c in container.iter() if c.tag == W_NS + "p"]
+    paras = [c for c in container if c.tag == W_NS + "p"]
     if not paras:
         return 0
 
+    media_tags = (W_NS + "drawing", W_NS + "pict", W_NS + "object")
+
     def is_blank(p):
+        for tag in media_tags:
+            if p.find(".//" + tag) is not None:
+                return False  # внутри картинка или объект — не пустой
         texts = [t.text or "" for t in p.iter(W_NS + "t")]
         return not any(s.strip() for s in texts)
 

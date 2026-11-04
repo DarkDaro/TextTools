@@ -100,7 +100,10 @@ def read_text(path):
 
 def iter_text_files(root, exts=TEXT_EXTS, limit=None):
     """Итерация по файлам текстов. По умолчанию .md/.txt/.docx (22.09).
-    Пропускает служебные папки."""
+    Пропускает служебные папки.
+    04.11: limit — максимум файлов; 0 и отрицательное значение, как и
+    None, означают «без ограничения» (единая семантика для всех
+    инструментов)."""
     # 22.09: guard ДО Path() — Path('') становится '.', пустоту не ловит
     if not root or not str(root).strip():
         raise ValueError("Путь не указан (пустой --input)")
@@ -122,7 +125,7 @@ def iter_text_files(root, exts=TEXT_EXTS, limit=None):
             continue
         yield f
         count += 1
-        if limit and count >= limit:
+        if limit is not None and limit > 0 and count >= limit:
             return
 
 

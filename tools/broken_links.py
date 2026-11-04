@@ -13,12 +13,13 @@ from core import vault_scanner as vs
 
 
 def run(input_path, limit=None, verbose=False, out=None):
-    notes, basenames, relpaths = vs.scan_vault(input_path, limit=limit)
+    notes, basenames, relpaths, attachments = vs.scan_vault(
+        input_path, limit=limit)
 
     broken = []  # (note, target)
     for n in notes:
         for t in sorted(n.links):
-            if not vs.is_resolved(t, basenames, relpaths):
+            if not vs.is_resolved(t, basenames, relpaths, attachments):
                 broken.append((n, t))
 
     files_with_broken = sorted({n.rel for n, _ in broken})
@@ -54,3 +55,7 @@ def main(argv=None):
     ap.add_argument("--out", help="файл отчёта")
     args = ap.parse_args(argv)
     return run(args.input, limit=args.limit, verbose=args.verbose, out=args.out)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
