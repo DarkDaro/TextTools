@@ -45,6 +45,22 @@ def test_aggregated_json(tmp_path):
                for f in data["checks"]["obsidian-check"]["findings"])
 
 
+def test_check_all_cjk_sees_docx(tmp_path):
+    # 05.11: cjk внутри «проверить всё» видит docx — раньше главы в docx
+    # молча пропускались как бинарники, сводка отдавала ложное «чисто»
+    from docx import Document
+    doc = Document()
+    doc.add_paragraph("Мусор от модели: 测试")
+    doc.save(tmp_path / "глава.docx")
+    (tmp_path / "ок.md").write_text("## Заголовок\n\nТекст.\n",
+                                    encoding="utf-8")
+    j = tmp_path / "rep" / "сводка.json"
+    full_check.run(str(tmp_path), json_out=str(j))
+    data = json.loads(j.read_text(encoding="utf-8"))
+    cjk_results = data["checks"]["cjk"]["results"]
+    assert any("глава.docx" in k for k in cjk_results)
+
+
 def test_cli_help_and_wiring():
     # несуществующая папка — код 2, без трейсбека
     rc = full_check.main(["--input", "нет_такой_папки", "--limit", "1",

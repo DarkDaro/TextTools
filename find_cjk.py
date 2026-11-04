@@ -6,6 +6,12 @@
 символы. Для кода сайта есть Node-версия (C:/AgentLetta/scripts/find-cjk.js),
 эта — для текстовых документов и метафайлов: .md, .txt и подобных.
 
+05.11: .docx больше не пропускается как «бинарник» — текст читается через
+core.docx_io (python-docx), находки ищутся в том же тексте; номер строки
+в отчёте = номер параграфа docx. Внутри docx кодировок не бывает (XML в UTF-8),
+поэтому «ФАЙЛ НЕ В UTF-8» к docx неприменим — мойбейк от вставок из буфера
+находится по тем же паттернам.
+
 Запуск:
     python find_cjk.py <путь>                # папка или файл
     python find_cjk.py <путь> --ext .md,.txt # только эти расширения
@@ -54,9 +60,11 @@ PATTERNS: list[tuple[str, re.Pattern[str], bool]] = [
 ]
 
 # Расширения по умолчанию — именно текстовые документы, не код сайта
+# 05.11: .docx добавлен — раньше главы в docx молча выпадали из прогона
 DEFAULT_EXT = (
     ".md", ".markdown", ".txt", ".text", ".rst",
     ".json", ".yaml", ".yml", ".ini", ".toml", ".csv",
+    ".docx",
 )
 
 SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", ".idea",
@@ -74,36 +82,17 @@ def code_points(ch: str) -> str:
     return " ".join(f"U+{ord(c):04X}" for c in ch)
 
 
-def scan_file(path: Path) -> tuple[list[dict], str | None]:
-    """Сканирует один файл. Возвращает (находки, ошибка)."""
-    try:
-        data = path.read_bytes()
-    except OSError as e:
-        return [], f"не читается: {e.strerror}"
+def _scan_text(text: str,
+               findings: list[dict] | None = None
+               ) -> tuple[list[dict], bool]:
+    """Ищет паттерны PATTERNS по готовому тексту.
 
-    if is_binary(data):
-        return [], "binary"
-
-    findings: list[dict] = []
+    Возвращает (находки, обрезано_на_500). findings — уже накопленные
+    находки (например «файл не в UTF-8»), к которым добавляются новые.
+    """
+    if findings is None:
+        findings = []
     seen: set[tuple[int, str]] = set()
-
-    try:
-        text = data.decode("utf-8")
-    except UnicodeDecodeError as e:
-        # Файл не в UTF-8 — это отдельная находка, важная сама по себе
-        findings.append({
-            "line": data[:e.start].count(b"\n") + 1,
-            "column": 0,
-            "char": "",
-            "codepoints": "",
-            "range": "ФАЙЛ НЕ В UTF-8",
-            "context": f"ошибка декодирования на байте {e.start}: {e.reason}",
-        })
-        # всё равно пробуем cp1251, чтобы показать содержимое
-        try:
-            text = data.decode("cp1251")
-        except UnicodeDecodeError:
-            return findings, None
 
     for line_no, line in enumerate(text.splitlines(), start=1):
         for name, pattern, skip_first in PATTERNS:
@@ -124,9 +113,57 @@ def scan_file(path: Path) -> tuple[list[dict], str | None]:
                     "context": line.strip()[:140],
                 })
                 if len(findings) > 500:
-                    return findings, "обрезано на 500 находках"
+                    return findings, True
 
-    return findings, None
+    return findings, False
+
+
+def scan_file(path: Path) -> tuple[list[dict], str | None]:
+    """Сканирует один файл. Возвращает (находки, ошибка)."""
+    # 05.11: docx — бинарный zip, но текст внутри доступен через
+    # docx_io (python-docx). Раньше молча считался «бинарником», и главы
+    # в docx выпадали из проверки — writer получал ложное «ЧИСТО».
+    if path.suffix.lower() == ".docx":
+        try:
+            from core import docx_io
+            text = docx_io.read_text(path)
+        except Exception as e:  # битый zip, пароль, непонятная структура
+            return [], f"не читается: {e}"
+        if text is None:
+            return [], "не читается: docx (python-docx)"
+        findings, truncated = _scan_text(text)
+        return findings, "обрезано на 500 находках" if truncated else None
+
+    try:
+        data = path.read_bytes()
+    except OSError as e:
+        return [], f"не читается: {e.strerror}"
+
+    if is_binary(data):
+        return [], "binary"
+
+    findings: list[dict] = []
+
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError as e:
+        # Файл не в UTF-8 — это отдельная находка, важная сама по себе
+        findings.append({
+            "line": data[:e.start].count(b"\n") + 1,
+            "column": 0,
+            "char": "",
+            "codepoints": "",
+            "range": "ФАЙЛ НЕ В UTF-8",
+            "context": f"ошибка декодирования на байте {e.start}: {e.reason}",
+        })
+        # всё равно пробуем cp1251, чтобы показать содержимое
+        try:
+            text = data.decode("cp1251")
+        except UnicodeDecodeError:
+            return findings, None
+
+    findings, truncated = _scan_text(text, findings)
+    return findings, "обрезано на 500 находках" if truncated else None
 
 
 def walk(root: Path):
