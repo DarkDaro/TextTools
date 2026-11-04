@@ -213,7 +213,8 @@ def run(input_path, custom=None, phrases=None, limit=None, out=None,
                 lines.append(f"- {f}: {c}")
             lines.append("")
         write_report(out, "\n".join(lines))
-        print(f"\nОтчёт: {out}")
+        if str(out).strip() != "-":
+            print(f"\nОтчёт: {out}")
     if json_out:
         write_json(json_out, {
             "tool": "phrase-check",

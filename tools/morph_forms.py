@@ -71,7 +71,8 @@ def run(registry_path, fill=False, out=None):
                 lines.append(f"- {fld}: {', '.join(missing)}")
             lines.append("")
         write_report(out, "\n".join(lines))
-        print(f"Отчёт: {out}")
+        if str(out).strip() != "-":
+            print(f"Отчёт: {out}")
 
     if fill:
         p = Path(registry_path)

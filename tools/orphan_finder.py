@@ -57,7 +57,8 @@ def run(input_path, limit=None, verbose=False, out=None, json_out=None):
         for n in orphans:
             lines.append(f"- {n.rel}")
         write_report(out, "\n".join(lines))
-        print(f"Отчёт: {out}")
+        if str(out).strip() != "-":
+            print(f"Отчёт: {out}")
     if json_out:
         write_json(json_out, {
             "tool": "orphan-finder",

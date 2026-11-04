@@ -152,7 +152,8 @@ def run(input_path, limit=None, out=None, csv_log=False):
         for p, c in para_total.most_common():
             lines.append(f"- {p}: {c} ({rate(c)} на 1000 слов)")
         write_report(out, "\n".join(lines))
-        print(f"\nОтчёт: {out}")
+        if str(out).strip() != "-":
+            print(f"\nОтчёт: {out}")
 
     if csv_log:
         # 03.10: дневник объёма — одна строка на файл с датой запуска

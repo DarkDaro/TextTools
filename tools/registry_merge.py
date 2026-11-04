@@ -71,7 +71,8 @@ def run(candidates_path, registry_path, names=None, add=False, out=None):
             lines += ["", "## Пропущено", ""]
             lines += [f"- {nm}: {why}" for nm, why in skipped]
         write_report(out, "\n".join(lines) + "\n")
-        print(f"Отчёт: {out}")
+        if str(out).strip() != "-":
+            print(f"Отчёт: {out}")
     if not new:
         print("Добавлять нечего.")
         return 0

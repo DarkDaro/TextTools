@@ -115,7 +115,8 @@ def run(input_path, registry_path, limit=None, verbose=False, out=None):
                     lines.append(f"- [{key}] {path.name}:L{line_no}: {line.strip()}")
             lines.append("")
         write_report(out, "\n".join(lines))
-        print(f"Отчёт: {out}")
+        if str(out).strip() != "-":
+            print(f"Отчёт: {out}")
     return 0
 
 

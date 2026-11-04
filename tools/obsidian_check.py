@@ -38,7 +38,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from core.report import write_json
+from core.report import write_json, write_report
 from core.text_parser import backup_once, stop_requested
 
 try:
@@ -622,11 +622,11 @@ def run(input_path, limit=None, fix=False, verbose=False, out=None, no_bak=False
     if verbose:
         print("\n".join(lines[codes_start + len(by_code):]))
     if out:
-        out_path = Path(out)
-        if out_path.parent and not out_path.parent.exists():
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text("\n".join(lines), encoding="utf-8")
-        print("\nОтчёт: %s" % out)
+        # 05.11: через write_report — «-» печатает отчёт в stdout
+        # (раньше создавался файл с именем «-»)
+        write_report(out, "\n".join(lines))
+        if str(out).strip() != "-":
+            print("\nОтчёт: %s" % out)
     if json_out:
         write_json(json_out, {
             "tool": "obsidian-check",

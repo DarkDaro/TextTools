@@ -259,7 +259,8 @@ def run(input_path, registry=None, dict_path=None, review=False,
             print(f"YO\t{w}\t{r}\t{fs}\t{ln}\t{frag}", flush=True)
     if out:
         _write_report(out, hits, n_pairs, targets)
-        print(f"Отчёт: {out}")
+        if str(out).strip() != "-":
+            print(f"Отчёт: {out}")
     return 0
 
 

@@ -97,6 +97,18 @@ def test_write_json_to_stdout(capsys):
     assert data["items"] == ["а", "б"]
 
 
+def test_obsidian_out_stdout(tmp_path, capsys):
+    # 05.11: «--out -» у obsidian-check печатает отчёт в stdout —
+    # раньше создавался файл с именем «-» (запись шла мимо write_report)
+    (tmp_path / "A.md").write_text("## Ок\n\n[текст](нет.md)\n",
+                                   encoding="utf-8")
+    obsidian_check.run(str(tmp_path), exit_zero=True, out="-")
+    out = capsys.readouterr().out
+    assert "MDLINK_BROKEN" in out
+    assert "Отчёт: -" not in out
+    assert not (Path.cwd() / "-").exists()
+
+
 def test_cjk_json_stdout(tmp_path, capsys):
     # 05.11: «--json -» — stdout целиком под JSON, отчёт уходит в stderr;
     # раньше создавался файл с именем «-», stdout оставался смесью текста
