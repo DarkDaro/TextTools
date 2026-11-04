@@ -545,6 +545,10 @@ class App(ctk.CTk):
         self._bg_proc = None
         # 25.10: чтобы «скрипт не настроен» не повторялось в журнале и тостах
         self._script_warned = set()
+        # 04.11: сбой записи конфига больше не молчит — предупреждение
+        # в журнал и тост (один раз за сессию)
+        import gui_config
+        gui_config.on_error = self._config_write_error
 
         self.runner = Runner(self.log_line, self._on_done, self)
         # 21.10: тосты (всплывающие сообщения) из Runner — «уже запущено» и т.п.
@@ -853,6 +857,15 @@ class App(ctk.CTk):
         if tag is None and str(text).startswith("> "):
             tag = "cmd"
         self._log_panel.append(text, tag)
+
+    def _config_write_error(self, exc):
+        """04.11: подписка gui_config на сбой записи настроек."""
+        self.warn_script(
+            "Настройки",
+            f"Не удалось сохранить настройки: {exc}\n"
+            "Проверьте права доступа к папке программы и свободное "
+            "место на диске.\n",
+            key="config_save")
 
     def warn_script(self, name, message, key=None):
         """25.10: один подробный текст на скрипт за сессию, дальше коротко.

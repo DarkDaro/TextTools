@@ -11,6 +11,10 @@ if getattr(sys, "frozen", False):
 else:
     CONFIG_FILE = Path(__file__).parent / "gui_config.json"
 
+# 04.11: подписчик на сбой записи конфига — GUI показывает предупреждение;
+# без подписчика ошибка печатается в stderr
+on_error = None
+
 _config = None
 
 
@@ -70,11 +74,19 @@ class Cfg:
                 json.dumps(cfg, ensure_ascii=False, indent=2),
                 encoding="utf-8")
             os.replace(tmp, CONFIG_FILE)
-        except Exception:
+        except Exception as exc:
             try:
                 Path(str(CONFIG_FILE) + ".tmp").unlink(missing_ok=True)
             except Exception:
                 pass
+            if on_error is not None:
+                try:
+                    on_error(exc)
+                except Exception:
+                    pass
+            else:
+                print(f"Не удалось сохранить конфиг: {exc}",
+                      file=sys.stderr)
 
 
 CFG = Cfg()
