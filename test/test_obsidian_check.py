@@ -8,7 +8,6 @@
 
 Запуск:  python test/test_obsidian_check.py
 """
-import os
 import shutil
 import sys
 import tempfile

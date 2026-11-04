@@ -68,3 +68,7 @@ tools = ["*.yaml"]
 
 [tool.setuptools.dynamic]
 version = { attr = "textools.__version__" }
+
+[tool.pytest.ini_options]
+# archive/ — хранилище старых прогонов: в сбор тестов не входит
+norecursedirs = [".*", ".venv", "build", "dist", "archive"]
