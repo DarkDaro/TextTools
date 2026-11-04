@@ -40,13 +40,17 @@ WORD_RE = re.compile(r"[А-ЯЁа-яёA-Za-z]+(?:-[А-ЯЁа-яёA-Za-z]+)*")
 
 
 def load_parasites():
-    """Список паразитов: parasites.yaml, если есть, иначе встроенный."""
+    """Список паразитов: parasites.yaml, если есть, иначе встроенный.
+    05.11: файл не-списка больше не проходит молча — предупреждение,
+    как у словарей штампов и ё-аудита."""
     if PARASITE_FILE.exists():
         try:
             import yaml
             data = yaml.safe_load(PARASITE_FILE.read_text(encoding="utf-8"))
             if isinstance(data, list) and all(isinstance(x, str) for x in data):
                 return [x for x in data if x.strip()]
+            print(f"ПРЕДУПРЕЖДЕНИЕ: {PARASITE_FILE.name}: ожидался список "
+                  f"строк — используется встроенный список.")
         except Exception as e:
             print(f"ПРЕДУПРЕЖДЕНИЕ: parasites.yaml не прочитан ({e}) — "
                   f"используется встроенный список.")

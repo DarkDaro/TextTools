@@ -77,22 +77,25 @@ def _norm_pair(entry):
 
 
 def load_dict(dict_path=None):
-    """Встроенный словарь; yo_dict.yaml (или заданный) его заменяет
-    полностью. Возвращает {категория: [(е-слово, ё-слово)]}."""
+    """Встроенный словарь; yo_dict.yaml (или заданный) заменяет его
+    ПОЛНОСТЬЮ (как в доке): категории, которых нет в файле, становятся
+    пустыми — иначе «полная замена» молча оставляла бы встроенное.
+    Файла нет или он не читается — встроенный словарь.
+    Возвращает {категория: [(е-слово, ё-слово)]}."""
     path = Path(dict_path) if dict_path else DICT_FILE
     d = {k: list(v) for k, v in BUILTIN.items()}
     if path.exists():
         try:
             import yaml
             data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            d = {k: [] for k in BUILTIN}  # файл определён — замена полная
             for cat in d:
-                vals = [p for p in (_norm_pair(x) for x in (data.get(cat) or []))
-                        if p]
-                if vals:
-                    d[cat] = vals
+                d[cat] = [p for p in (_norm_pair(x) for x in (data.get(cat) or []))
+                          if p]
         except Exception as e:
             print(f"Словарь не прочитан ({path.name}): {e} — использую "
                   f"встроенный.")
+            d = {k: list(v) for k, v in BUILTIN.items()}
     return d
 
 
