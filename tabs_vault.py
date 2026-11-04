@@ -264,8 +264,11 @@ class VaultTab(ctk.CTkFrame):
         args = ["--input", p, "--exit-zero"]
         if self.c_obs_fix.get():
             args.append("--fix")
-            # 24.10: настройка «не создавать .bak» (папки под git)
-            if CFG.get("obs_no_bak", False) is True:
+            # 24.10: настройка «не создавать .bak» (папки под git).
+            # 11.26: значение могло прийти строкой («true» из правки
+            # руками) — строгий `is True` молча игнорировал его
+            from gui_ctk import _cfg_flag
+            if _cfg_flag("obs_no_bak", False):
                 args.append("--no-bak")
         if self.c_obs_report.get():
             reports = _app._reports_dir()
