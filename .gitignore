@@ -56,3 +56,6 @@ build_release/
 build_debug/
 textools_debug*.spec
 
+
+# Тестовые прогоны оставляют .bak рядом с фикстурами — не часть репозитория
+test/*.bak
