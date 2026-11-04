@@ -4,7 +4,7 @@ __pycache__/
 .venv/
 
 # Локальные тестовые материалы и архив
-archive/
+#archive/
 
 # Служебное (машина-зависимое)
 reports/
@@ -15,8 +15,8 @@ stop.flag
 .zcodeignore
 
 # Старые тестовые сэмплы и синтетика (не часть программы)
-test/
-synthetic/
+#test/
+#synthetic/
 
 # Прочее локальное
 .vscode/
@@ -40,7 +40,7 @@ build_artifacts*/
 UI_DESIGN.md
 
 # Проектные доки (рабочие заметки)
-docs/
+# docs/
 
 # Локальный ярлык запуска
 *.lnk
