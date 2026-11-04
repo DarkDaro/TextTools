@@ -83,6 +83,8 @@ def main():
     p6.add_argument("--registry", required=True)
     p6.add_argument("--names", help="только эти имена (через запятую)")
     p6.add_argument("--add", action="store_true", help="реально дописать (с .bak)")
+    # 04.11: инструмент отчёт поддерживал, а оркестратор флаг не проводил
+    p6.add_argument("--out", help="отчёт в .md")
 
     p7 = sub.add_parser("restore", help="обзор/восстановление из бэкапов")
     p7.add_argument("--input", required=True)
@@ -141,6 +143,9 @@ def main():
     p_cjk.add_argument("--json", dest="json_out", default="",
                        help="сохранить полный отчёт в JSON")
     p_cjk.add_argument("--quiet", action="store_true", help="только итог, без деталей")
+    # 04.11: код 1 у cjk — штатные находки; флаг для скриптов и GUI
+    p_cjk.add_argument("--exit-zero", action="store_true",
+                       help="код 0, даже если найдены иероглифы")
 
     p11 = sub.add_parser("typography",
                          help="типографика: «ёлочки», тире, многоточия (с .bak)")
@@ -220,7 +225,9 @@ def main():
         opts = [args.input,
                 *(["--ext", args.ext] if args.ext else []),
                 *(["--json", args.json_out] if args.json_out else []),
-                *(["--quiet"] if args.quiet else [])]
+                *(["--quiet"] if args.quiet else []),
+                # 04.11: код 1 — штатные находки; флаг для скриптов
+                *(["--exit-zero"] if args.exit_zero else [])]
         sys.exit(cjk_main(opts))
     # 04.11: коды выхода инструментов больше не теряются — раньше
     # sys.exit стоял только у части веток, и consistency/matrix/typography
@@ -231,7 +238,8 @@ def main():
         sys.exit(registry_merge.main(
             ["--candidates", args.candidates, "--registry", args.registry,
              *(["--names", args.names] if args.names else []),
-             *(["--add"] if args.add else [])]))
+             *(["--add"] if args.add else []),
+             *(["--out", args.out] if args.out else [])]))
     elif args.cmd == "archive-backups":
         sys.path.insert(0, str(here))
         from tools import backup_archive
