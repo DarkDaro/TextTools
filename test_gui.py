@@ -584,9 +584,9 @@ def main():
             gui_ctk.run_cmd = orig_cmd2
         obs = [c for c in calls2 if c[0] == "internal"]
         cjk = [c for c in calls2 if c[0] == "cmd"]
-        check("obsidian-check запускается с --fix и --exit-zero",
+        check("obsidian-check запускается с --fix, без --exit-zero",
               bool(obs) and obs[0][1] == "obsidian_check"
-              and "--fix" in obs[0][2] and "--exit-zero" in obs[0][2],
+              and "--fix" in obs[0][2] and "--exit-zero" not in obs[0][2],
               str(obs[:1]))
         check("настройка «не создавать .bak» доходит до obsidian-check",
               bool(obs) and "--no-bak" in obs[0][2], str(obs[:1]))
