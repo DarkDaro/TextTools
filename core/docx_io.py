@@ -88,15 +88,17 @@ def replace_in_docx_text(path, new_full_text):
               f"{Path(path).name}: {e}")
 
 
-def _replace_in_paragraph(p, pattern, new, pos=0):
+def _replace_in_paragraph(p, pattern, new, pos=0, repl_fn=None):
     """01.10: кросс-run замена внутри параграфа с сохранением
     форматирования. Искомая строка, разорванная между run'ами (w:t),
     находится в склеенном тексте; заменяющий текст помещается в первый
     затронутый run, остальные части совпадения очищаются. Соседние run'ы
     не трогаются.
     20.10: поиск только с позиции pos (замена, содержащая сам оригинал,
-    больше не раздувает текст бесконечно). Возвращает
-    (число замен 0/1, новая позиция поиска)."""
+    больше не раздувает текст бесконечно).
+    05.11: repl_fn(m) — вычислить текст замены по совпадению (например
+    с сохранением регистра первой буквы); без него вставляется new.
+    Возвращает (число замен 0/1, новая позиция поиска)."""
     ts = [t for t in p.iter(W_NS + "t")]
     if not ts:
         return 0, pos
@@ -106,6 +108,7 @@ def _replace_in_paragraph(p, pattern, new, pos=0):
     if not m or m.start() == m.end():
         return 0, pos
     start, end = m.span()
+    repl = repl_fn(m) if repl_fn else new
     spans = []
     cur = 0
     for txt in texts:
@@ -115,7 +118,7 @@ def _replace_in_paragraph(p, pattern, new, pos=0):
     last = next(i for i, (s, e) in enumerate(spans) if s < end <= e)
     prefix = texts[first][:start - spans[first][0]]
     suffix = texts[last][end - spans[last][0]:]
-    texts[first] = prefix + new + (suffix if first == last else "")
+    texts[first] = prefix + repl + (suffix if first == last else "")
     for i in range(first + 1, last + 1):
         texts[i] = suffix if i == last else ""
     for t_el, txt in zip(ts, texts):
@@ -125,10 +128,11 @@ def _replace_in_paragraph(p, pattern, new, pos=0):
                 # краевые пробелы без xml:space Word съест
                 t_el.set(
                     "{http://www.w3.org/XML/1998/namespace}space", "preserve")
-    return 1, start + len(new)
+    return 1, start + len(repl)
 
 
-def replace_in_docx(path, old, new, is_regex=False, backup=True):
+def replace_in_docx(path, old, new, is_regex=False, backup=True,
+                    repl_fn=None):
     """Замена old -> new в тексте docx.
 
     01.10: замена идёт по параграфам в склеенном тексте w:t — фраза,
@@ -136,6 +140,10 @@ def replace_in_docx(path, old, new, is_regex=False, backup=True):
     пропускалась как broken). Форматирование сохраняется: правятся только
     затронутые w:t, первый получает новый текст, остальные части
     совпадения очищаются.
+
+    05.11: repl_fn(m) — текст замены вычисляется по совпадению (нужен
+    вместе с is_regex=True, например для сохранения регистра); без него
+    вставляется new.
 
     Возвращает (замен_всего, файлов_изменено, пропусков_разорванных=0).
     """
@@ -169,7 +177,8 @@ def replace_in_docx(path, old, new, is_regex=False, backup=True):
             # содержащая искомое («мир» -> «мирный»), растит текст вечно
             cursor = 0
             for _ in range(1000):  # защита от нулевой длины совпадений
-                n, cursor = _replace_in_paragraph(p, pattern, new, cursor)
+                n, cursor = _replace_in_paragraph(p, pattern, new, cursor,
+                                                  repl_fn=repl_fn)
                 if not n:
                     break
                 total += n

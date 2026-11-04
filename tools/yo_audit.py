@@ -295,18 +295,76 @@ def _replace_cased(text, wrong, right):
     return rx.sub(_sub, text)
 
 
+def _clean_docx(f, pairs, stamp):
+    """05.11: правки ё->е в docx. Возвращает (строки-результаты, число
+    правок). Строки склеенного текста не соответствуют строкам документа,
+    поэтому отмеченные формы заменяются по всему документу (как в
+    phrase_check); бэкап — копия файла в md_replace_backups/stamp."""
+    from core import docx_io
+    res = []
+    try:
+        text = docx_io.read_text(f) or ""
+    except Exception as e:  # битый zip / занят файл — не роняем прогон
+        return [f"[ПРОПУСК] {f.name}: docx не читается ({e})"], 0
+    if not text:
+        return [f"[ПРОПУСК] {f.name}: docx не читается (пусто)"], 0
+    low = text.lower()
+    # формы без повторов, длинные первыми («весь» раньше «вес»)
+    forms = sorted({(w, r) for w, r, _ln in pairs if r},
+                   key=lambda t: -len(t[0]))
+    present = [(w, r) for w, r in forms if w.lower() in low]
+    if not present:
+        return [f"[ПРОПУСК] {f.name}: формы не найдены в тексте"], 0
+    bak_dir = f.parent / "md_replace_backups" / stamp
+    bak_dir.mkdir(parents=True, exist_ok=True)
+    bak = bak_dir / f.name
+    if not bak.exists():
+        shutil.copy2(f, bak)
+    n = 0
+    for w, r in present:
+        rx = _word_pattern(w)
+
+        def _cased(m, _r=r):
+            s = m.group(0)
+            return _r[:1].upper() + _r[1:] if s[:1].isupper() else _r
+
+        try:
+            n_repl, _, _ = docx_io.replace_in_docx(
+                f, rx.pattern, r, is_regex=True, backup=False,
+                repl_fn=_cased)
+        except Exception as e:  # файл занят (Word, синхронизация)
+            return res + [f"[ПРОПУСК] {f.name}: не сохранено ({e})"], n
+        n += n_repl
+    if not n:
+        return [f"[ПРОПУСК] {f.name}: границы слов не дали заменить"], 0
+    return [f"[Ё] {f}: {n} прав(ок)"], n
+
+
 def clean_selection(pairs_by_file):
     """Применяет выбранные правки. pairs_by_file:
     {файл: [(wrong, right, строка)]} — строка приходит из витрины;
     04.11: заменяются только отмеченные вхождения, а не все вхождения
-    слова в файле. Записи только .md/.txt (docx не трогается — решение
-    пользователя). Бэкап в md_replace_backups с датой.
+    слова в файле. Записи .md/.txt; бэкап в md_replace_backups с датой.
+    05.11: .docx больше не пропускается — витрина показывала находки в
+    Word, а «Применить» их молча отбрасывала. Строки склеенного текста
+    docx (тело + колонтитулы + сноски) не соответствуют строкам
+    документа, поэтому замена идёт пословно по всем отмеченным формам
+    во всём документе (как в phrase_check) — через docx_io.replace_in_docx,
+    кросс-run, форматирование не трогается, регистр первой буквы
+    сохраняется («Еж» -> «Ёж», «Ежевика» не задевается — границы слов).
     Возвращает строки-результаты."""
     results = []
     stamp = _t.strftime("%Y-%m-%d_%H-%M-%S")
     n_files = n_repl = 0
     for fstr, pairs in pairs_by_file.items():
         f = Path(fstr)
+        if f.suffix.lower() == ".docx":
+            docx_lines, n = _clean_docx(f, pairs, stamp)
+            results.extend(docx_lines)
+            if n:
+                n_files += 1
+                n_repl += n
+            continue
         try:
             if not f.is_file() or f.suffix.lower() not in (".md", ".txt"):
                 results.append(f"[ПРОПУСК] {f.name}: только .md/.txt")
