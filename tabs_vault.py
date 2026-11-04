@@ -398,7 +398,7 @@ class VaultTab(ctk.CTkFrame):
         import queue as _queue
         import subprocess
         import threading
-        from gui_ctk import _app as app
+        from gui_ctk import _app as app, CREATE_FLAGS
 
         if not app.begin_background("Витрина штампов"):
             return
@@ -414,7 +414,7 @@ class VaultTab(ctk.CTkFrame):
                     tool_cmd("phrase_check", "--input", path, "--review"),
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, encoding="utf-8", errors="replace",
-                    creationflags=subprocess.CREATE_NO_WINDOW)
+                    creationflags=CREATE_FLAGS)
                 app._bg_proc = proc
                 out, _ = proc.communicate(timeout=600)
             except subprocess.TimeoutExpired:

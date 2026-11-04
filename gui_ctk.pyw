@@ -175,6 +175,12 @@ def _toast_beep(level):
             pass
 
 
+# 11.26: CREATE_NO_WINDOW существует только на Windows — доступ к
+# атрибуту на других ОС падал AttributeError, и каждый запуск инструмента
+# получал «ошибка запуска». На Windows по-прежнему без консольного окна.
+CREATE_FLAGS = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+
+
 class Runner:
     """Запускает команду в фоновом потоке, вывод идёт в очередь."""
 
@@ -242,7 +248,7 @@ class Runner:
             self.proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, encoding="utf-8", errors="replace",
-                cwd=cwd, creationflags=subprocess.CREATE_NO_WINDOW,
+                cwd=cwd, creationflags=CREATE_FLAGS,
                 env={**os.environ, "PYTHONIOENCODING": "utf-8"})
             # 24.10: окно закрыли раньше, чем процесс успел стартовать.
             # Кладём stop.flag сразу после запуска, чтобы инструмент
