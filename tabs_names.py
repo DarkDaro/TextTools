@@ -292,7 +292,10 @@ class NamesTab(ctk.CTkFrame):
         q = _queue.Queue()
 
         def _worker():
-            if sys.stdout is None:
+            # 04.11: подмена stdout живёт только до конца задачи —
+            # раньше брошенный StringIO оставался до конца процесса
+            _stdout_keep = sys.stdout
+            if _stdout_keep is None:
                 sys.stdout = io.StringIO()  # pythonw: print движков в никуда
             try:
                 from tools import yo_audit
@@ -319,6 +322,8 @@ class NamesTab(ctk.CTkFrame):
                 q.put(("ok", hits, targets))
             except Exception as e:
                 q.put(("err", f"Ё/Е-аудит не удался: {e}", None))
+            finally:
+                sys.stdout = _stdout_keep
 
         def _check():
             from gui_ctk import _app as app
