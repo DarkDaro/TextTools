@@ -20,7 +20,7 @@ from pathlib import Path
 # from collections import Counter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core.report import write_report
+from core.report import write_report, write_json
 # 26.10: read_text не используется (читаем через docx_io ниже) — отключён
 # from core.text_parser import iter_text_files, read_text, norm_yo
 from core.text_parser import iter_text_files, norm_yo
@@ -140,7 +140,8 @@ def count_phrase(text, phrase):
     return norm_yo(text.lower()).count(norm_yo(phrase))
 
 
-def run(input_path, custom=None, phrases=None, limit=None, out=None):
+def run(input_path, custom=None, phrases=None, limit=None, out=None,
+        json_out=None):
     # Собираем список поиска
     search = load_phrases_list(custom, phrases)
 
@@ -175,6 +176,16 @@ def run(input_path, custom=None, phrases=None, limit=None, out=None):
     print(f"Фраз в словаре: {len(search)}")
     if not total_hits:
         print("\nШтампов не найдено — текст чистый.")
+        if json_out:
+            write_json(json_out, {
+                "tool": "phrase-check",
+                "input": str(input_path),
+                "files": n_files,
+                "phrases": len(search),
+                "total": 0,
+                "hits": {},
+            })
+            print(f"JSON-отчёт: {json_out}")
         return 0
 
     # 04.11: код 1 — штампы найдены (как у cjk/obsidian-check),
@@ -206,6 +217,17 @@ def run(input_path, custom=None, phrases=None, limit=None, out=None):
             lines.append("")
         write_report(out, "\n".join(lines))
         print(f"\nОтчёт: {out}")
+    if json_out:
+        write_json(json_out, {
+            "tool": "phrase-check",
+            "input": str(input_path),
+            "files": n_files,
+            "phrases": len(search),
+            "total": total_count,
+            "hits": {ph: [{"file": f, "count": c} for f, c in sorted(lst)]
+                     for ph, lst in rows},
+        })
+        print(f"JSON-отчёт: {json_out}")
     return 1
 
 
@@ -635,6 +657,8 @@ def main(argv=None):
                     help="очистка: только показать план")
     ap.add_argument("--yes", "-y", action="store_true", help="без подтверждения")
     ap.add_argument("--no-backup", action="store_true", help="не делать бэкапы")
+    ap.add_argument("--json", dest="json_out",
+                    help="сохранить отчёт поиска в JSON («-» — в stdout)")
     args = ap.parse_args(argv)
 
     if args.add:
@@ -655,7 +679,7 @@ def main(argv=None):
                      yes=args.yes, no_backup=args.no_backup)
 
     return run(args.input, custom=args.custom, phrases=args.phrase,
-               limit=args.limit, out=args.out)
+               limit=args.limit, out=args.out, json_out=args.json_out)
 
 
 if __name__ == "__main__":

@@ -18,3 +18,10 @@ def write_report(path, text):
     if str(parent) not in ("", ".") and not parent.exists():
         parent.mkdir(parents=True, exist_ok=True)
     p.write_text(text, encoding="utf-8")
+
+
+def write_json(path, payload):
+    """Пишет JSON-отчёт (indent=2, без экранирования кириллицы).
+    «-» вместо пути — печатает в stdout. Родительские папки создаются."""
+    import json
+    write_report(path, json.dumps(payload, ensure_ascii=False, indent=2))

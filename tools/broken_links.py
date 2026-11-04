@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core.report import write_report
+from core.report import write_report, write_json
 from core import vault_scanner as vs
 
 
@@ -30,7 +30,7 @@ def _md_resolved(target, note, basenames, relpaths, attachments):
         return False
 
 
-def run(input_path, limit=None, verbose=False, out=None):
+def run(input_path, limit=None, verbose=False, out=None, json_out=None):
     notes, basenames, relpaths, attachments = vs.scan_vault(
         input_path, limit=limit)
 
@@ -89,6 +89,15 @@ def run(input_path, limit=None, verbose=False, out=None):
                 lines.append(f"- {t}")
         write_report(out, "\n".join(lines))
         print(f"Отчёт: {out}")
+    if json_out:
+        write_json(json_out, {
+            "tool": "broken-links",
+            "input": str(input_path),
+            "notes": len(notes),
+            "broken_wiki": [{"file": n.rel, "target": t} for n, t in broken],
+            "broken_md": [{"file": n.rel, "target": t} for n, t in broken_md],
+        })
+        print(f"JSON-отчёт: {json_out}")
     return 0
 
 
@@ -98,8 +107,11 @@ def main(argv=None):
     ap.add_argument("--limit", type=int)
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--out", help="файл отчёта")
+    ap.add_argument("--json", dest="json_out",
+                    help="сохранить отчёт в JSON («-» — в stdout)")
     args = ap.parse_args(argv)
-    return run(args.input, limit=args.limit, verbose=args.verbose, out=args.out)
+    return run(args.input, limit=args.limit, verbose=args.verbose,
+               out=args.out, json_out=args.json_out)
 
 
 if __name__ == "__main__":

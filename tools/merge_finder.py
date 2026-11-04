@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core.report import write_report
+from core.report import write_report, write_json
 from core import vault_scanner as vs
 from core import text_parser as tp
 
@@ -82,7 +82,7 @@ def _note_text(note):
         return t or ""
 
 
-def run(input_path, limit=None, verbose=False, out=None):
+def run(input_path, limit=None, verbose=False, out=None, json_out=None):
     notes, basenames, relpaths, _attachments = vs.scan_vault(
         input_path, limit=limit)
 
@@ -142,6 +142,19 @@ def run(input_path, limit=None, verbose=False, out=None):
             lines.append(f"- {j:.0%}: {a.rel} <-> {b.rel}")
         write_report(out, "\n".join(lines))
         print(f"Отчёт: {out}")
+    if json_out:
+        write_json(json_out, {
+            "tool": "merge-finder",
+            "input": str(input_path),
+            "notes": len(notes),
+            "dup_content": [{"hash": h[:8], "files": [n.rel for n in g]}
+                            for h, g in dup_content],
+            "dup_names": [{"name": s, "files": [n.rel for n in g]}
+                          for s, g in dup_names],
+            "near": [{"a": a.rel, "b": b.rel, "jaccard": j}
+                     for a, b, j in near],
+        })
+        print(f"JSON-отчёт: {json_out}")
     return 0
 
 
@@ -151,8 +164,11 @@ def main(argv=None):
     ap.add_argument("--limit", type=int)
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--out", help="файл отчёта")
+    ap.add_argument("--json", dest="json_out",
+                    help="сохранить отчёт в JSON («-» — в stdout)")
     args = ap.parse_args(argv)
-    return run(args.input, limit=args.limit, verbose=args.verbose, out=args.out)
+    return run(args.input, limit=args.limit, verbose=args.verbose,
+               out=args.out, json_out=args.json_out)
 
 
 if __name__ == "__main__":

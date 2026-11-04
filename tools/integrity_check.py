@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report, write_json
 from core.text_parser import SKIP_PARTS
 
 # 21.10: набор служебных папок общий с ядром (core.text_parser.SKIP_PARTS):
@@ -59,7 +60,7 @@ def check_file(path):
     return issues
 
 
-def run(input_path, limit=None, verbose=False, out=None):
+def run(input_path, limit=None, verbose=False, out=None, json_out=None):
     root = Path(input_path)
     if root.is_file():
         files = [root]
@@ -85,8 +86,17 @@ def run(input_path, limit=None, verbose=False, out=None):
                  f"Файлов: {len(files)}", f"Проблем: {len(problems)}", ""]
         for issue, p in problems:
             lines.append(f"- {issue}: {p}")
-        Path(out).write_text("\n".join(lines), encoding="utf-8")
+        write_report(out, "\n".join(lines))
         print(f"Отчёт: {out}")
+    if json_out:
+        write_json(json_out, {
+            "tool": "integrity",
+            "input": str(input_path),
+            "files": len(files),
+            "problems": [{"file": str(p), "issue": issue}
+                         for issue, p in problems],
+        })
+        print(f"JSON-отчёт: {json_out}")
     return 0
 
 
@@ -96,8 +106,11 @@ def main(argv=None):
     ap.add_argument("--limit", type=int)
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--out", help="файл отчёта")
+    ap.add_argument("--json", dest="json_out",
+                    help="сохранить отчёт в JSON («-» — в stdout)")
     args = ap.parse_args(argv)
-    return run(args.input, limit=args.limit, verbose=args.verbose, out=args.out)
+    return run(args.input, limit=args.limit, verbose=args.verbose,
+               out=args.out, json_out=args.json_out)
 
 
 if __name__ == "__main__":

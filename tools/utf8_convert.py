@@ -17,11 +17,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_json
 from core import encoding as enc
 from core import text_parser as tp
 
 
-def run(input_path, fix=False, limit=None):
+def run(input_path, fix=False, limit=None, json_out=None):
     files = [f for f in tp.iter_text_files(input_path, exts=(".md", ".txt"),
                                            limit=limit)
              if f.suffix.lower() != ".docx"]
@@ -32,6 +33,7 @@ def run(input_path, fix=False, limit=None):
 
     n_bad = n_fixed = n_skip = 0
     n = 0
+    non_utf8 = []  # 04.11: список для JSON-отчёта
     for f in files:
         n += 1
         if tp.stop_requested():
@@ -43,6 +45,7 @@ def run(input_path, fix=False, limit=None):
         data = f.read_bytes()
         detected = enc.detect(data)
         n_bad += 1
+        fixed_now = False
         if detected is None:
             print(f"  [НЕ ТЕКСТ] {f}")
         else:
@@ -63,6 +66,9 @@ def run(input_path, fix=False, limit=None):
                 with open(f, "w", encoding="utf-8", newline="") as fh:
                     fh.write(text)
                 n_fixed += 1
+                fixed_now = True
+        non_utf8.append({"file": str(f), "encoding": detected,
+                         "fixed": fixed_now})
         print(f"PROGRESS:{n}/{total}", flush=True)
 
     print()
@@ -71,6 +77,15 @@ def run(input_path, fix=False, limit=None):
     else:
         print(f"Не в UTF-8: {n_bad}, перекодировано: {n_fixed}"
               + (f", пропущено {n_skip}" if n_skip else ""))
+    if json_out:
+        write_json(json_out, {
+            "tool": "utf8",
+            "input": str(input_path),
+            "scanned": len(files),
+            "non_utf8": non_utf8,
+            "fixed": n_fixed,
+        })
+        print(f"JSON-отчёт: {json_out}")
     # 04.11: остались файлы не в UTF-8 — код 1 (для сценариев и GUI);
     # после успешного --fix — код 0
     return 1 if n_bad > n_fixed else 0
@@ -83,8 +98,11 @@ def main(argv=None):
     ap.add_argument("--fix", action="store_true",
                     help="перекодировать в UTF-8 (с .bak)")
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--json", dest="json_out",
+                    help="сохранить отчёт в JSON («-» — в stdout)")
     args = ap.parse_args(argv)
-    return run(args.input, fix=args.fix, limit=args.limit)
+    return run(args.input, fix=args.fix, limit=args.limit,
+               json_out=args.json_out)
 
 
 if __name__ == "__main__":

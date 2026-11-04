@@ -71,6 +71,8 @@ def main():
     p4.add_argument("--input", required=True)
     p4.add_argument("--fix", action="store_true")
     p4.add_argument("--limit", type=int)
+    p4.add_argument("--json", dest="json_out",
+                    help="сохранить отчёт в JSON («-» — в stdout)")
 
     p5 = sub.add_parser("matrix", help="матрица «персонаж × файл»")
     p5.add_argument("--input", required=True)
@@ -115,7 +117,7 @@ def main():
     p10.add_argument("--update", action="store_true")
 
     for name, desc in (("orphan-finder", "заметки без входящих и исходящих ссылок"),
-                       ("broken-links", "вики-ссылки на несуществующие заметки"),
+                       ("broken-links", "вики- и markdown-ссылки на несуществующие заметки"),
                        ("merge-finder", "дубликаты по содержимому и по именам"),
                        ("integrity", "целостность .md: пустые, битый UTF-8, frontmatter, заголовки")):
         p = sub.add_parser(name, help=desc)
@@ -123,6 +125,8 @@ def main():
         p.add_argument("--limit", type=int)
         p.add_argument("--verbose", action="store_true")
         p.add_argument("--out")
+        p.add_argument("--json", dest="json_out",
+                       help="сохранить отчёт в JSON («-» — в stdout)")
 
     p_int = sub.add_parser("obsidian-check",
                            help="валидатор метафайлов Obsidian: таблицы, заголовки, теги, frontmatter")
@@ -135,6 +139,8 @@ def main():
                        help="код 0, даже если найдены ERROR (для GUI)")
     p_int.add_argument("--verbose", action="store_true")
     p_int.add_argument("--out")
+    p_int.add_argument("--json", dest="json_out",
+                       help="сохранить отчёт в JSON («-» — в stdout)")
 
     # 24.10: find_cjk из корня проекта — поиск иероглифов и мойбейка
     p_cjk = sub.add_parser("cjk",
@@ -228,6 +234,8 @@ def main():
                      help="реальная чистка (без неё — только план)")
     p16.add_argument("--no-backup", action="store_true",
                      help="не делать бэкапы при чистке")
+    p16.add_argument("--json", dest="json_out",
+                     help="отчёт поиска в JSON («-» — в stdout)")
 
     args = ap.parse_args()
 
@@ -242,7 +250,8 @@ def main():
         opts = ["--input", args.input,
                 *(["--limit", str(args.limit)] if args.limit is not None else []),
                 *(["--verbose"] if args.verbose else []),
-                *(["--out", args.out] if args.out else [])]
+                *(["--out", args.out] if args.out else []),
+                *(["--json", args.json_out] if args.json_out else [])]
         sys.exit(mod.main(opts))
     if args.cmd == "obsidian-check":
         sys.path.insert(0, str(here))
@@ -253,7 +262,8 @@ def main():
                 *(["--no-bak"] if args.no_bak else []),
                 *(["--exit-zero"] if args.exit_zero else []),
                 *(["--verbose"] if args.verbose else []),
-                *(["--out", args.out] if args.out else [])]
+                *(["--out", args.out] if args.out else []),
+                *(["--json", args.json_out] if args.json_out else [])]
         sys.exit(obsidian_check.main(opts))
     if args.cmd == "cjk":
         sys.path.insert(0, str(here))
@@ -333,7 +343,8 @@ def main():
         from tools import utf8_convert
         sys.exit(utf8_convert.main(
             ["--input", args.input, *(["--fix"] if args.fix else []),
-             *(["--limit", str(args.limit)] if args.limit is not None else [])]))
+             *(["--limit", str(args.limit)] if args.limit is not None else []),
+             *(["--json", args.json_out] if args.json_out else [])]))
     elif args.cmd == "matrix":
         sys.path.insert(0, str(here))
         from tools import character_matrix
@@ -417,6 +428,8 @@ def main():
             opts.append("--yes")
         if args.no_backup:
             opts.append("--no-backup")
+        if args.json_out:
+            opts += ["--json", args.json_out]
         sys.exit(phrase_check.main(opts))
 
 

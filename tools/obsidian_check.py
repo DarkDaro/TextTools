@@ -38,6 +38,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from core.report import write_json
 from core.text_parser import backup_once, stop_requested
 
 try:
@@ -530,7 +531,7 @@ def _fix_table_block(lines, block):
 
 
 def run(input_path, limit=None, fix=False, verbose=False, out=None, no_bak=False,
-        exit_zero=False):
+        exit_zero=False, json_out=None):
     vault_root = Path(input_path)
     if vault_root.is_file():
         vault_root = vault_root.parent
@@ -626,6 +627,24 @@ def run(input_path, limit=None, fix=False, verbose=False, out=None, no_bak=False
             out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text("\n".join(lines), encoding="utf-8")
         print("\nОтчёт: %s" % out)
+    if json_out:
+        write_json(json_out, {
+            "tool": "obsidian-check",
+            "input": str(input_path),
+            "files": done,
+            "stopped": stopped,
+            "fixed_files": len(applied) if fix else 0,
+            "counts": dict(by_code),
+            "findings": [{
+                "file": (path.relative_to(vault_root).as_posix()
+                         if vault_root in path.parents else str(path)),
+                "line": lineno,
+                "code": code,
+                "severity": SEVERITY.get(code, "WARN"),
+                "message": msg,
+            } for path, lineno, code, msg in report],
+        })
+        print("\nJSON-отчёт: %s" % json_out)
     # 24.10: если остались ERROR — код 1, чтобы проверку можно было
     # ставить в скрипты и pre-commit. --exit-zero нужен GUI и конвейерам,
     # где находки не должны выглядеть как сбой запуска.
@@ -645,9 +664,11 @@ def main(argv=None):
                     help="всегда код 0, даже если найдены ERROR (для GUI)")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--out")
+    ap.add_argument("--json", dest="json_out",
+                    help="сохранить отчёт в JSON («-» — в stdout)")
     args = ap.parse_args(argv)
     return run(args.input, args.limit, args.fix, args.verbose, args.out,
-               args.no_bak, args.exit_zero)
+               args.no_bak, args.exit_zero, args.json_out)
 
 
 if __name__ == "__main__":
