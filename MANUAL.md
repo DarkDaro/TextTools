@@ -248,7 +248,8 @@ pip install .
 
 | Блок | Что делает |
 |---|---|
-| Orphans / Битые ссылки / Дубликаты | Анализ заметок. Только чтение |
+| Проверить всё | Одна кнопка на четыре проверки: валидатор Obsidian → иероглифы → целостность → дубликаты. Только чтение; в журнале сводка по каждой. Серьёзные находки — статус «есть замечания» |
+| Orphans / Битые ссылки / Дубликаты | Анализ заметок. Битые ссылки проверяют и вики `[[так]]`, и markdown `[текст](цель)`. Только чтение |
 | Валидатор Obsidian | `obsidian-check`: frontmatter, таблицы, заголовки, теги, ссылки, code fence. По умолчанию только чтение; галочка «Исправить однозначное» включает запись с `.bak` |
 | Иероглифы и порча кодировки | `find_cjk`: китайские иероглифы, японские и корейские азбуки, мойбейк, невидимые символы. Только чтение, по желанию JSON-отчёт |
 | Штампы ИИ-текста | Поиск шаблонных оборотов по встроенному словарю (~60) + вашим. «Найти штампы» — отчёт; «Почистить штампы» — замена/удаление по словарю; «Выборочно (витрина)» — ручной выбор каждого вхождения |
@@ -394,6 +395,8 @@ python textools.py matrix           --input <папка> --registry <yaml>
 python textools.py merge-registry   --candidates <yaml> --registry <yaml> [--add]
 python textools.py orphan-finder    --input <папка>
 python textools.py broken-links     --input <папка>
+python textools.py phrase-check     --input <папка> [--clean --yes] [--out отчёт.md]
+python textools.py check-all        --input <папка> [--json сводка.json]
 python textools.py merge-finder     --input <папка>
 python textools.py integrity         --input <папка>
 python textools.py obsidian-check    --input <папка> [--fix] [--no-bak] [--exit-zero] [--out report.md]
@@ -411,7 +414,9 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
 python tools/yo_audit.py            --input <папка> [--registry <yaml>] [--review] [--out report.md]
 ```
 
-Общие опции: `--out <файл>` — сохранить отчёт, `--limit N` — не больше
+Общие опции: `--out <файл>` — сохранить отчёт («-» — в stdout для
+конвейеров), `--json <файл|->` — машинно-читаемый отчёт у всех
+проверок, `--limit N` — не больше
 N файлов, `--verbose` — подробности.
 
 ### obsidian-check — валидатор метафайлов

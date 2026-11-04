@@ -7,8 +7,8 @@
 мусор, где абзац состоит из одного и того же слова. Потом она это
 исправляет, если разрешить.
 
-Облака, подписки и искусственного интеллекта здесь нет. Есть 21
-подкоманда CLI, окно на шесть вкладок и ваша папка с текстами, к которой
+Облака, подписки и искусственного интеллекта здесь нет. Есть 23
+подкоманды CLI, окно на шесть вкладок и ваша папка с текстами, к которой
 всё это применяется.
 
 Сделана под русскую прозу в Obsidian: имена и падежи, ё/е, «ёлочки»,
@@ -181,6 +181,8 @@ python textools.py merge-registry   --candidates <yaml> --registry <yaml> [--add
 python textools.py utf8             --input <папка> [--fix]
 python textools.py orphan-finder    --input <папка>
 python textools.py broken-links     --input <папка>
+python textools.py phrase-check     --input <папка> [--clean --yes] [--out отчёт.md]
+python textools.py check-all        --input <папка> [--json сводка.json]
 python textools.py merge-finder     --input <папка>
 python textools.py integrity        --input <папка>
 python textools.py obsidian-check   --input <папка> [--fix] [--no-bak] [--exit-zero] [--out report.md]
@@ -196,7 +198,9 @@ python textools.py separators       --input <папка> [--fix] [--symbols ...]
 python textools.py emoji-icons      --input <файл/папка> [--fix] [--map icons.json]
 ```
 
-Общие опции: `--out <файл>` (отчёт), `--limit N`, `--verbose`.
+Общие опции: `--out <файл>` (отчёт, «-» — в stdout для конвейеров),
+`--limit N`, `--verbose`, `--json <файл|->` — машинно-читаемый отчёт
+(у всех проверок).
 Долгие операции печатают прогресс строками `PROGRESS:N/M`, GUI рисует по
 ним полосу.
 
@@ -210,12 +214,13 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
 * **Имена персонажей**: registry-builder, consistency, матрица
   упоминаний, падежные формы (pymorphy3), добавление кандидатов в
   реестр, MOC-заметки персонажей для Obsidian
-* **Хранилище**: orphan-finder, broken-links, merge-finder, проверка
-  целостности заметок (integrity), валидатор Obsidian
-  (obsidian-check), поиск иероглифов и мойбейка (find_cjk), поиск
-  штампов, чистка штампов (в том числе интерактивно, с витриной),
+* **Хранилище**: orphan-finder, broken-links (вики и markdown-ссылки),
+  merge-finder, проверка целостности заметок (integrity), валидатор
+  Obsidian (obsidian-check), поиск иероглифов и мойбейка (find_cjk),
+  поиск штампов, чистка штампов (в том числе интерактивно, с витриной),
   статистика текста (с CSV-дневником объёма), стилистический отчёт
-  (повторы слов рядом, длинные предложения)
+  (повторы слов рядом, длинные предложения), профиль «проверить всё»
+  (четыре проверки одним прогоном)
 * **Чистка**: эмодзи, мусор/CJK, пробелы, кодировки (UTF-8),
   типографика («ёлочки», тире, многоточия, неразрывные пробелы),
   мусорные разделители (отбойники сцен ///// **** ===== ———)
@@ -274,9 +279,9 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
 * `tools/`: движки команд (registry_builder, consistency, orphan_finder,
   broken_links, merge_finder, integrity_check, obsidian_check,
   phrase_check, whitespace_clean, separator_clean, utf8_convert,
-  morph_forms, character_matrix, registry_merge, backup_restore,
-  backup_archive, moc_builder, text_stats, typography, style_report,
-  icon_replace, yo_audit) и словари
+  full_check, morph_forms, character_matrix, registry_merge,
+  backup_restore, backup_archive, moc_builder, text_stats, typography,
+  style_report, icon_replace, yo_audit) и словари
   `phrases*.yaml`, `parasites.yaml`, `yo_dict.yaml`
 * `find_cjk.py`: поиск иероглифов, мойбейка и порчи кодировки (CLI `cjk`,
   карточка на вкладке «Хранилище»)
