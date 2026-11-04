@@ -1142,7 +1142,9 @@ class App(ctk.CTk):
                        "Текущий файл докончен.", "warn")
             return
         # 25.10: для find_cjk код 1 — штатные находки, а не сбой.
-        if code == 1 and label == "find_cjk":
+        # 04.11: то же для obsidian-check — найденные ERROR это результат
+        # проверки, а не сбой (флаг --exit-zero из запуска убран)
+        if code == 1 and label in ("find_cjk", "obsidian_check"):
             self.status.configure(text="есть замечания")
             _toast_beep("warn")
             if _cfg_flag("toast_done", True):

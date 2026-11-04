@@ -261,7 +261,10 @@ class VaultTab(ctk.CTkFrame):
         if not p:
             _app.log_line("Укажите папку vault для проверки Obsidian.\n")
             return
-        args = ["--input", p, "--exit-zero"]
+        args = ["--input", p]
+        # 04.11: без --exit-zero — код 1 при ERROR теперь показывается
+        # как «есть замечания», а не «Готово» (раньше статус противоречил
+        # содержимому журнала)
         if self.c_obs_fix.get():
             args.append("--fix")
             # 24.10: настройка «не создавать .bak» (папки под git).
@@ -421,10 +424,17 @@ class VaultTab(ctk.CTkFrame):
                     text=True, encoding="utf-8", errors="replace",
                     creationflags=CREATE_FLAGS)
                 app._bg_proc = proc
+                # 04.11: «Стоп» мог сработать между запуском и присвоением —
+                # теперь такой процесс всё равно будет остановлен
+                if not app._bg_active:
+                    proc.terminate()
                 out, _ = proc.communicate(timeout=timeout_s)
             except subprocess.TimeoutExpired:
                 try:
                     proc.kill()
+                    # 04.11: дожидаемся — иначе незакрытые пайпы и
+                    # дескриптор процесса до сборщика мусора
+                    proc.wait(timeout=5)
                 except Exception:
                     pass
                 q.put(("err", f"Витрина не успела за {timeout_s // 60} мин "
