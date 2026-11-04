@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import text_parser as tp
 
 # Расширения файлов, которые обрабатываются при обходе папки
@@ -299,8 +300,7 @@ def run(input_path, fix=False, exts=None, no_bak=False, limit=None,
              "Для замены: --fix / галочка «Применить».")
     if out:
         try:
-            Path(out).write_text("\n".join(lines_out) + "\n",
-                                 encoding="utf-8")
+            write_report(out, "\n".join(lines_out) + "\n")
         except OSError as e:
             print(f"ОШИБКА: не записан отчёт {out}: {e}")
             return 1

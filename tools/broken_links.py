@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import vault_scanner as vs
 
 
@@ -42,7 +43,7 @@ def run(input_path, limit=None, verbose=False, out=None):
                 cur = n.rel
                 lines.append(f"## {cur}")
             lines.append(f"- [[{t}]]")
-        Path(out).write_text("\n".join(lines), encoding="utf-8")
+        write_report(out, "\n".join(lines))
         print(f"Отчёт: {out}")
     return 0
 

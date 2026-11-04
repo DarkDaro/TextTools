@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import text_parser as tp
 
 SKIP_DIRS = {".git", ".obsidian", ".trash", "reports", "__pycache__",
@@ -165,9 +166,7 @@ def run(input_path, max_blank=1, keep_breaks=False, fix=False, out=None):
     if not fix and total_changes:
         print("Режим dry-run — файлы НЕ изменены. Для правки: --fix")
     if out:
-        Path(out).write_text(
-            f"# Whitespace clean\nФайлов: {total_files}, правок: {total_changes}\n",
-            encoding="utf-8")
+        write_report(out, f"# Whitespace clean\nФайлов: {total_files}, правок: {total_changes}\n")
     return 0
 
 

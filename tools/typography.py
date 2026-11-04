@@ -33,6 +33,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import text_parser as tp
 
 SKIP_DIRS = {".git", ".obsidian", ".trash", "reports", "__pycache__",
@@ -263,7 +264,7 @@ def run(input_path, fix=False, nbsp=False, out=None):
         lines += ["",
                   f"**Итого:** файлов с правками {total_files}, правок {grand}.",
                   f"Неразрывные пробелы: {'включены' if nbsp else 'выключены (--nbsp)'}."]
-        Path(out).write_text("\n".join(lines), encoding="utf-8")
+        write_report(out, "\n".join(lines))
     return 0
 
 

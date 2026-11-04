@@ -36,6 +36,7 @@ import time as _t
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import name_registry as nr
 # 26.10: tp не используется (мёртвый импорт) — отключён
 # from core import text_parser as tp
@@ -276,7 +277,7 @@ def _write_report(out, hits, n_pairs, targets):
         # декларирует поддержку >=3.10
         frag_md = frag.replace("|", "\\|")
         lines.append(f"| {w} | {r} | {fs} | {ln} | {frag_md} |")
-    Path(out).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_report(out, "\n".join(lines) + "\n")
 
 
 def _replace_cased(text, wrong, right):

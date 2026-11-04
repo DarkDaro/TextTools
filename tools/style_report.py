@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import text_parser as tp
 from core import name_registry as nr  # 20.10: реестр имён (был не импортирован)
 
@@ -225,7 +226,7 @@ def run(input_path, registry=None, window=5, long=25, limit=None, out=None):
         else:
             rep.append("Длинных предложений не найдено.")
         rep += ["", f"Файлов проверено: {total}."]
-        Path(out).write_text("\n".join(rep), encoding="utf-8")
+        write_report(out, "\n".join(rep))
     return 0
 
 

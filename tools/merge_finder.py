@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import vault_scanner as vs
 from core import text_parser as tp
 
@@ -133,7 +134,7 @@ def run(input_path, limit=None, verbose=False, out=None):
         lines += ["", f"## Близкие дубликаты: {len(near)} пар", ""]
         for a, b, j in near:
             lines.append(f"- {j:.0%}: {a.rel} <-> {b.rel}")
-        Path(out).write_text("\n".join(lines), encoding="utf-8")
+        write_report(out, "\n".join(lines))
         print(f"Отчёт: {out}")
     return 0
 

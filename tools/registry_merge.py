@@ -20,6 +20,7 @@ from pathlib import Path
 # import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import name_registry as nr
 
 
@@ -69,7 +70,7 @@ def run(candidates_path, registry_path, names=None, add=False, out=None):
         if skipped:
             lines += ["", "## Пропущено", ""]
             lines += [f"- {nm}: {why}" for nm, why in skipped]
-        Path(out).write_text("\n".join(lines) + "\n", encoding="utf-8")
+        write_report(out, "\n".join(lines) + "\n")
         print(f"Отчёт: {out}")
     if not new:
         print("Добавлять нечего.")

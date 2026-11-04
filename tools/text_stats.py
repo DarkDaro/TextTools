@@ -24,6 +24,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import text_parser as tp
 
 # классические слова-паразиты и усилители (сравнение без ё, по границам слов)
@@ -150,7 +151,7 @@ def run(input_path, limit=None, out=None, csv_log=False):
         rate = lambda c: round(1000 * c / totals["words"], 1) if totals["words"] else 0
         for p, c in para_total.most_common():
             lines.append(f"- {p}: {c} ({rate(c)} на 1000 слов)")
-        Path(out).write_text("\n".join(lines), encoding="utf-8")
+        write_report(out, "\n".join(lines))
         print(f"\nОтчёт: {out}")
 
     if csv_log:

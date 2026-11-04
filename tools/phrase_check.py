@@ -20,6 +20,7 @@ from pathlib import Path
 # from collections import Counter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 # 26.10: read_text не используется (читаем через docx_io ниже) — отключён
 # from core.text_parser import iter_text_files, read_text, norm_yo
 from core.text_parser import iter_text_files, norm_yo
@@ -200,7 +201,7 @@ def run(input_path, custom=None, phrases=None, limit=None, out=None):
             for f, c in sorted(lst):
                 lines.append(f"- {f}: {c}")
             lines.append("")
-        Path(out).write_text("\n".join(lines), encoding="utf-8")
+        write_report(out, "\n".join(lines))
         print(f"\nОтчёт: {out}")
     return 0
 

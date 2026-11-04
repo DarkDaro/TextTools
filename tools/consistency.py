@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import morph
 from core import name_registry as nr
 from core import text_parser as tp
@@ -113,7 +114,7 @@ def run(input_path, registry_path, limit=None, verbose=False, out=None):
                 if name2 == c["имя"] and key != "ок":
                     lines.append(f"- [{key}] {path.name}:L{line_no}: {line.strip()}")
             lines.append("")
-        Path(out).write_text("\n".join(lines), encoding="utf-8")
+        write_report(out, "\n".join(lines))
         print(f"Отчёт: {out}")
     return 0
 

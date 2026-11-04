@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.report import write_report
 from core import morph
 from core import name_registry as nr
 
@@ -69,7 +70,7 @@ def run(registry_path, fill=False, out=None):
             for fld, missing in per.items():
                 lines.append(f"- {fld}: {', '.join(missing)}")
             lines.append("")
-        Path(out).write_text("\n".join(lines), encoding="utf-8")
+        write_report(out, "\n".join(lines))
         print(f"Отчёт: {out}")
 
     if fill:
