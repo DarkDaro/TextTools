@@ -225,13 +225,14 @@ def main():
                 break
         check(f"Ctrl+3 → «{third}»", app._current_tab == third,
               app._current_tab)
+        # 05.11: с добавлением «Писателям» журнал стал седьмой вкладкой
         for _ in range(3):
-            app.event_generate("<Control-Key-6>")
+            app.event_generate("<Control-Key-7>")
             app.update()
             time.sleep(0.05)
             if app._current_tab == gui_ctk.LOG_TAB:
                 break
-        check("Ctrl+6 → журнал", app._current_tab == gui_ctk.LOG_TAB,
+        check("Ctrl+7 → журнал", app._current_tab == gui_ctk.LOG_TAB,
               app._current_tab)
 
         # 24.10: быстрая смена вкладок не должна оставлять пустое окно

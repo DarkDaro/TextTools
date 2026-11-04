@@ -1,5 +1,6 @@
 """Вкладка «Чистка»: emoji-cleaner + clean_text_files + whitespace_clean.
-18.09: переделана на CustomTkinter (widgets_ctk)."""
+18.09: переделана на CustomTkinter (widgets_ctk).
+05.11: АНТИРЕШИМОСТЬ переехала во вкладку «Писателям» (tabs_writers)."""
 import customtkinter as ctk
 
 from gui_config import CFG
@@ -22,8 +23,8 @@ class CleanTab(ctk.CTkFrame):
             "SVG в html-файлах (вид одинаковый на любой системе).\n"
             "• Чистка разделителей — убирает строки-отбойники из повторяющихся "
             "символов (///// ***** ====== ———), к тексту они отношения не имеют.\n"
-            "• АНТИРЕШИМОСТЬ — ищет запрещённую лексику памятки (решимость, "
-            "лозунги, пафос) и умеет вырезать её с подсказками для ручной правки.\n"
+            "Инструменты стиля рукописи (АНТИРЕШИМОСТЬ, штампы, стилистика, "
+            "статистика, ё/е) — на вкладке «Писателям».\n"
             "Безопасность: по умолчанию всё в режиме dry-run (только отчёт). "
             "Чтобы реально изменить файлы — снимите dry-run / поставьте «Применить». "
             "С бэкапом (.bak рядом с файлом) всегда можно откатить."))
@@ -276,39 +277,6 @@ class CleanTab(ctk.CTkFrame):
         b_sep.pack(side="left")
         b_sep.link_danger(self.c_sep_fix.var)
 
-        # --- 8. АНТИРЕШИМОСТЬ (05.11) ---
-        s8 = Section(parent,
-                     "8. АНТИРЕШИМОСТЬ — запрещённая лексика и пафос "
-                     "(txt / md / docx)")
-        self.f_ar = PathField(s8.inner, "Папка или файл:", "ar_input", CFG,
-                              file_mode="both",
-                              tooltip="Папка (обход рекурсивный) или один файл "
-                                      ".md/.txt/.docx.")
-        self.c_ar_fix = CheckField(s8.inner, "Зачистить (вырезать hard)",
-                                   "ar_clean", CFG, default=False,
-                                   tooltip="Без галочки — только поиск, лог и "
-                                           "отчёт. С галочкой — вырезает жёсткие "
-                                           "вхождения (решимость, лозунги, "
-                                           "превозмогание…), создавая .bak рядом "
-                                           "с файлом. soft-слова (надежда, "
-                                           "штампы) только подсвечиваются — "
-                                           "решает автор.")
-        self.c_ar_fix.pack(anchor="w")
-        ctk.CTkLabel(s8.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
-            "Словари: data/resolve_db.yaml (лексика памятки) и "
-            "data/pathos_db.yaml (антипафос) — правятся вручную. Находки с "
-            "подсказками («Она смотрела в одну точку. Не мигала») дописываются "
-            "в лог reports/antiresolve.log. Эмоции — через действие."
-        )).pack(anchor="w", pady=(0, 2))
-        row8 = button_row(s8.inner)
-        b_ar = ActionButton(
-            row8, "Запустить АНТИРЕШИМОСТЬ", self._run_ar,
-            kind="safe", width=235,
-            tooltip="Поиск запрещённой лексики и пафоса. С галочкой "
-                    "«Зачистить» — правка с .bak.")
-        b_ar.pack(side="left")
-        b_ar.link_danger(self.c_ar_fix.var)
-
     def _log(self, msg):
         from gui_ctk import _app
         _app.log_line(msg)
@@ -382,17 +350,6 @@ class CleanTab(ctk.CTkFrame):
         if syms:
             args += ["--symbols", syms]
         run_internal("separator_clean", args)
-
-    def _run_ar(self):
-        from gui_ctk import run_internal
-        p = self.f_ar.get()
-        if not p:
-            self._log("Укажите папку или файл.\n")
-            return
-        args = ["--input", p]
-        if self.c_ar_fix.get():
-            args.append("--clean")
-        run_internal("antiresolve", args)
 
     def _run_emoji(self):
         p = self.f_emoji.get()

@@ -662,6 +662,10 @@ class App(ctk.CTk):
         self.runner.status_fn = lambda text: self.status.configure(text=text)
 
     def _build_tabs(self):
+        # 05.11: «Писателям» — отдельная вкладка инструментов для больших
+        # текстов (АНТИРЕШИМОСТЬ, штампы, стилистика, статистика, ё/е).
+        # Стоит первой: это основная рабочая вкладка автора.
+        from tabs_writers import WritersTab
         from tabs_names import NamesTab
         from tabs_vault import VaultTab
         from tabs_clean import CleanTab
@@ -679,7 +683,8 @@ class App(ctk.CTk):
             text_color=p["seg_text"])
         self.nb.pack(fill="both", expand=True, padx=16, pady=(8, 12))
 
-        for cls in (NamesTab, VaultTab, CleanTab, ReplaceTab, SettingsTab):
+        for cls in (WritersTab, NamesTab, VaultTab, CleanTab, ReplaceTab,
+                    SettingsTab):
             tab = self.nb.add(cls.LABEL)
             # скролл-контейнер вкладки
             scroll = ctk.CTkScrollableFrame(tab, fg_color="transparent")

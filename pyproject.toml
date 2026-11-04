@@ -52,6 +52,7 @@ py-modules = [
     "gui_config",
     "review_dialog",
     "widgets_ctk",
+    "tabs_writers",
     "tabs_names",
     "tabs_vault",
     "tabs_clean",
