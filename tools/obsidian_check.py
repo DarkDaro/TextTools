@@ -39,7 +39,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.report import write_json, write_report
-from core.text_parser import backup_once, stop_requested
+from core.text_parser import backup_once, stop_requested, check_root
 
 try:
     import yaml
@@ -532,6 +532,7 @@ def _fix_table_block(lines, block):
 
 def run(input_path, limit=None, fix=False, verbose=False, out=None, no_bak=False,
         exit_zero=False, json_out=None):
+    check_root(input_path)  # 05.11: пустой/несуществующий --input — ошибка
     vault_root = Path(input_path)
     if vault_root.is_file():
         vault_root = vault_root.parent

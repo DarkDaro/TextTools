@@ -16,7 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core.report import write_report, write_json
-from core.text_parser import SKIP_PARTS
+from core.text_parser import SKIP_PARTS, check_root
 
 # 21.10: набор служебных папок общий с ядром (core.text_parser.SKIP_PARTS):
 # .git, .obsidian, .trash, md_replace_backups
@@ -61,6 +61,7 @@ def check_file(path):
 
 
 def run(input_path, limit=None, verbose=False, out=None, json_out=None):
+    check_root(input_path)  # 05.11: пустой/несуществующий --input — ошибка
     root = Path(input_path)
     if root.is_file():
         files = [root]

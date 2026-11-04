@@ -453,4 +453,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # 05.11: пустой/несуществующий --input — понятное сообщение и код 2
+    # вместо трейсбека (ValueError поднимают проверщики пути в core)
+    try:
+        main()
+    except ValueError as e:
+        print(f"Ошибка: {e}", file=sys.stderr)
+        sys.exit(2)

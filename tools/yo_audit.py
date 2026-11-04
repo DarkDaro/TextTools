@@ -187,7 +187,8 @@ def yowords_all(dictionary, name_p):
 
 
 def iter_text_files(root, limit=None):
-    root = Path(root)
+    from core.text_parser import check_root
+    root = check_root(root)  # 05.11: пустой/несуществующий --input — ошибка
     if root.is_file():
         yield root
         return

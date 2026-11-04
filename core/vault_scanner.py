@@ -4,9 +4,9 @@ textools core: vault_scanner
 Используется orphan_finder, broken_links, merge_finder.
 """
 import re
-from pathlib import Path
 
 from core import encoding
+from core.text_parser import check_root
 
 SKIP_DIRS = {".obsidian", ".git", "md_replace_backups", ".trash", ".smart-env"}
 
@@ -158,7 +158,7 @@ def scan_vault(vault, exts=(".md",), limit=None):
         lower, с расширением) — цели ![[…]] и [[x.png]] для broken_links.
         Собирается в том же проходе; при --limit — до лимита.
     """
-    vault = Path(vault)
+    vault = check_root(vault)
     basenames = set()
     relpaths = set()
     attachments = set()

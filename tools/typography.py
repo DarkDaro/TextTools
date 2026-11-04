@@ -178,7 +178,7 @@ def transform_text(text, nbsp=False, dialogue=False, frontmatter=False):
 
 
 def collect(root):
-    root = Path(root)
+    root = tp.check_root(root)  # 05.11: пустой/несуществующий --input — ошибка
     if root.is_file():
         return [root] if root.suffix.lower() in EXTS else []
     files = []

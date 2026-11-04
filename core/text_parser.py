@@ -105,6 +105,19 @@ def read_text(path):
         return None
 
 
+def check_root(root):
+    """05.11: единая проверка --input у инструментов: пустой или
+    несуществующий путь — ValueError с понятным текстом. Раньше
+    пустой путь (Path('') превращается в '.') молча сканировал
+    текущую папку, а несуществующий — выдавал «0 файлов, всё чисто»."""
+    if not root or not str(root).strip():
+        raise ValueError("Путь не указан (пустой --input)")
+    r = Path(root)
+    if not r.exists():
+        raise ValueError(f"Путь не найден: {r}")
+    return r
+
+
 def iter_text_files(root, exts=TEXT_EXTS, limit=None):
     """Итерация по файлам текстов. По умолчанию .md/.txt/.docx (22.09).
     Пропускает служебные папки.

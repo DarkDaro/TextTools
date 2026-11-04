@@ -153,7 +153,7 @@ def clean_text(text, symbols=DEFAULT_SYMBOLS, min_run=3, max_blank=1,
 
 
 def collect(root):
-    root = Path(root)
+    root = tp.check_root(root)  # 05.11: пустой/несуществующий --input — ошибка
     if root.is_file():
         return [root] if root.suffix.lower() in EXTS else []
     files = []
