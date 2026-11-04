@@ -11,6 +11,10 @@ from pathlib import Path
 # 22.09: docx — бинарный zip, читается через docx_io
 TEXT_EXTS = (".md", ".txt", ".docx")
 
+# 04.11: служебные папки, общие для всех обходов хранилища.
+# .trash — корзина Obsidian: удалённые заметки не участвуют в проверках
+SKIP_PARTS = {".obsidian", ".git", ".trash", "md_replace_backups"}
+
 
 def backup_once(f):
     """20.10: бэкап <имя>.bak рядом с файлом. Существующий .bak
@@ -120,8 +124,7 @@ def iter_text_files(root, exts=TEXT_EXTS, limit=None):
             return
         if not f.is_file() or f.suffix.lower() not in exts:
             continue
-        parts = set(f.parts)
-        if parts & {".obsidian", ".git", "md_replace_backups"}:
+        if set(f.parts) & SKIP_PARTS:
             continue
         yield f
         count += 1

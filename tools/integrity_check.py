@@ -15,11 +15,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core.encoding import is_utf8
+from core.text_parser import SKIP_PARTS
 
-# 21.10: .git — железно (мусор в контекст), md_replace_backups — копии
-# до правок, целостность оригиналов они не характеризуют
-SKIP_DIRS = {".git", "md_replace_backups"}
+# 21.10: набор служебных папок общий с ядром (core.text_parser.SKIP_PARTS):
+# .git, .obsidian, .trash, md_replace_backups
+SKIP_DIRS = SKIP_PARTS
 
 
 def iter_md(root, limit):
@@ -43,7 +43,10 @@ def check_file(path):
         return []  # не читается — не наше дело, пропускаем молча
     if not data:
         return ["ПУСТОЙ ФАЙЛ"]
-    if not is_utf8(path):
+    # 04.11: UTF-8 проверяем по уже прочитанным байтам — файл читается один раз
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
         return ["БИТЫЙ UTF-8"]
     text = data.decode("utf-8-sig")
     lines = text.split("\n")
