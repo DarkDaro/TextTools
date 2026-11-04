@@ -121,7 +121,7 @@ def _pal(dark=None):
     return PALETTE["dark" if dark else "light"]
 
 
-from gui_config import CFG, CONFIG_FILE
+from gui_config import CFG
 # 26.10: FONT не используется (везде локальные ctk-шрифты), pyflakes — отключён
 # from widgets_ctk import (Tooltip, FONT, FONT_SMALL, BigButton,
 from widgets_ctk import (Tooltip, FONT_SMALL, BigButton,
@@ -1121,12 +1121,9 @@ class App(ctk.CTk):
         return "break"
 
     def _save_cfg_hotkey(self):
-        import json
-        from gui_config import _load
+        from gui_config import save
         try:
-            CONFIG_FILE.write_text(
-                json.dumps(_load(), ensure_ascii=False, indent=2),
-                encoding="utf-8")
+            save()
             self.log_line("Настройки сохранены.\n", "ok")
             self.toast("Настройки сохранены", "ok", beep=False)
         except Exception as e:

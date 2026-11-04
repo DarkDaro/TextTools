@@ -601,12 +601,10 @@ class SettingsTab(ctk.CTkFrame):
             pass
 
     def _save_now(self):
-        from gui_config import _load, CONFIG_FILE
-        import json
+        # 11.26: запись атомарная (tmp + replace), как у автосохранения
+        from gui_config import save
         try:
-            CONFIG_FILE.write_text(
-                json.dumps(_load(), ensure_ascii=False, indent=2),
-                encoding="utf-8")
+            save()
             self._log("Настройки сохранены: ", "ok")
             self._log(f"{CONFIG_FILE}\n")
         except Exception as e:

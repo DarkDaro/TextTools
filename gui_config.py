@@ -34,6 +34,19 @@ def reset():
     _config = {}
 
 
+def save():
+    """11.26: атомарная запись текущего конфига в файл. Ctrl+S и
+    «Сохранить сейчас» раньше писали файл напрямую, без tmp+replace —
+    сбой посреди записи оставлял битый JSON. Ошибки не глотаются:
+    вызывающий логирует их сам."""
+    cfg = _load()
+    tmp = Path(str(CONFIG_FILE) + ".tmp")
+    tmp.write_text(
+        json.dumps(cfg, ensure_ascii=False, indent=2),
+        encoding="utf-8")
+    os.replace(tmp, CONFIG_FILE)
+
+
 class Cfg:
     """Доступ к конфигу: get/set, автосохранение при каждом set."""
 
