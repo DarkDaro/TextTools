@@ -227,9 +227,12 @@ def build_log_entry(source, n_files, findings, cleaned, leftover):
 
 
 def run(input_path, resolve_db="", pathos_db="", clean=False,
-        log_path="", out="", quiet=False):
+        log_path="", out="", quiet=False, collect=False):
     """Полный прогон: поиск → лог → (зачистка) → контроль.
-    Возвращает (код_возврата, путь_лога, сводка)."""
+    Возвращает (код_возврата, путь_лога, сводка).
+    collect=True — в сводку добавляется «находки»: полный список dict
+    (нужно репетиции чистки в check-all --plan; без collect сводка
+    компактна, как раньше)."""
     rules = load_rules(resolve_db or DEFAULT_RESOLVE_DB)
     rules += load_rules(pathos_db or DEFAULT_PATHOS_DB)
     root = tp.check_root(input_path)
@@ -283,6 +286,8 @@ def run(input_path, resolve_db="", pathos_db="", clean=False,
     summary = {"файлов": len(files), "не_читается": unread, **c,
                "зачистка": cleaned, "осталось": leftover,
                "лог": str(log_file)}
+    if collect:
+        summary["находки"] = findings
     rc = 1 if (leftover["hard"] if leftover else c["hard"]) > 0 else 0
     return rc, str(log_file), summary
 

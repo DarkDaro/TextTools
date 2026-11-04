@@ -268,6 +268,10 @@ def main():
                      help="сводка всех проверок в JSON («-» — в stdout)")
     p17.add_argument("--out",
                      help="человекочитаемая md-сводка в файл (журнал)")
+    # 05.11 (BACKLOG №2): репетиция чистки — единый план до правок
+    p17.add_argument("--plan",
+                     help="план правок штампов и АНТИРЕШИМОСТИ в .md "
+                          "(ничего не правится)")
 
     p18 = sub.add_parser("antiresolve", aliases=["pathos"],
                          help="АНТИРЕШИМОСТЬ: поиск, лог и зачистка "
@@ -506,7 +510,8 @@ def main():
              *( ["--limit", str(args.limit)] if args.limit is not None else []),
              *( ["--exit-zero"] if args.exit_zero else []),
              *( ["--json", args.json_out] if args.json_out else []),
-             *( ["--out", args.out] if args.out else [])]))
+             *( ["--out", args.out] if args.out else []),
+             *( ["--plan", args.plan] if args.plan else [])]))
     elif args.cmd in ("antiresolve", "pathos"):
         sys.path.insert(0, str(here))
         from tools import antiresolve

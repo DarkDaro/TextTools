@@ -23,6 +23,11 @@ JSON (--json) — агрегат всех шести проверок:
 05.11 (--out, BACKLOG №5): человеческая md-сводка в файл — журнал
 проекта: «проверено тогда-то, найдено то-то» приложить к главе.
 «--out -» печатает md в stdout.
+
+05.11 (--plan, BACKLOG №2): «репетиция чистки» — единый план
+стилистической правки ДО всякой правки: штампы (фраза → замена,
+файл, сколько раз) и hard-вхождения АНТИРЕШИМОСТИ (что будет
+вырезано, файл). Ничего не правится — только план.
 """
 import argparse
 import json
@@ -33,7 +38,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
-def run(input_path, limit=None, exit_zero=False, json_out=None, out=None):
+def run(input_path, limit=None, exit_zero=False, json_out=None, out=None,
+        plan=None):
     if not Path(input_path).exists():
         print(f"Путь не найден: {input_path}", file=sys.stderr)
         return 2
@@ -46,13 +52,13 @@ def run(input_path, limit=None, exit_zero=False, json_out=None, out=None):
         sys.stdout = sys.stderr
     try:
         return _run(input_path, limit, exit_zero, json_out, _real_stdout,
-                    out=out)
+                    out=out, plan=plan)
     finally:
         sys.stdout = _real_stdout
 
 
 def _run(input_path, limit=None, exit_zero=False, json_out=None,
-         out_stream=None, out=None):
+         out_stream=None, out=None, plan=None):
     from tools import obsidian_check, integrity_check, merge_finder
     from tools import phrase_check, antiresolve
     from find_cjk import main as cjk_main
@@ -99,9 +105,10 @@ def _run(input_path, limit=None, exit_zero=False, json_out=None,
         print("6/6 АНТИРЕШИМОСТЬ (скан, без зачистки)", flush=True)
         # quiet: отчёт не печатается; лог — во временный файл, reports/
         # не трогается; clean=False — только поиск
+        # collect: для --plan нужны сами находки (файл, строка, фрагмент)
         _rc, _log, ar_summary = antiresolve.run(
             input_path, clean=False, quiet=True,
-            log_path=str(tmp / "antiresolve.log"))
+            log_path=str(tmp / "antiresolve.log"), collect=bool(plan))
         checks["antiresolve"] = ar_summary
 
     findings = checks["obsidian-check"]["findings"]
@@ -152,6 +159,11 @@ def _run(input_path, limit=None, exit_zero=False, json_out=None,
         from core.report import write_report
         write_report(out, build_md(input_path, checks, serious))
         print(f"md-отчёт: {out}")
+    if plan:
+        # 05.11 (BACKLOG №2): репетиция чистки — ничего не правится
+        from core.report import write_report
+        write_report(plan, build_plan(input_path, checks))
+        print(f"План чистки (ничего не правилось): {plan}")
     if serious and not exit_zero:
         return 1
     return 0
@@ -246,6 +258,88 @@ def build_md(input_path, checks, serious):
     return "\n".join(L) + "\n"
 
 
+def build_plan(input_path, checks):
+    """05.11 (BACKLOG №2): «репетиция чистки» — единый план правок
+    штампов и АНТИРЕШИМОСТИ до всякой правки. Пишущие инструменты
+    (phrase-check --clean, antiresolve --clean) запускаются по одному и
+    вслепую; один план показывает весь объём и порядок работы."""
+    from datetime import datetime
+    ph_hits = checks["phrase-check"].get("hits", {})
+    ph_total = checks["phrase-check"].get("total", 0)
+    from tools.phrase_check import load_clean_map
+    mapping = load_clean_map()
+    ar = checks["antiresolve"]
+    ar_items = ar.get("находки", [])
+    ar_hard = [it for it in ar_items if it["жёсткость"] == "hard"]
+    ar_soft_n = ar.get("soft", 0)
+
+    L = ["# Репетиция чистки — план правок", "",
+         f"Дата: {datetime.now().strftime('%Y-%m-%d %H:%M')}  ",
+         f"Источник: {input_path}", "",
+         "Ничего не правится: это план. Правки делают "
+         "«phrase-check --clean» и «antiresolve --clean» — оба с бэкапами.",
+         ""]
+
+    # --- штампы: фраза → замена/удаление, файл, сколько раз
+    L.append(f"## Штампы: {ph_total} вхождений, {len(ph_hits)} видов")
+    L.append("")
+    if ph_hits:
+        L.append("| Штамп | Действие | Файл | Раз |")
+        L.append("|---|---|---|---|")
+        for phrase, lst in sorted(ph_hits.items(),
+                                  key=lambda kv: -sum(c["count"]
+                                                      for c in kv[1])):
+            # hits[phrase] — список {"file": путь, "count": n}
+            repl = mapping.get(phrase)
+            if repl is None:
+                action = "в словаре замен нет — править вручную"
+            elif repl == "":
+                action = "удалить"
+            else:
+                action = f"→ «{repl}»"
+            for entry in lst:
+                L.append(f"| {phrase} | {action} | {entry['file']} "
+                         f"| {entry['count']} |")
+    else:
+        L.append("- штампов не найдено — чистить нечего.")
+    L.append("")
+
+    # --- АНТИРЕШИМОСТЬ: hard будет вырезан зачисткой, soft — нет
+    L.append(f"## АНТИРЕШИМОСТЬ: hard — {len(ar_hard)} "
+             "(будет вырезано при зачистке)")
+    L.append("")
+    if ar_hard:
+        for it in ar_hard:
+            hint = f" → {it['подсказка']}" if it["подсказка"] else ""
+            L.append(f"- {it['файл']}:{it['строка']} — "
+                     f"[{it['категория']}] «{it['фрагмент']}»{hint}")
+    else:
+        L.append("- hard-вхождений нет.")
+    L.append("")
+    L.append(f"## АНТИРЕШИМОСТЬ: soft — {ar_soft_n} "
+             "(не вырезается, решение за автором)")
+    L.append("")
+    if ar.get("по_категориям"):
+        for cat, n in ar["по_категориям"].items():
+            if "/soft" in cat:
+                L.append(f"- {cat}: {n}")
+    else:
+        L.append("- soft-вхождений нет.")
+    L.append("")
+
+    L.append("## Порядок работы")
+    L.append("")
+    L.append("1. Не-UTF8 файлы (если целостность их нашла) — сначала "
+             "«utf8 --fix», иначе чистка их пропускает.")
+    L.append("2. «antiresolve --clean» — вырезает hard-вхождения выше.")
+    L.append("3. «phrase-check --clean --yes» — заменяет штампы по "
+             "словарю замен (столбец «Действие»).")
+    L.append("4. soft-вхождения и штампы вне словаря — вручную, по "
+             "контексту.")
+    L.append("5. Повторный «check-all» — сверить, что стало чисто.")
+    return "\n".join(L) + "\n"
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Профиль «проверить всё»")
     ap.add_argument("--input", required=True, help="папка vault")
@@ -258,9 +352,12 @@ def main(argv=None):
     ap.add_argument("--out",
                     help="человекочитаемая md-сводка в файл "
                          "(«-» — в stdout)")
+    ap.add_argument("--plan",
+                    help="репетиция чистки: план правок штампов и "
+                         "АНТИРЕШИМОСТИ в .md (ничего не правится)")
     args = ap.parse_args(argv)
     return run(args.input, limit=args.limit, exit_zero=args.exit_zero,
-               json_out=args.json_out, out=args.out)
+               json_out=args.json_out, out=args.out, plan=args.plan)
 
 
 if __name__ == "__main__":

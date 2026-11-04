@@ -146,3 +146,23 @@ def test_cli_subcommand_and_alias(tmp_path):
     data = json.loads(r2.stdout)  # stdout — чистый JSON, без служебных строк
     assert data["hard"] == 1
     assert "превозмогание/hard" in data["по_категориям"]
+
+
+def test_run_collect_adds_findings(tmp_path):
+    """05.11: collect=True добавляет «находки» в сводку (нужно
+    check-all --plan); без collect сводка компактна, как раньше."""
+    from tools import antiresolve
+    f = tmp_path / "глава.md"
+    f.write_text("Она превозмогла боль.", encoding="utf-8")
+    _rc, _log, summary = antiresolve.run(
+        str(f), quiet=True, log_path=str(tmp_path / "a.log"),
+        collect=True)
+    items = summary["находки"]
+    assert len(items) == 1
+    assert items[0]["жёсткость"] == "hard"
+    assert items[0]["файл"] == str(f)
+    assert "фрагмент" in items[0] and "категория" in items[0]
+    # без collect — ключа нет (JSON сводок не раздувается)
+    _rc, _log, summary2 = antiresolve.run(
+        str(f), quiet=True, log_path=str(tmp_path / "b.log"))
+    assert "находки" not in summary2

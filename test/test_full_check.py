@@ -133,3 +133,54 @@ def test_md_out_stdout(capsys, tmp_path):
     full_check.run(str(tmp_path), out="-")
     captured = capsys.readouterr()
     assert "# Проверить всё — сводка" in captured.out
+
+
+def test_plan_written_and_nothing_changed(tmp_path):
+    # 05.11 (BACKLOG №2): репетиция чистки — план штампов (с заменой из
+    # словаря) и hard-вхождений АНТИРЕШИМОСТИ; файлы не правятся
+    f = tmp_path / "глава.md"
+    f.write_text(
+        "## Заголовок\n\nСтоит отметить, что она превозмогла боль.\n",
+        encoding="utf-8")
+    before = f.read_text(encoding="utf-8")
+    plan = tmp_path / "журнал" / "план.md"
+    full_check.run(str(tmp_path), plan=str(plan))
+    text = plan.read_text(encoding="utf-8")
+    assert text.startswith("# Репетиция чистки — план правок")
+    # штамп с действием из словаря замен (пустая замена = «удалить»)
+    assert "| стоит отметить, что | удалить |" in text
+    # в таблице реальные файл и число, а не ключи словаря
+    assert "| file | count |" not in text
+    # hard-вхождение с файлом, строкой и категорией
+    assert "превозмогла" in text
+    assert "превозмогание" in text
+    assert "глава.md:3" in text
+    # порядок работ присутствует
+    assert "Порядок работы" in text
+    # ничего не правилось
+    assert f.read_text(encoding="utf-8") == before
+
+
+def test_plan_clean_vault(tmp_path):
+    (tmp_path / "ок.md").write_text("## Заголовок\n\nТекст.\n",
+                                    encoding="utf-8")
+    plan = tmp_path / "план.md"
+    full_check.run(str(tmp_path), plan=str(plan))
+    text = plan.read_text(encoding="utf-8")
+    assert "штампов не найдено" in text
+    assert "hard-вхождений нет" in text
+    assert "soft-вхождений нет" in text
+
+
+def test_plan_stamp_without_replacement(tmp_path):
+    # штамп, которого нет в словаре замен, — честная пометка «вручную»;
+    # штамп с заменой — видна сама замена
+    (tmp_path / "глава.md").write_text(
+        "## Ок\n\nПодводя итог, всё было зря. В конечном итоге вышло.\n",
+        encoding="utf-8")
+    plan = tmp_path / "план.md"
+    full_check.run(str(tmp_path), plan=str(plan))
+    text = plan.read_text(encoding="utf-8")
+    assert "подводя итог" in text
+    assert "править вручную" in text
+    assert "в конечном итоге" in text and "в итоге»" in text
