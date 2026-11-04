@@ -91,3 +91,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
     return run(args.input, out=args.out, registry=args.registry,
                min_count=args.min_count, limit=args.limit, verbose=args.verbose)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

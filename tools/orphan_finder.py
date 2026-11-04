@@ -67,3 +67,7 @@ def main(argv=None):
     ap.add_argument("--out", help="файл отчёта")
     args = ap.parse_args(argv)
     return run(args.input, limit=args.limit, verbose=args.verbose, out=args.out)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
