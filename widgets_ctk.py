@@ -122,6 +122,12 @@ FONT_MONO = ("Consolas", 11)
 HISTORY_KEY = "gui.path_history"
 HISTORY_LIMIT = 10
 
+# 11.26: реестр полей путей по ключу конфига. Два поля на одном ключе
+# (например md_vault в секциях 1 и 2 вкладки «Замены») синхронизируются
+# между собой — иначе спецрежимы запускались со старым путём до
+# перезапуска программы.
+_KEYED_FIELDS = {}
+
 
 class Tooltip:
     """Всплывающая подсказка при наведении."""
@@ -176,6 +182,8 @@ class PathField(ctk.CTkFrame):
         self.cfg = cfg
         self.var = tk.StringVar(value=cfg.get(key))
         self.var.trace_add("write", self._autosave)
+        self.var.trace_add("write", self._sync_twin)
+        _KEYED_FIELDS.setdefault(key, []).append(self)
         # 24.10: старый ключ <key>_recent больше не пишется; он читается
         # только как запасной вариант в _history_list (миграция истории)
         self._label = label
@@ -188,6 +196,14 @@ class PathField(ctk.CTkFrame):
 
     def _autosave(self, *_):
         self.cfg.set(self.key, self.var.get().strip().strip('"').strip())
+
+    def _sync_twin(self, *_):
+        """11.26: второй виджет на том же ключе не остаётся со старым
+        путём. Защита от цикла — не пишем то же значение."""
+        value = self.var.get()
+        for other in _KEYED_FIELDS.get(self.key, []):
+            if other is not self and other.var.get() != value:
+                other.var.set(value)
 
     def _build(self):
         if self._label:
