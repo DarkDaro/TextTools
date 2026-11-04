@@ -1,18 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-full_check — профиль «проверить всё»: четыре проверки одним прогоном.
+full_check — профиль «проверить всё»: шесть проверок одним прогоном.
 
   python full_check.py --input <vault> [--limit N] [--json отчёт.json]
 
 Порядок: obsidian-check → иероглифы/кодировки (cjk) → целостность →
-дубликаты (merge-finder). Каждый шаг работает в режиме «только чтение»,
-никаких --fix; находки не правятся, а суммируются.
+дубликаты (merge-finder) → штампы ИИ (phrase-check, скан) →
+АНТИРЕШИМОСТЬ (скан, без зачистки). Каждый шаг работает в режиме
+«только чтение», никаких --fix; находки не правятся, а суммируются.
+05.11: штампы и АНТИРЕШИМОСТЬ добавлены в скан-режиме — writer видит
+объём стилистической правки сразу, не запуская инструменты по одному.
+Лог АНТИРЕШИМОСТИ пишется во временный файл и не трогает reports/.
 
 Итог: «серьёзные» находки (ERROR валидатора Obsidian, иероглифы,
-проблемы целостности) дают код 1. Дубликаты — совет для ручного
-разбора, на код не влияют. --exit-zero всегда возвращает 0.
+проблемы целостности) дают код 1. Дубликаты, штампы и АНТИРЕШИМОСТЬ —
+совет для ручного разбора, на код не влияют. --exit-zero всегда
+возвращает 0.
 
-JSON (--json) — агрегат всех четырёх проверок:
+JSON (--json) — агрегат всех шести проверок:
 {"tool": "check-all", "input", "serious", "checks": {имя: {...}}}.
 """
 import argparse
@@ -44,6 +49,7 @@ def run(input_path, limit=None, exit_zero=False, json_out=None):
 def _run(input_path, limit=None, exit_zero=False, json_out=None,
          out_stream=None):
     from tools import obsidian_check, integrity_check, merge_finder
+    from tools import phrase_check, antiresolve
     from find_cjk import main as cjk_main
 
     checks = {}
@@ -51,7 +57,7 @@ def _run(input_path, limit=None, exit_zero=False, json_out=None,
         tmp = Path(td)
 
         print("=" * 32)
-        print("1/4 Валидатор Obsidian (obsidian-check)", flush=True)
+        print("1/6 Валидатор Obsidian (obsidian-check)", flush=True)
         j1 = tmp / "obsidian.json"
         obsidian_check.run(input_path, limit=limit, exit_zero=True,
                            json_out=str(j1))
@@ -59,23 +65,39 @@ def _run(input_path, limit=None, exit_zero=False, json_out=None,
             j1.read_text(encoding="utf-8"))
 
         print("=" * 32)
-        print("2/4 Иероглифы и порча кодировки (cjk)", flush=True)
+        print("2/6 Иероглифы и порча кодировки (cjk)", flush=True)
         j2 = tmp / "cjk.json"
         cjk_main([str(input_path), "--quiet", "--exit-zero",
                   "--json", str(j2)])
         checks["cjk"] = json.loads(j2.read_text(encoding="utf-8"))
 
         print("=" * 32)
-        print("3/4 Целостность заметок (integrity)", flush=True)
+        print("3/6 Целостность заметок (integrity)", flush=True)
         j3 = tmp / "integrity.json"
         integrity_check.run(input_path, limit=limit, json_out=str(j3))
         checks["integrity"] = json.loads(j3.read_text(encoding="utf-8"))
 
         print("=" * 32)
-        print("4/4 Дубликаты (merge-finder)", flush=True)
+        print("4/6 Дубликаты (merge-finder)", flush=True)
         j4 = tmp / "merge.json"
         merge_finder.run(input_path, limit=limit, json_out=str(j4))
         checks["merge-finder"] = json.loads(j4.read_text(encoding="utf-8"))
+
+        print("=" * 32)
+        print("5/6 Штампы ИИ-текста (phrase-check, скан)", flush=True)
+        j5 = tmp / "phrase.json"
+        phrase_check.run(input_path, limit=limit, json_out=str(j5))
+        checks["phrase-check"] = json.loads(
+            j5.read_text(encoding="utf-8"))
+
+        print("=" * 32)
+        print("6/6 АНТИРЕШИМОСТЬ (скан, без зачистки)", flush=True)
+        # quiet: отчёт не печатается; лог — во временный файл, reports/
+        # не трогается; clean=False — только поиск
+        _rc, _log, ar_summary = antiresolve.run(
+            input_path, clean=False, quiet=True,
+            log_path=str(tmp / "antiresolve.log"))
+        checks["antiresolve"] = ar_summary
 
     findings = checks["obsidian-check"]["findings"]
     obs_err = sum(1 for f in findings if f["severity"] == "ERROR")
@@ -84,6 +106,9 @@ def _run(input_path, limit=None, exit_zero=False, json_out=None,
     merge_n = (len(checks["merge-finder"]["dup_content"])
                + len(checks["merge-finder"]["dup_names"]))
     near_n = len(checks["merge-finder"]["near"])
+    phrase_n = checks["phrase-check"].get("total", 0)
+    ar_n = checks["antiresolve"].get("всего", 0)
+    ar_hard = checks["antiresolve"].get("hard", 0)
     serious = bool(obs_err or cjk_n or integrity_n)
 
     print("=" * 32)
@@ -93,6 +118,9 @@ def _run(input_path, limit=None, exit_zero=False, json_out=None,
     print(f"  иероглифы/кодировки: {cjk_n} вхождений")
     print(f"  целостность: {integrity_n} проблем")
     print(f"  дубликаты: {merge_n} групп, {near_n} близких пар "
+          f"(на усмотрение)")
+    print(f"  штампы ИИ: {phrase_n} вхождений (на усмотрение)")
+    print(f"  АНТИРЕШИМОСТЬ: {ar_n} вхождений, из них {ar_hard} hard "
           f"(на усмотрение)")
     if serious:
         print("Итог: есть серьёзные замечания — детали в разделах выше.")

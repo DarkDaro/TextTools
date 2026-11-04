@@ -96,15 +96,19 @@ PHRASES_FILE = Path(__file__).parent / "phrases.yaml"
 
 
 def load_phrases(custom_path=None):
-    """Встроенный список + файл пользователя (если есть)."""
+    """Встроенный список + файл пользователя (если есть).
+    05.11: без --custom тоже читается постоянный словарь phrases.yaml —
+    раньше фразы, добавленные кнопкой «запомнить»/--add, молча не
+    участвовали в поиске, пока путь не указан явно."""
     phrases = list(BUILTIN_PHRASES)
-    if custom_path and Path(custom_path).exists():
+    path = Path(custom_path) if custom_path else PHRASES_FILE
+    if path.exists():
         import yaml
-        with open(custom_path, encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             extra = yaml.safe_load(fh) or []
         # 04.11: файл-словарь вместо списка раньше молча давал мусор
         if not isinstance(extra, list):
-            print(f"ПРЕДУПРЕЖДЕНИЕ: {custom_path}: ожидался список строк — "
+            print(f"ПРЕДУПРЕЖДЕНИЕ: {path}: ожидался список строк — "
                   "файл пропущен.")
             extra = []
         phrases.extend(str(p).lower() for p in extra)

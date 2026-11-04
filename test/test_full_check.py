@@ -40,7 +40,8 @@ def test_aggregated_json(tmp_path):
     assert data["tool"] == "check-all"
     assert data["serious"] is True
     assert set(data["checks"]) == {"obsidian-check", "cjk", "integrity",
-                                   "merge-finder"}
+                                   "merge-finder", "phrase-check",
+                                   "antiresolve"}
     assert any(f["code"] == "FENCE_UNCLOSED"
                for f in data["checks"]["obsidian-check"]["findings"])
 
@@ -59,6 +60,23 @@ def test_check_all_cjk_sees_docx(tmp_path):
     data = json.loads(j.read_text(encoding="utf-8"))
     cjk_results = data["checks"]["cjk"]["results"]
     assert any("глава.docx" in k for k in cjk_results)
+
+
+def test_check_all_counts_stamps_and_resolve(tmp_path):
+    # 05.11: штампы и АНТИРЕШИМОСТЬ — шаги 5/6 и 6/6, скан без записи;
+    # стилистика не «серьёзное» — код остаётся 0
+    (tmp_path / "ок.md").write_text(
+        "## Заголовок\n\nСтоит отметить, что она с решимостью "
+        "посмотрела на него и превозмогла боль.\n",
+        encoding="utf-8")
+    j = tmp_path / "rep" / "сводка.json"
+    rc = full_check.run(str(tmp_path), json_out=str(j))
+    data = json.loads(j.read_text(encoding="utf-8"))
+    assert data["checks"]["phrase-check"].get("total", 0) >= 1
+    ar = data["checks"]["antiresolve"]
+    assert ar.get("hard", 0) >= 1
+    assert data["serious"] is False
+    assert rc == 0
 
 
 def test_cli_help_and_wiring():
