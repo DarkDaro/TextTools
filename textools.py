@@ -19,6 +19,7 @@ textools — единый CLI текстовых инструментов.
   style-report       стилистика: повторы слов рядом, длинные предложения
   stats              статистика текстов (объём, диалоги, паразиты)
   whitespace         чистка пробелов и пустых строк
+  separators         чистка мусорных разделителей (///// **** =====)
   emoji-icons        эмодзи-иконки → SVG в HTML
   restore            обзор/восстановление из бэкапов
   archive-backups    архивация старых бэкапов
@@ -193,6 +194,19 @@ def main():
                      help="сохранять markdown-переносы (2 пробела в конце строки)")
     p14.add_argument("--out")
 
+    p15 = sub.add_parser("separators",
+                         help="чистка мусорных разделителей (с .bak)")
+    p15.add_argument("--input", required=True)
+    p15.add_argument("--fix", action="store_true",
+                     help="реально править (по умолчанию dry-run)")
+    p15.add_argument("--symbols",
+                     help="символы-разделители (по умолчанию «*/=~-_+%&@•·—–§»)")
+    p15.add_argument("--min-run", type=int, default=3,
+                     help="минимальная серия символов (по умолчанию 3)")
+    p15.add_argument("--max-blank", type=int, default=1,
+                     help="пустых строк на месте разделителя (по умолчанию 1)")
+    p15.add_argument("--out")
+
     args = ap.parse_args()
 
     here = Path(__file__).parent
@@ -342,6 +356,16 @@ def main():
             ["--input", args.input,
              *(["--fix"] if args.fix else []),
              *(["--keep-breaks"] if args.keep_breaks else []),
+             *(["--out", args.out] if args.out else [])]))
+    elif args.cmd == "separators":
+        sys.path.insert(0, str(here))
+        from tools import separator_clean
+        sys.exit(separator_clean.main(
+            ["--input", args.input,
+             *(["--fix"] if args.fix else []),
+             *(["--symbols", args.symbols] if args.symbols else []),
+             "--min-run", str(args.min_run),
+             "--max-blank", str(args.max_blank),
              *(["--out", args.out] if args.out else [])]))
 
 

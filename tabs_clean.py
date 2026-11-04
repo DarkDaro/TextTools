@@ -4,7 +4,7 @@ import customtkinter as ctk
 
 from gui_config import CFG
 from widgets_ctk import (PathField, CheckField, HelpBox, Section,
-                         ActionButton, button_row, FONT_SMALL)
+                         ActionButton, button_row, EntryField, FONT_SMALL)
 from wrappers import cmd_emoji_clean, cmd_clean_text
 
 
@@ -20,6 +20,8 @@ class CleanTab(ctk.CTkFrame):
             "из .txt/.md по белому списку разрешённых символов.\n"
             "• Эмодзи → SVG-иконки — заменяет эмодзи-иконки интерфейса на векторные "
             "SVG в html-файлах (вид одинаковый на любой системе).\n"
+            "• Чистка разделителей — убирает строки-отбойники из повторяющихся "
+            "символов (///// ***** ====== ———), к тексту они отношения не имеют.\n"
             "Безопасность: по умолчанию всё в режиме dry-run (только отчёт). "
             "Чтобы реально изменить файлы — снимите dry-run / поставьте «Применить». "
             "С бэкапом (.bak рядом с файлом) всегда можно откатить."))
@@ -231,6 +233,47 @@ class CleanTab(ctk.CTkFrame):
         b_icons.pack(side="left")
         b_icons.link_danger(self.c_icons_fix.var)
 
+        # --- 7. мусорные разделители (04.11) ---
+        s7 = Section(parent, "7. Чистка мусорных разделителей (txt / md / docx)")
+        self.f_sep = PathField(s7.inner, "Папка или файл:", "sep_input", CFG,
+                               file_mode="both",
+                               tooltip="Папка (обход рекурсивный) или один файл "
+                                       ".md/.txt/.docx.")
+        self.c_sep_fix = CheckField(s7.inner, "Применить изменения", "sep_fix",
+                                    CFG, default=False,
+                                    tooltip="Без галочки — dry-run (только отчёт). "
+                                            "С галочкой — реально чистит, "
+                                            "создавая .bak рядом с файлом.")
+        self.c_sep_fix.pack(anchor="w")
+        self.e_sep_min = EntryField(s7.inner, "Минимальная серия:",
+                                    "sep_min_run", CFG,
+                                    width_label=160, placeholder="3",
+                                    tooltip="Сколько одинаковых символов подряд "
+                                            "считать разделителем. "
+                                            "Пусто — 3 (по умолчанию).")
+        self.e_sep_syms = EntryField(s7.inner, "Символы разделителей:",
+                                     "sep_symbols", CFG,
+                                     width_label=160,
+                                     placeholder="*/=~-_+%&@•·—–§",
+                                     tooltip="Из каких символов может состоять "
+                                             "строка-разделитель. Пусто — набор "
+                                             "по умолчанию.")
+        ctk.CTkLabel(s7.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+            "Убирает строки-отбойники из повторяющихся символов: /////, *****, "
+            "======, ———, * * *. Frontmatter, код-блоки, заголовки из решёток "
+            "и таблицы не трогаются. На месте разделителя остаётся пустая "
+            "строка — текст не склеивается."
+        )).pack(anchor="w", pady=(0, 2))
+        row7 = button_row(s7.inner)
+        b_sep = ActionButton(
+            row7, "Запустить чистку разделителей", self._run_sep,
+            kind="safe", width=235,
+            tooltip="Строки из повторяющихся символов (///// ***** ======). "
+                    "Dry-run по умолчанию, с галочкой «Применить» — "
+                    "правка с .bak.")
+        b_sep.pack(side="left")
+        b_sep.link_danger(self.c_sep_fix.var)
+
     def _log(self, msg):
         from gui_ctk import _app
         _app.log_line(msg)
@@ -284,6 +327,26 @@ class CleanTab(ctk.CTkFrame):
         if self.c_icons_nobak.get():
             args.append("--no-bak")
         run_internal("icon_replace", args)
+
+    def _run_sep(self):
+        from gui_ctk import run_internal
+        p = self.f_sep.get()
+        if not p:
+            self._log("Укажите папку или файл.\n")
+            return
+        args = ["--input", p]
+        if self.c_sep_fix.get():
+            args.append("--fix")
+        min_run = self.e_sep_min.get()
+        if min_run and not min_run.isdigit():
+            self._log("Минимальная серия — целое число, например 3.\n")
+            return
+        if min_run:
+            args += ["--min-run", min_run]
+        syms = self.e_sep_syms.get()
+        if syms:
+            args += ["--symbols", syms]
+        run_internal("separator_clean", args)
 
     def _run_emoji(self):
         p = self.f_emoji.get()
