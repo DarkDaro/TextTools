@@ -158,10 +158,7 @@ def run(input_path, custom=None, phrases=None, limit=None, out=None,
             print("Остановлено пользователем.")
             break
         n_files += 1
-        try:
-            content = read_file(f)
-        except Exception:
-            content = None
+        content = read_any_text(f)
         if content:
             low = norm_yo(content.lower())  # 01.10: ё=е
             for ph in search:
@@ -248,6 +245,25 @@ def read_file(f):
         return t or ""
     with open(f, "r", encoding="utf-8", newline="") as fh:
         return fh.read()
+
+
+def read_any_text(f):
+    """05.11: чтение с автодетектом кодировки (cp1251/koi8) — для поиска.
+    Раньше не-UTF8 файлы молча пропускались и не попадали в отчёт,
+    хотя остальные проверки их видят. Для чистки (clean) это не
+    применяется: запись в UTF-8 молча перекодировала бы файл — там
+    не-UTF8 пропускается с явным предупреждением."""
+    try:
+        return read_file(f)
+    except UnicodeDecodeError:
+        from core import encoding
+        try:
+            text, _enc = encoding.read_any(f)
+        except Exception:
+            return None
+        return text
+    except Exception:
+        return None
 
 
 def _replace_preserving_case(text, phrase, repl):
@@ -406,7 +422,7 @@ def review(input_path, clean_map_path=None, limit=None):
             print("Остановлено пользователем.")
             break
         try:
-            content = read_file(f)
+            content = read_any_text(f)
         except Exception:
             content = None
         if content:
@@ -483,7 +499,10 @@ def clean_selection(pairs, clean_map_path=None):
             continue
         try:
             content = read_file(f)
-        except (PermissionError, OSError, UnicodeDecodeError):
+        except UnicodeDecodeError:
+            print(f"  [ПРОПУЩЕН] {f}: не UTF-8 — сначала «textools utf8 --fix»")
+            continue
+        except (PermissionError, OSError):
             continue
         lines = content.split("\n")
         # выбранные вхождения: (фраза, строка); длинные фразы первыми,
@@ -561,6 +580,11 @@ def clean(input_path, clean_map_path=None, limit=None, dry_run=True,
         n_files += 1
         try:
             content = read_file(f)
+        except UnicodeDecodeError:
+            # 05.11: не-UTF8 не чистим — запись сделала бы файл UTF-8;
+            # раньше пропуск был тихим, теперь с предупреждением
+            print(f"  [ПРОПУЩЕН] {f}: не UTF-8 — сначала «textools utf8 --fix»")
+            content = None
         except Exception:
             content = None
         if not content:
