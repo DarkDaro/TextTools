@@ -8,7 +8,7 @@
 исправляет, если разрешить.
 
 Облака, подписки и искусственного интеллекта здесь нет. Есть 27
-подкоманд CLI, окно на шесть вкладок и ваша папка с текстами, к которой
+подкоманд CLI, окно на семь вкладок и ваша папка с текстами, к которой
 всё это применяется.
 
 Сделана под русскую прозу в Obsidian: имена и падежи, ё/е, «ёлочки»,
@@ -188,7 +188,7 @@ python textools.py orphan-finder    --input <папка>
 python textools.py broken-links     --input <папка>
 python textools.py phrase-check     --input <папка> [--clean --yes] [--out отчёт.md]
 python textools.py antiresolve      --input <папка> [--clean] [--log файл] [--out отчёт.md] [--json]
-python textools.py check-all        --input <папка> [--json сводка.json]
+python textools.py check-all        --input <папка> [--out сводка.md] [--plan план.md] [--json сводка.json]
 python textools.py merge-finder     --input <папка>
 python textools.py integrity        --input <папка>
 python textools.py obsidian-check   --input <папка> [--fix] [--no-bak] [--exit-zero] [--out report.md]
@@ -196,7 +196,10 @@ python textools.py cjk              --input <папка> [--ext .md,.txt] [--jso
 python textools.py restore          --input <папка> [--restore] [--file <имя>]
 python textools.py archive-backups  --input <папка> [--days 30] [--move]
 python textools.py moc              --input <vault> --registry <yaml> --out-dir <папка> [--apply] [--update]
-python textools.py stats            --input <папка> [--out report.md] [--csv]
+python textools.py stats            --input <папка> [--out report.md] [--csv] [--history]
+python textools.py yo               --input <папка> [--registry <yaml>] [--review] [--out отчёт.md]
+python textools.py export-docx      --input <глава.md> --out <глава.docx> [--force]
+python textools.py echo             --input <папка> [--n 3] [--min-files 2] [--top 25] [--registry <yaml>] [--out отчёт.md]
 python textools.py typography       --input <папка> [--fix] [--nbsp]
 python textools.py style-report     --input <папка> [--registry <yaml>] [--window 5] [--long 25]
 python textools.py whitespace       --input <папка> [--fix] [--keep-breaks]
@@ -218,16 +221,17 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
 
 Вкладки:
 
+* **Писателям**: АНТИРЕШИМОСТЬ (поиск и зачистка пафоса), штампы
+  ИИ-текста (поиск, чистка, интерактивная витрина), стилистический
+  отчёт (повторы слов рядом, длинные предложения), статистика текста
+  (с CSV-дневником объёма), Ё/Е-аудит (витрина)
 * **Имена персонажей**: registry-builder, consistency, матрица
   упоминаний, падежные формы (pymorphy3), добавление кандидатов в
   реестр, MOC-заметки персонажей для Obsidian
 * **Хранилище**: orphan-finder, broken-links (вики и markdown-ссылки),
   merge-finder, проверка целостности заметок (integrity), валидатор
   Obsidian (obsidian-check), поиск иероглифов и мойбейка (find_cjk),
-  поиск штампов, чистка штампов (в том числе интерактивно, с витриной),
-  статистика текста (с CSV-дневником объёма), стилистический отчёт
-  (повторы слов рядом, длинные предложения), профиль «проверить всё»
-  (шесть проверок одним прогоном)
+  профиль «проверить всё» (шесть проверок одним прогоном)
 * **Чистка**: эмодзи, мусор/CJK, пробелы, кодировки (UTF-8),
   типографика («ёлочки», тире, многоточия, неразрывные пробелы),
   мусорные разделители (отбойники сцен ///// **** ===== ———)
@@ -250,12 +254,10 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
 параллельно невозможен. Справа снизу появляются тосты с системным
 звуком ошибки или завершения, статус показывает имя инструмента и время
 работы. Любой путь можно вставить правым кликом («Вставить из буфера»,
-кавычки снимаются), история поля хранит до 50 последних путей (лимит настраивается на вкладке «Настройки»). Горячие
-клавиши: Ctrl+1…7 для вкладок, Ctrl+F для поиска в журнале, Ctrl+S для
-сохранения настроек. Размер окна и последняя вкладка восстанавливаются
-при запуске. Инструменты для работы с рукописью (АНТИРЕШИМОСТЬ, штампы
-ИИ-текста, стилистика, статистика, Ё/Е-аудит) собраны на отдельной
-вкладке «Писателям».
+кавычки снимаются), история поля хранит до 50 последних путей (лимит
+настраивается на вкладке «Настройки»). Горячие клавиши: Ctrl+1…7 для
+вкладок, Ctrl+F для поиска в журнале, Ctrl+S для сохранения настроек.
+Размер окна и последняя вкладка восстанавливаются при запуске.
 
 **Безопасность:** операции с записью идут в dry-run, реальная запись
 только через чекбокс «Применить изменения». Перед записью создаются
@@ -290,7 +292,8 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
   phrase_check, antiresolve, whitespace_clean, separator_clean,
   utf8_convert, full_check, morph_forms, character_matrix,
   registry_merge, backup_restore, backup_archive, moc_builder,
-  text_stats, typography, style_report, icon_replace, yo_audit)
+  text_stats, typography, style_report, icon_replace, yo_audit,
+  echo_finder, export_docx)
   и словари `phrases*.yaml`, `parasites.yaml`; `yo_dict.yaml` —
   опциональный словарь ё-пар (без него — встроенный список)
 * `data/`: YAML-словари правил режима АНТИРЕШИМОСТЬ
@@ -311,23 +314,28 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
 
 ## Тесты
 
-Тесты лежат в `archive/`, `test/` и в корне проекта (`test/` и `archive/`
-не входят в git):
+Основной набор — pytest:
 
 ```
-cd archive
-python test_engines.py                # проверки движков и CLI
+python -m pytest test/ -q             # 166 тестов: движки, CLI, docx, GUI-утилиты
+```
 
-cd ..
-python test_gui.py                    # проверки GUI (открывает окно)
+GUI проверяется отдельными скриптами в корне (открывают окно):
+
+```
+python test_gui.py                    # все вкладки и кнопки GUI
 python test_settings.py               # настройки GUI: применяются и кликаются
+python test_gui_fit.py                # умещение рядов кнопок (масштабы 1.0 и 1.25)
+python test_gui_smoke.py              # дымовой прогон окна
 python test_script_presets.py         # автопоиск скриптов и пресеты
-python test/test_obsidian_check.py    # obsidian-check: находки и --fix
 ```
 
-Наборы работают со своими временными или демо-данными, порядок запуска
-не важен. Для ручных прогонов есть локальный полигон
-`test/demo_garbage/`. Подробности в `archive/README.md`.
+Старый синтетический набор лежит в `archive/` и гоняется вручную
+(`python test_engines.py` из его папки) — он написан под прежний
+интерфейс и из автоматических проверок исключён. Наборы работают со
+своими временными или демо-данными, порядок запуска не важен. Для
+ручных прогонов есть локальный полигон `test/demo_garbage/`.
+Подробности в `archive/README.md`.
 
 ## Лицензия
 

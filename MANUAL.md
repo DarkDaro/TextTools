@@ -28,6 +28,7 @@
    - [Узнать объём и привычки текста](#статистика)
    - [Старые файлы в других кодировках](#кодировки)
    - [Привести типографику в порядок](#типографика)
+   - [Разобраться с ё и е](#ё-е)
    - [Откатить неудачную операцию](#откат)
 4. [Вкладки: подробный справочник](#справочник-по-вкладкам)
    - [Писателям](#вкладка-писателем)
@@ -227,7 +228,7 @@ python textools.py check-all --input <папка> --plan план.md
 стилистический отчёт»** найдёт повторяющиеся рядом слова (типа «шёл и
 шёл») и слишком длинные предложения.
 
-<a name="откат"></a>
+<a name="ё-е"></a>
 ### Разобраться с ё и е
 
 Буква ё в прозе капризна: по норме её можно опускать почти везде, но
@@ -446,13 +447,13 @@ python textools.py integrity         --input <папка>
 python textools.py obsidian-check    --input <папка> [--fix] [--no-bak] [--exit-zero] [--out report.md]
 python textools.py cjk              --input <папка> [--ext .md,.txt] [--json report.json]
 python textools.py utf8             --input <папка> [--fix]
-python textools.py restore          --input <папка> [--restore]
+python textools.py restore          --input <папка> [--restore] [--file <имя>]
 python textools.py archive-backups  --input <папка> [--days 30] [--move]
-python textools.py moc              --input <vault> --registry <yaml> --out-dir <папка> [--apply]
+python textools.py moc              --input <vault> --registry <yaml> --out-dir <папка> [--apply] [--update]
 python textools.py stats            --input <папка> [--out report.md] [--csv] [--history]
 python textools.py yo               --input <папка> [--registry <yaml>] [--review] [--out отчёт.md]
 python textools.py export-docx      --input <глава.md> --out <глава.docx> [--force]
-python textools.py echo             --input <папка> [--n 3] [--min-files 2] [--registry <yaml>] [--out отчёт.md]
+python textools.py echo             --input <папка> [--n 3] [--min-files 2] [--top 25] [--registry <yaml>] [--out отчёт.md]
 python textools.py typography       --input <папка> [--fix] [--nbsp]
 python textools.py style-report     --input <папка> [--registry <yaml>] [--window 5] [--long 25]
 python textools.py whitespace       --input <папка> [--fix] [--keep-breaks]
