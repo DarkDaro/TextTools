@@ -14,6 +14,9 @@ text_stats — статистика текстов (01.10, дешёвая нов
       [--limit N] [--csv]
   --csv: дописать строку на каждый файл в reports/stats_log.csv
   (дневник объёма для отслеживания прогресса в Excel).
+  python textools.py stats --history [--out история.md]
+  --history: динамика объёма из дневника reports/stats_log.csv —
+  слова по датам, дельта с прошлой датой, темп в день (BACKLOG №3).
 """
 import argparse
 import csv
@@ -37,6 +40,10 @@ PARASITES = [
 PARASITE_FILE = Path(__file__).resolve().parent / "parasites.yaml"
 DIALOG_RE = re.compile(r"^\s*[—–-]\s*\S")
 WORD_RE = re.compile(r"[А-ЯЁа-яёA-Za-z]+(?:-[А-ЯЁа-яёA-Za-z]+)*")
+# 05.11: дневник объёма, куда --csv дописывает строки; оттуда же
+# --history читает динамику (BACKLOG №3)
+HISTORY_FILE = (Path(__file__).resolve().parent.parent / "reports"
+                / "stats_log.csv")
 
 
 def load_parasites():
@@ -93,7 +100,112 @@ def _count_parasites(text, n_words, parasites=None):
     return out
 
 
-def run(input_path, limit=None, out=None, csv_log=False):
+def read_history(csv_path=None):
+    """05.11 (BACKLOG №3): читает дневник объёма (пишет stats --csv).
+    Возвращает список прогонов по порядку времени:
+    [(штамп «ГГГГ-ММ-ДД ЧЧ:ММ», [слов, файлов])]. Битые строки
+    пропускаются. Файла нет или данных нет — пустой список."""
+    path = Path(csv_path) if csv_path else HISTORY_FILE
+    if not path.exists():
+        return []
+    runs = {}  # штамп запуска -> [слов, файлов]
+    try:
+        with open(path, "r", encoding="utf-8-sig", newline="") as fh:
+            for row in csv.reader(fh, delimiter=";"):
+                # колонки: дата, файл, слов, предложений, средняя, диалогов
+                if len(row) < 3 or row[0].strip() in ("дата", ""):
+                    continue
+                try:
+                    words = int(row[2])
+                except ValueError:
+                    continue
+                stamp = row[0].strip()
+                if stamp not in runs:
+                    runs[stamp] = [0, 0]
+                runs[stamp][0] += words
+                runs[stamp][1] += 1
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"Дневник не прочитан ({path}): {e}")
+        return []
+    return sorted(runs.items())
+
+
+def history(csv_path=None, out=None):
+    """Динамика объёма по дневнику: слова на дату, дельта с прошлой
+    датой, темп в день. Несколько запусков за день — берётся последний
+    (состояние рукописи на конец дня), иначе двойной прогон удвоил бы
+    объём. Возвращает код 0/1 (1 — дневника ещё нет)."""
+    runs = read_history(csv_path)
+    if not runs:
+        print(f"Дневник пуст: {csv_path or HISTORY_FILE} ещё не создан — "
+              "он пишется командой stats --csv.")
+        return 1
+
+    # уровень дней: последняя запись дня = объём на конец дня
+    days = {}  # дата -> [слов, файлов]
+    for stamp, (words, n_files) in runs:
+        days[stamp[:10]] = [words, n_files]  # сортированы — перезапись ок
+    ordered = sorted(days.items())
+
+    total_rows = sum(n for _, n in (v for _, v in ordered))
+    print(f"Дневник: {csv_path or HISTORY_FILE} "
+          f"(записей: {total_rows}, дат: {len(ordered)})")
+    print(f"{'Дата':<12} {'записей':>8} {'слов':>8} {'дельта':>9}")
+    prev = None
+    first_w = last_w = None
+    for date, (words, n_files) in ordered:
+        delta = words - prev if prev is not None else words
+        print(f"{date:<12} {n_files:>8} {words:>8} {delta:>+9}")
+        if first_w is None:
+            first_w = words
+        last_w = words
+        prev = words
+
+    d1, d2 = ordered[0][0], ordered[-1][0]
+    try:
+        from datetime import date as _date
+        y1, m1, dd1 = map(int, d1.split("-"))
+        y2, m2, dd2 = map(int, d2.split("-"))
+        span = (_date(y2, m2, dd2) - _date(y1, m1, dd1)).days
+    except ValueError:
+        span = 0
+    diff = last_w - first_w
+    if span > 0:
+        tempo = round(diff / span)
+        print(f"Итог: с {d1} по {d2} {diff:+} слов за {span} дн. "
+              f"(темп ~{tempo}/день).")
+    else:
+        print(f"Итог: одна дата ({d1}), {diff:+} слов — для темпа нужны "
+              "минимум две разные даты.")
+
+    if out:
+        L = ["# Динамика объёма", "",
+             f"Дневник: {csv_path or HISTORY_FILE} "
+             f"(записей: {total_rows})", "",
+             "| Дата | записей | слов | дельта |", "|---|---|---|---|"]
+        prev = None
+        for date, (words, n_files) in ordered:
+            delta = words - prev if prev is not None else words
+            L.append(f"| {date} | {n_files} | {words} | {delta:+} |")
+            prev = words
+        L.append("")
+        if span > 0:
+            L.append(f"Темп: ~{round(diff / span)} слов/день "
+                     f"(с {d1} по {d2}, {diff:+} всего).")
+        else:
+            L.append(f"Одна дата ({d1}) — темп считается с двух дат.")
+        from core.report import write_report
+        write_report(out, "\n".join(L) + "\n")
+        if str(out).strip() != "-":
+            print(f"Отчёт: {out}")
+    return 0
+
+
+def run(input_path, limit=None, out=None, csv_log=False, show_history=False):
+    if show_history:
+        # 05.11 (BACKLOG №3): --history — динамика из дневника; --input
+        # не нужен, сканировать тексты не надо
+        return history(out=out)
     parasites = load_parasites()
     if parasites is not PARASITES:
         print(f"Список паразитов: {PARASITE_FILE} ({len(parasites)} шт.)")
@@ -180,14 +292,18 @@ def run(input_path, limit=None, out=None, csv_log=False):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Статистика текстов")
-    ap.add_argument("--input", required=True, help="папка или файл")
+    ap.add_argument("--input", help="папка или файл (не нужен с --history)")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--out", help="отчёт в .md")
     ap.add_argument("--csv", action="store_true",
                     help="дописать строки в reports/stats_log.csv")
+    ap.add_argument("--history", action="store_true",
+                    help="динамика объёма из дневника reports/stats_log.csv")
     args = ap.parse_args(argv)
+    if not args.history and not args.input:
+        ap.error("--input обязателен (кроме --history)")
     return run(args.input, limit=args.limit, out=args.out,
-               csv_log=args.csv)
+               csv_log=args.csv, show_history=args.history)
 
 
 if __name__ == "__main__":

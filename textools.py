@@ -99,11 +99,14 @@ def main():
     p7.add_argument("--file", help="только этот файл (по имени)")
 
     p8 = sub.add_parser("stats", help="статистика текстов (объём, диалоги, паразиты)")
-    p8.add_argument("--input", required=True)
+    p8.add_argument("--input", help="папка или файл (не нужен с --history)")
     p8.add_argument("--limit", type=int)
     p8.add_argument("--out")
     p8.add_argument("--csv", action="store_true",
                     help="дописать строку в reports/stats_log.csv (дневник объёма)")
+    # 05.11 (BACKLOG №3): динамика объёма из уже копящегося дневника
+    p8.add_argument("--history", action="store_true",
+                    help="динамика объёма: слова по датам, дельты, темп")
 
     p9 = sub.add_parser("archive-backups",
                         help="архивация старых бэкапов (перенос в archive/backups)")
@@ -349,11 +352,20 @@ def main():
     elif args.cmd == "stats":
         sys.path.insert(0, str(here))
         from tools import text_stats
-        sys.exit(text_stats.main(
-            ["--input", args.input,
-             *(["--limit", str(args.limit)] if args.limit is not None else []),
-             *(["--out", args.out] if args.out else []),
-             *(["--csv"] if args.csv else [])]))
+        if args.history:
+            # --history: дневник читается, тексты не сканируются
+            opts = ["--history",
+                    *(["--out", args.out] if args.out else [])]
+        else:
+            if not args.input:
+                print("Ошибка: stats требует --input (или --history)",
+                      file=sys.stderr)
+                sys.exit(2)
+            opts = ["--input", args.input,
+                    *(["--limit", str(args.limit)] if args.limit is not None else []),
+                    *(["--out", args.out] if args.out else []),
+                    *(["--csv"] if args.csv else [])]
+        sys.exit(text_stats.main(opts))
     elif args.cmd == "typography":
         sys.path.insert(0, str(here))
         from tools import typography
