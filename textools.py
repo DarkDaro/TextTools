@@ -184,96 +184,99 @@ def main():
                 *(["--json", args.json_out] if args.json_out else []),
                 *(["--quiet"] if args.quiet else [])]
         sys.exit(cjk_main(opts))
+    # 04.11: коды выхода инструментов больше не теряются — раньше
+    # sys.exit стоял только у части веток, и consistency/matrix/typography
+    # и др. возвращали 0 даже при найденных проблемах.
     if args.cmd == "merge-registry":
         sys.path.insert(0, str(here))
         from tools import registry_merge
-        registry_merge.main(
+        sys.exit(registry_merge.main(
             ["--candidates", args.candidates, "--registry", args.registry,
              *(["--names", args.names] if args.names else []),
-             *(["--add"] if args.add else [])])
+             *(["--add"] if args.add else [])]))
     elif args.cmd == "archive-backups":
         sys.path.insert(0, str(here))
         from tools import backup_archive
-        backup_archive.main(
+        sys.exit(backup_archive.main(
             ["--input", args.input, "--days", str(args.days),
-             *(["--move"] if args.move else [])])
+             *(["--move"] if args.move else [])]))
     elif args.cmd == "moc":
         sys.path.insert(0, str(here))
         from tools import moc_builder
-        moc_builder.main(
+        sys.exit(moc_builder.main(
             ["--input", args.input, "--registry", args.registry,
              "--out-dir", args.out_dir,
              *(["--limit", str(args.limit)] if args.limit else []),
              *(["--apply"] if args.apply else []),
-             *(["--update"] if args.update else [])])
+             *(["--update"] if args.update else [])]))
     elif args.cmd == "stats":
         sys.path.insert(0, str(here))
         from tools import text_stats
-        text_stats.main(
+        sys.exit(text_stats.main(
             ["--input", args.input,
              *(["--limit", str(args.limit)] if args.limit else []),
              *(["--out", args.out] if args.out else []),
-             *(["--csv"] if args.csv else [])])
+             *(["--csv"] if args.csv else [])]))
     elif args.cmd == "typography":
         sys.path.insert(0, str(here))
         from tools import typography
-        typography.main(
+        sys.exit(typography.main(
             ["--input", args.input, *(["--fix"] if args.fix else []),
              *(["--nbsp"] if args.nbsp else []),
-             *(["--out", args.out] if args.out else [])])
+             *(["--out", args.out] if args.out else [])]))
     elif args.cmd == "style-report":
         sys.path.insert(0, str(here))
         from tools import style_report
-        style_report.main(
+        sys.exit(style_report.main(
             ["--input", args.input,
              *(["--registry", args.registry] if args.registry else []),
              "--window", str(args.window), "--long", str(args.long),
              *(["--limit", str(args.limit)] if args.limit else []),
-             *(["--out", args.out] if args.out else [])])
+             *(["--out", args.out] if args.out else [])]))
     elif args.cmd == "restore":
         sys.path.insert(0, str(here))
         from tools import backup_restore
-        backup_restore.main(
+        sys.exit(backup_restore.main(
             ["--input", args.input, *(["--restore"] if args.restore else []),
-             *(["--file", args.file] if args.file else [])])
+             *(["--file", args.file] if args.file else [])]))
     elif args.cmd == "forms":
         sys.path.insert(0, str(here))
         from tools import morph_forms
-        morph_forms.main(
+        sys.exit(morph_forms.main(
             ["--registry", args.registry,
              *(["--fill"] if args.fill else []),
-             *(["--out", args.out] if args.out else [])])
+             *(["--out", args.out] if args.out else [])]))
     elif args.cmd == "utf8":
         sys.path.insert(0, str(here))
         from tools import utf8_convert
-        utf8_convert.main(
+        sys.exit(utf8_convert.main(
             ["--input", args.input, *(["--fix"] if args.fix else []),
-             *(["--limit", str(args.limit)] if args.limit else [])])
+             *(["--limit", str(args.limit)] if args.limit else [])]))
     elif args.cmd == "matrix":
         sys.path.insert(0, str(here))
         from tools import character_matrix
-        character_matrix.main(
+        sys.exit(character_matrix.main(
             ["--input", args.input, "--registry", args.registry,
              *(["--limit", str(args.limit)] if args.limit else []),
              *(["--verbose"] if args.verbose else []),
-             *(["--out", args.out] if args.out else [])])
+             *(["--out", args.out] if args.out else [])]))
     elif args.cmd == "registry-builder":
         sys.path.insert(0, str(here))
         from tools import registry_builder
-        registry_builder.main(
+        sys.exit(registry_builder.main(
             ["--input", args.input, *(["--out", args.out] if args.out else []),
              *(["--registry", args.registry] if args.registry else []),
              "--min-count", str(args.min_count),
              *(["--limit", str(args.limit)] if args.limit else []),
-             *(["--verbose"] if args.verbose else [])])
+             *(["--verbose"] if args.verbose else [])]))
     elif args.cmd == "consistency":
         sys.path.insert(0, str(here))
         from tools import consistency
-        consistency.main(
+        sys.exit(consistency.main(
             ["--input", args.input, "--registry", args.registry,
              *(["--limit", str(args.limit)] if args.limit else []),
              *(["--verbose"] if args.verbose else []),
-             *(["--out", args.out] if args.out else [])])
+             *(["--out", args.out] if args.out else [])]))
 
 
 if __name__ == "__main__":
