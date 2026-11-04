@@ -270,7 +270,11 @@ def _write_report(out, hits, n_pairs, targets):
     lines += ["", "| Текст | Правка | Файл | Строка | Фрагмент |",
               "|---|---|---|---|---|"]
     for w, r, fs, ln, frag in hits:
-        lines.append(f"| {w} | {r} | {fs} | {ln} | {frag.replace('|', '\\|')} |")
+        # 11.26: бэкслеш в выражении f-строки — SyntaxError на
+        # Python 3.10/3.11 (разрешён только с 3.12), а pyproject
+        # декларирует поддержку >=3.10
+        frag_md = frag.replace("|", "\\|")
+        lines.append(f"| {w} | {r} | {fs} | {ln} | {frag_md} |")
     Path(out).write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
