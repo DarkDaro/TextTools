@@ -38,7 +38,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 import argparse
 
 # 24.10: версия проекта — единый источник для CLI, GUI и pyproject.toml
-__version__ = "1.0.0"
+# 05.11: 1.1.0 — шесть команд из BACKLOG (yo, check-all --out/--plan,
+# stats --history, export-docx, echo)
+__version__ = "1.1.0"
 
 
 def main():
