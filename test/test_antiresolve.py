@@ -51,6 +51,9 @@ def test_clean_md(tmp_path, monkeypatch):
     for word in ("решимост", "превозмог", "глазах горел"):
         assert word not in after
     assert "с решительностью" not in after
+    # вырезание не склеивает слова и не оставляет двойных пробелов
+    assert "Она посмотрела на врага." in after
+    assert "  " not in after
     assert f.with_suffix(".md.bak").exists()
     assert summary["осталось"]["hard"] == 0
     assert summary["осталось"]["soft"] == 0
@@ -83,7 +86,7 @@ def test_clean_docx(tmp_path, monkeypatch):
     rc, log, summary = antiresolve.run(str(f), clean=True)
     text = docx_io.read_text(f)
     assert "решимост" not in text.lower()
-    assert "шагнул" in text
+    assert "Он шагнул вперёд. Всё просто." in text
     assert "Вторая строка остаётся нетронутой." in text
     assert summary["осталось"]["hard"] == 0
     assert rc == 0

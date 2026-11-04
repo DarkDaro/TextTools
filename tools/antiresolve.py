@@ -95,10 +95,15 @@ def scan_file(path, rules):
 
 
 def _cut_pattern(rule):
-    """Регэксп вырезания: вхождение вместе с примыкающими пробелами и
-    табами (переводы строк не трогаем — абзацы не склеиваются)."""
-    return re.compile(r"[ \t]*(?:" + rule.source + r")[ \t]*",
-                      re.IGNORECASE)
+    """Регэксп вырезания: вхождение с прилегающими пробелами.
+
+    Переводы строк не трогаются — абзацы не склеиваются. Хвостовые
+    пробелы забираются только перед пунктуацией/концом строки, иначе
+    вырезание «с решимостью» в «Она с решимостью посмотрела» склеивает
+    слова («Онапосмотрела») или оставляет пробел перед точкой."""
+    return re.compile(
+        r"[ \t]*(?:" + rule.source + r")(?:[ \t]*(?=[\n.,!?;:…—)»\"]|$))?",
+        re.IGNORECASE)
 
 
 def clean_text_file(path, rules):
@@ -134,7 +139,8 @@ def clean_docx_file(path, rules):
     for rule in rules:
         if rule.level != "hard":
             continue
-        pat = r"(?i)[ \t]*(?:" + rule.source + r")[ \t]*"
+        pat = (r"(?i)[ \t]*(?:" + rule.source
+               + r")(?:[ \t]*(?=[\n.,!?;:…—)»\"]|$))?")
         n, _changed, _br = docx_io.replace_in_docx(
             path, pat, rule.fix, is_regex=True, backup=True)
         total += n
