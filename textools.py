@@ -25,6 +25,7 @@ textools — единый CLI текстовых инструментов.
   export-docx        глава .md → Word .docx (для беты и редакторов)
   check-all          профиль «проверить всё»: 6 проверок одним прогоном
   antiresolve        АНТИРЕШИМОСТЬ: поиск/зачистка лексики и пафоса романа
+  echo               эхо-фразы: повторы конструкций между главами
   emoji-icons        эмодзи-иконки → SVG в HTML
   restore            обзор/восстановление из бэкапов
   archive-backups    архивация старых бэкапов
@@ -266,6 +267,25 @@ def main():
     p_exp.add_argument("--force", action="store_true",
                        help="перезаписывать существующие .docx")
     p_exp.add_argument("--limit", type=int)
+
+    # 05.11 (BACKLOG №6): межглавные повторы — внутри файла ловит
+    # style-report, между файлами не ловил никто
+    p_echo = sub.add_parser("echo",
+                            help="эхо-фразы: повторы конструкций "
+                                 "между главами")
+    p_echo.add_argument("--input", required=True, help="папка или файл")
+    p_echo.add_argument("--n", type=int, default=3,
+                        help="слов в конструкции (по умолчанию 3)")
+    p_echo.add_argument("--min-files", type=int, default=2,
+                        help="минимум разных файлов (по умолчанию 2)")
+    p_echo.add_argument("--top", type=int, default=25,
+                        help="первые N находок (по умолчанию 25)")
+    p_echo.add_argument("--registry",
+                        help="реестр персонажей — имена исключаются")
+    p_echo.add_argument("--limit", type=int)
+    p_echo.add_argument("--out", help="отчёт в .md («-» — в stdout)")
+    p_echo.add_argument("--json", dest="json_out",
+                        help="полный список в JSON («-» — в stdout)")
 
     p17 = sub.add_parser("check-all",
                          help="профиль «проверить всё»: obsidian-check, cjk, "
@@ -520,6 +540,18 @@ def main():
             ["--input", args.input, "--out", args.out,
              *(["--force"] if args.force else []),
              *(["--limit", str(args.limit)] if args.limit is not None else [])]))
+    elif args.cmd == "echo":
+        sys.path.insert(0, str(here))
+        from tools import echo_finder
+        opts = ["--input", args.input,
+                "--n", str(args.n),
+                "--min-files", str(args.min_files),
+                "--top", str(args.top),
+                *(["--registry", args.registry] if args.registry else []),
+                *(["--limit", str(args.limit)] if args.limit is not None else []),
+                *(["--out", args.out] if args.out else []),
+                *(["--json", args.json_out] if args.json_out else [])]
+        sys.exit(echo_finder.main(opts))
     elif args.cmd == "check-all":
         sys.path.insert(0, str(here))
         from tools import full_check
