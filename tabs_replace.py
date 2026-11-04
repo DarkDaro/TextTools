@@ -70,17 +70,17 @@ class ReplaceTab(ctk.CTkFrame):
                                           "Можно папку или один файл.")
         r2 = button_row(s2.inner, pady=(4, 0))
         b1 = ActionButton(r2, "Найти проблемные символы", self._run_find_bad,
-                          kind="safe", width=215, tooltip=None)
+                          kind="safe", width=190, tooltip=None)
         b1.pack(side="left", padx=(0, 8))
         Tooltip(b1, "Показать все подозрительные unicode-символы в .md файлах "
                     "(битые кавычки, невидимые символы и т.п.). Ничего не меняет.")
         b2 = ActionButton(r2, "Починить UTF-8", self._run_fix_encoding,
-                          kind="safe", width=160)
+                          kind="safe", width=150)
         b2.pack(side="left", padx=(0, 8))
         Tooltip(b2, "Пересохранить файлы в нормальную кодировку UTF-8. "
                     "С «Применить» — реально исправляет, с бэкапом.")
         b3 = ActionButton(r2, "Вырезать мусор", self._run_strip_bad,
-                          kind="safe", width=160)
+                          kind="safe", width=150)
         b3.pack(side="left", padx=(0, 8))
         Tooltip(b3, "Удалить мусорные unicode-символы из .md файлов. "
                     "С «Применить» — реально вырезает, с бэкапом.")

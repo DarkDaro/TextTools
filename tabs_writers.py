@@ -173,11 +173,14 @@ class WritersTab(ctk.CTkFrame):
                      ).pack(side="left")
 
         # --- 5. ё/е-аудит (переехал из «Имён персонажей») ---
-        s5 = Section(parent, "5. Ё/Е-аудит (спорные места с ё)")
+        s5 = Section(parent, "5. Ё/Е-аудит (txt / md / docx)")
         self.f_yo_input = PathField(s5.inner, "Тексты (папка/файл):", "yo_input",
                                     CFG, file_mode="both",
-                                    tooltip="Папка или файл .md/.txt. Правки "
-                                            "применяются только к .md/.txt.")
+                                    tooltip="Папка или файл .md/.txt/.docx. "
+                                            "В docx правки применяются пословно "
+                                            "по отмеченным формам во всём "
+                                            "документе (строки витрины там "
+                                            "условны).")
         self.f_yo_reg = PathField(s5.inner, "Реестр (yaml):", "yo_registry", CFG,
                                   file_mode="file",
                                   tooltip="Реестр персонажей: имена с ё (Семён) "
@@ -449,9 +452,10 @@ class WritersTab(ctk.CTkFrame):
                 if stopped:
                     q.put(("stopped", None, None))
                     return
-                # docx в этой итерации не правится (решение пользователя)
-                hits = [h for h in hits
-                        if not h[2].lower().endswith(".docx")]
+                # 05.11: docx-находки больше не вырезаются — правка docx
+                # реализована в yo_audit.clean_selection (пословно по всем
+                # отмеченным формам документа); фильтр оставлял Word-главы
+                # невидимыми для витрины
                 q.put(("ok", hits, targets))
             except Exception as e:
                 q.put(("err", f"Ё/Е-аудит не удался: {e}", None))

@@ -20,12 +20,12 @@ class VaultTab(ctk.CTkFrame):
     def _build(self, parent):
         HelpBox(parent, text=(
             "Как это работает:\n"
-            "Укажите папку хранилища (vault) — инструмент обойдёт все .md файлы внутри.\n"
+            "Укажите папку хранилища (vault) — инструмент обойдёт все .md/.txt/.docx файлы внутри.\n"
             "• Orphans — заметки, на которые никто не ссылается и которые сами ни на кого не ссылаются "
             "(одиночки, возможно забыты).\n"
             "• Битые ссылки — ссылки [[вот так]], ведущие на несуществующую заметку.\n"
             "• Дубликаты — заметки с очень похожим содержимым или почти одинаковым именем — "
-            "кандидаты на слияние.\n"
+            "кандидаты на слияние (ищутся и в Word-файлах .docx).\n"
             "• Целостность — пустые файлы, битая кодировка, незакрытый frontmatter, "
             "отсутствие заголовка.\n"
             "• Валидатор Obsidian — всё то, что Obsidian молча ломает при чтении: "
@@ -44,32 +44,35 @@ class VaultTab(ctk.CTkFrame):
                                          "инструмент проверит только его.")
 
         btns = button_row(s.inner, pady=(6, 0))
-        ActionButton(btns, "Orphans (одиночки)", self._run_orphans,
-                     kind="safe", width=170,
+        ActionButton(btns, "Orphans", self._run_orphans,
+                     kind="safe", width=130,
                      tooltip="Заметки без входящих и исходящих ссылок."
                      ).pack(side="left", padx=(0, 8))
         ActionButton(btns, "Битые ссылки", self._run_broken,
-                     kind="safe", width=165,
+                     kind="safe", width=145,
                      tooltip="Ссылки [[такие]], ведущие на несуществующие заметки."
                      ).pack(side="left", padx=(0, 8))
-        ActionButton(btns, "Дубликаты (merge)", self._run_merge,
-                     kind="safe", width=175,
-                     tooltip="Похожие заметки — кандидаты на слияние."
+        ActionButton(btns, "Дубликаты", self._run_merge,
+                     kind="safe", width=140,
+                     tooltip="Похожие заметки (.md/.txt/.docx) — кандидаты "
+                             "на слияние."
                      ).pack(side="left", padx=(0, 8))
         ActionButton(btns, "Целостность", self._run_integrity,
-                     kind="safe", width=150,
+                     kind="safe", width=145,
                      tooltip="Пустые файлы, битый UTF-8, незакрытый frontmatter, "
                              "отсутствие заголовка ##. Только чтение."
                      ).pack(side="left")
 
-        # 04.11: профиль «проверить всё» — четыре проверки одним прогоном
+        # 04.11: профиль «проверить всё»; 05.11 — уже шесть проверок:
+        # добавлены штампы ИИ и АНТИРЕШИМОСТЬ в скан-режиме
         row_all = button_row(s.inner)
-        ActionButton(row_all, "Проверить всё (4 проверки)", self._run_fullcheck,
+        ActionButton(row_all, "Проверить всё (6 проверок)", self._run_fullcheck,
                      kind="safe", width=235,
-                     tooltip="obsidian-check → иероглифы → целостность → "
-                             "дубликаты, только чтение, сводка в журнале. "
-                             "Серьёзные находки — статус «есть замечания»."
-                     ).pack(side="left")
+                     tooltip="валидатор Obsidian → иероглифы → целостность → "
+                             "дубликаты → штампы ИИ (скан) → АНТИРЕШИМОСТЬ "
+                             "(скан, без зачистки). Только чтение, сводка "
+                             "в журнале. Серьёзные находки (валидатор, "
+                             "иероглифы, целостность) — статус «есть замечания».").pack(side="left")
 
         self.c_report = CheckField(s.inner, "Сохранять отчёт в папку отчётов",
                                    "vault_save_report", CFG,

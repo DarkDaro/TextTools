@@ -528,7 +528,11 @@ class App(ctk.CTk):
             pass
 
         self.title("textools — текстовые инструменты")
-        self.minsize(900, 640)
+        # 05.11: минимальный размер подстраивается под экран: на маленьком
+        # мониторе (нетбуки, 1024x768) жёсткие 900x640 вылезали за края
+        self._min_w = max(560, min(900, self.winfo_screenwidth() - 40))
+        self._min_h = max(420, min(640, self.winfo_screenheight() - 80))
+        self.minsize(self._min_w, self._min_h)
         self._restore_geometry()
 
         # 24.10: состояние вкладок и обход кнопок
@@ -717,8 +721,12 @@ class App(ctk.CTk):
     # --- геометрия и состояние ---
 
     def _restore_geometry(self):
-        """24.10: геометрия из конфига с защитой от выхода за экран."""
+        """24.10: геометрия из конфига с защитой от выхода за экран.
+        05.11: нижняя граница тоже адаптивная — на маленьком экране окно
+        не принуждается к 900x640 больше экрана."""
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        lo_w = min(900, sw - 40)
+        lo_h = min(640, sh - 80)
         geo = str(CFG.get("ui.geometry", "") or "")
         if not _cfg_flag("remember_geometry", True):
             geo = ""
@@ -726,8 +734,8 @@ class App(ctk.CTk):
         if m:
             w, h, x, y = (int(m.group(1)), int(m.group(2)),
                           int(m.group(3)), int(m.group(4)))
-            w = max(900, min(w, sw - 40))
-            h = max(640, min(h, sh - 80))
+            w = max(lo_w, min(w, sw - 40))
+            h = max(lo_h, min(h, sh - 80))
             x = max(0, min(x, sw - w))
             y = max(0, min(y, sh - h))
         else:

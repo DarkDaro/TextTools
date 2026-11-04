@@ -379,19 +379,21 @@ class SettingsTab(ctk.CTkFrame):
                   "https://github.com/DarkDaro/TextTools")
             ).pack(anchor="w", pady=(0, 6))
         row_about = button_row(s_about.inner)
-        ActionButton(row_about, "Проверить зависимости", self._check_deps,
-                     kind="safe", width=220,
+        # 05.11: подписи и ширины ужаты — ряд не вылезал за минимальное
+        # окно 900px при масштабе интерфейса 1.25
+        ActionButton(row_about, "Зависимости", self._check_deps,
+                     kind="safe", width=160,
                      tooltip="Проверить, установлены ли обязательные пакеты "
                              "и какие у них версии."
                      ).pack(side="left", padx=(0, 8))
-        ActionButton(row_about, "Скопировать сведения", self._copy_info,
-                     kind="neutral", width=210,
+        ActionButton(row_about, "Сведения в буфер", self._copy_info,
+                     kind="neutral", width=175,
                      tooltip="Скопировать версию, Python, систему и версии "
                              "зависимостей в буфер обмена — удобно приложить "
                              "к сообщению об ошибке."
                      ).pack(side="left", padx=(0, 8))
-        ActionButton(row_about, "Открыть README", self._open_readme,
-                     kind="neutral", width=170,
+        ActionButton(row_about, "README", self._open_readme,
+                     kind="neutral", width=110,
                      tooltip="README.md: описание проекта и список "
                              "возможностей.").pack(side="left", padx=(0, 8))
         ActionButton(row_about, "Папка проекта", self._open_project_dir,
