@@ -76,9 +76,11 @@ def _count_parasites(text, n_words, parasites=None):
     out = {}
     for p in (parasites if parasites is not None else PARASITES):
         # 04.11: re.escape — спецсимвол из parasites.yaml («как бы)»)
-        # раньше ломал компиляцию regex или считал неверно
+        # раньше ломал компиляцию regex или считал неверно. Пробел после
+        # escape приходит «\ » — заменяем на \s+ оба варианта
         pat = re.compile(r"(?<![А-ЯЁа-яёA-Za-z])"
-                         + re.escape(tp.norm_yo(p)).replace(" ", r"\s+")
+                         + re.escape(tp.norm_yo(p))
+                         .replace("\\ ", r"\s+").replace(" ", r"\s+")
                          + r"(?![А-ЯЁа-яёA-Za-z])", re.IGNORECASE)
         c = len(pat.findall(low))
         if c:
