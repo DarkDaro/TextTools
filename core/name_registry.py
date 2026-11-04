@@ -39,7 +39,14 @@ def load_registry(path):
         ch = {"имя": str(c.get("имя", "")).strip()}
         for fld in FIELDS[1:]:
             v = c.get(fld)
-            ch[fld] = (v if isinstance(v, list) else ([v] if v else []))
+            # 04.11: элементы приводятся к str — YAML вида
+            # «формы: [Эрика, 5]» раньше ронял все реестровые инструменты
+            if isinstance(v, list):
+                ch[fld] = [str(x).strip() for x in v if str(x).strip()]
+            elif v:
+                ch[fld] = [str(v).strip()]
+            else:
+                ch[fld] = []
         chars.append(ch)
     return [c for c in chars if c["имя"]]
 
