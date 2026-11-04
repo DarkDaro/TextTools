@@ -41,7 +41,13 @@ def near_duplicates(notes, threshold=NEAR_THRESHOLD):
         s = _shingles(_note_text(n))
         if s:
             sh.append((n, s))
-    sh = sh[:NEAR_CAP]
+    # 04.11: ограничение корпуса больше не молчит — видно, что сравнение
+    # частичное
+    if len(sh) > NEAR_CAP:
+        print(f"ВНИМАНИЕ: заметок с текстом {len(sh)} — сравниваются"
+              f" первые {NEAR_CAP} (NEAR_CAP); часть близких дубликатов"
+              f" может остаться ненайденной")
+        sh = sh[:NEAR_CAP]
 
     index = {}
     for i, (_n, s) in enumerate(sh):
