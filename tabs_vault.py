@@ -305,21 +305,20 @@ class VaultTab(ctk.CTkFrame):
         phrase = self.f_pc_phrase.get()
         custom = self.f_pc_custom.get()
         # 22.09: «запомнить» — добавляем фразу в постоянный словарь.
-        # 24.10: делаем это до поиска и в главном потоке: короткий запуск
-        # скрипта, зато лог не пишется из чужого потока (Tk так нельзя).
+        # 24.10: делаем это до поиска и в главном потоке: лог не пишется
+        # из чужого потока (Tk так нельзя).
+        # 04.11: запись словаря идёт прямо в процессе — раньше запускался
+        # отдельный процесс с таймаутом 30 с, и всё это время окно
+        # не отвечало.
         if phrase and self.c_pc_add.get():
-            import subprocess
-            from gui_ctk import tool_cmd
+            import io
+            from contextlib import redirect_stdout
+            from tools import phrase_check
+            buf = io.StringIO()
             try:
-                r = subprocess.run(
-                    tool_cmd("phrase_check", "--add", phrase),
-                    capture_output=True, text=True, encoding="utf-8",
-                    errors="replace", timeout=30)
-                if r.returncode == 0 and r.stdout:
-                    self._log(r.stdout)
-                else:
-                    self._log("Не удалось запомнить фразу в словарь.\n",
-                              "warn")
+                with redirect_stdout(buf):
+                    phrase_check.add_phrase(phrase)
+                self._log(buf.getvalue() or "Фраза учтена в словаре.\n")
             except Exception as e:
                 self._log(f"Не удалось запомнить фразу: {e}\n", "warn")
         from gui_ctk import tool_cmd
