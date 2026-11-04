@@ -60,6 +60,15 @@ class VaultTab(ctk.CTkFrame):
                              "отсутствие заголовка ##. Только чтение."
                      ).pack(side="left")
 
+        # 04.11: профиль «проверить всё» — четыре проверки одним прогоном
+        row_all = button_row(s.inner)
+        ActionButton(row_all, "Проверить всё (4 проверки)", self._run_fullcheck,
+                     kind="safe", width=235,
+                     tooltip="obsidian-check → иероглифы → целостность → "
+                             "дубликаты, только чтение, сводка в журнале. "
+                             "Серьёзные находки — статус «есть замечания»."
+                     ).pack(side="left")
+
         self.c_report = CheckField(s.inner, "Сохранять отчёт в папку отчётов",
                                    "vault_save_report", CFG,
                                    tooltip="Кроме окна, отчёт будет записан "
@@ -241,6 +250,15 @@ class VaultTab(ctk.CTkFrame):
             reports = _app._reports_dir()
             args += ["--out", str(reports / f"{modname}.md")]
         run_internal(modname, args)
+
+    def _run_fullcheck(self):
+        # 04.11: профиль «проверить всё» — full_check по пути f_vault
+        from gui_ctk import run_internal, _app
+        path = self.f_vault.get()
+        if not path:
+            _app.log_line("Укажите папку vault.\n")
+            return
+        run_internal("full_check", ["--input", path])
 
     def _run_orphans(self):
         self._run("orphan_finder")

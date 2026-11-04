@@ -21,6 +21,7 @@ textools — единый CLI текстовых инструментов.
   whitespace         чистка пробелов и пустых строк
   separators         чистка мусорных разделителей (///// **** =====)
   phrase-check       поиск и чистка фраз-штампов (--clean из консоли)
+  check-all          профиль «проверить всё»: 4 проверки одним прогоном
   emoji-icons        эмодзи-иконки → SVG в HTML
   restore            обзор/восстановление из бэкапов
   archive-backups    архивация старых бэкапов
@@ -237,6 +238,16 @@ def main():
     p16.add_argument("--json", dest="json_out",
                      help="отчёт поиска в JSON («-» — в stdout)")
 
+    p17 = sub.add_parser("check-all",
+                         help="профиль «проверить всё»: obsidian-check, cjk, "
+                              "integrity, merge-finder одним прогоном")
+    p17.add_argument("--input", required=True)
+    p17.add_argument("--limit", type=int)
+    p17.add_argument("--exit-zero", action="store_true",
+                     help="код 0, даже если есть серьёзные находки (для GUI)")
+    p17.add_argument("--json", dest="json_out",
+                     help="сводка всех проверок в JSON («-» — в stdout)")
+
     args = ap.parse_args()
 
     here = Path(__file__).parent
@@ -431,6 +442,14 @@ def main():
         if args.json_out:
             opts += ["--json", args.json_out]
         sys.exit(phrase_check.main(opts))
+    elif args.cmd == "check-all":
+        sys.path.insert(0, str(here))
+        from tools import full_check
+        sys.exit(full_check.main(
+            ["--input", args.input,
+             *( ["--limit", str(args.limit)] if args.limit is not None else []),
+             *( ["--exit-zero"] if args.exit_zero else []),
+             *( ["--json", args.json_out] if args.json_out else [])]))
 
 
 if __name__ == "__main__":
