@@ -194,7 +194,8 @@ def iter_text_files(root, limit=None):
              if f.is_file() and f.suffix.lower() in EXTS
              and not (set(f.parts) & SKIP_DIRS)
              and not f.name.endswith(".bak")]
-    if limit:
+    # 04.11: 0 и отрицательный limit, как и пустой, — без ограничения
+    if limit is not None and limit > 0:
         files = files[:limit]
     yield from files
 

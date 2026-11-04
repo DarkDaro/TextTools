@@ -163,7 +163,8 @@ def run(input_path, registry=None, window=5, long=25, limit=None, out=None):
         except Exception as e:
             print(f"Реестр не прочитан ({e}) — повторы имён не исключаются.")
     files = collect(input_path)
-    if limit:
+    # 04.11: 0 и отрицательный limit, как и пустой, — без ограничения
+    if limit is not None and limit > 0:
         files = files[:limit]
     if not files:
         print("Файлы .md/.txt/.docx не найдены.")

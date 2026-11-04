@@ -27,7 +27,9 @@ def iter_md(root, limit):
     for p in sorted(Path(root).rglob("*.md")):
         if any(part in SKIP_DIRS for part in p.parts):
             continue
-        if limit is not None and count >= limit:
+        # 04.11: единая семантика лимита — 0 и минус, как и пустой,
+        # означают «без ограничения»
+        if limit is not None and limit > 0 and count >= limit:
             return
         count += 1
         yield p
