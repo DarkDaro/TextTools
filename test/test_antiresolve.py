@@ -120,3 +120,26 @@ def test_log_appends(tmp_path, monkeypatch):
     body = (tmp_path / "reports" / "antiresolve.log").read_text(encoding="utf-8")
     assert body.count("=== АНТИРЕШИМОСТЬ") == 2
     assert "лозунг" in body
+
+
+def test_cli_subcommand_and_alias(tmp_path):
+    """textools.py antiresolve и алиас pathos: подкоманда работает,
+    «--out -» и «--json -» дают чистый stdout."""
+    import subprocess
+    root = Path(__file__).resolve().parent.parent
+    f = tmp_path / "cli.md"
+    f.write_text("Она превозмогла боль.", encoding="utf-8")
+    r = subprocess.run(
+        [sys.executable, "textools.py", "antiresolve", "--input", str(f),
+         "--log", str(tmp_path / "cli.log"), "--out", "-"],
+        cwd=root, capture_output=True, text=True)
+    assert r.returncode == 1
+    assert "превозмог" in r.stdout
+    r2 = subprocess.run(
+        [sys.executable, "textools.py", "pathos", "--input", str(f),
+         "--log", str(tmp_path / "cli.log"), "--json", "-"],
+        cwd=root, capture_output=True, text=True)
+    assert r2.returncode == 1
+    data = json.loads(r2.stdout)  # stdout — чистый JSON, без служебных строк
+    assert data["hard"] == 1
+    assert "превозмогание/hard" in data["по_категориям"]

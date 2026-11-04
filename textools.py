@@ -248,6 +248,22 @@ def main():
     p17.add_argument("--json", dest="json_out",
                      help="сводка всех проверок в JSON («-» — в stdout)")
 
+    p18 = sub.add_parser("antiresolve", aliases=["pathos"],
+                         help="АНТИРЕШИМОСТЬ: поиск, лог и зачистка "
+                              "запрещённой лексики и пафоса (памятка романа)")
+    p18.add_argument("--input", required=True, help="папка или файл")
+    p18.add_argument("--resolve-db",
+                     help="словарь лексики (по умолчанию data/resolve_db.yaml)")
+    p18.add_argument("--pathos-db",
+                     help="словарь антипафоса (по умолчанию data/pathos_db.yaml)")
+    p18.add_argument("--clean", action="store_true",
+                     help="зачистка: вырезать hard-вхождения (с .bak)")
+    p18.add_argument("--log",
+                     help="файл лога (по умолчанию reports/antiresolve.log)")
+    p18.add_argument("--out", help="отчёт .md («-» — в stdout)")
+    p18.add_argument("--json", dest="json_out", nargs="?", const="-",
+                     help="сводка в JSON («-» — в stdout)")
+
     args = ap.parse_args()
 
     here = Path(__file__).parent
@@ -450,6 +466,23 @@ def main():
              *( ["--limit", str(args.limit)] if args.limit is not None else []),
              *( ["--exit-zero"] if args.exit_zero else []),
              *( ["--json", args.json_out] if args.json_out else [])]))
+    elif args.cmd in ("antiresolve", "pathos"):
+        sys.path.insert(0, str(here))
+        from tools import antiresolve
+        opts = ["--input", args.input]
+        if args.resolve_db:
+            opts += ["--resolve-db", args.resolve_db]
+        if args.pathos_db:
+            opts += ["--pathos-db", args.pathos_db]
+        if args.clean:
+            opts.append("--clean")
+        if args.log:
+            opts += ["--log", args.log]
+        if args.out:
+            opts += ["--out", args.out]
+        if args.json_out:
+            opts += ["--json", args.json_out]
+        sys.exit(antiresolve.main(opts))
 
 
 if __name__ == "__main__":

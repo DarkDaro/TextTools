@@ -221,7 +221,7 @@ def build_log_entry(source, n_files, findings, cleaned, leftover):
 
 
 def run(input_path, resolve_db="", pathos_db="", clean=False,
-        log_path="", out=""):
+        log_path="", out="", quiet=False):
     """Полный прогон: поиск → лог → (зачистка) → контроль.
     Возвращает (код_возврата, путь_лога, сводка)."""
     rules = load_rules(resolve_db or DEFAULT_RESOLVE_DB)
@@ -269,7 +269,8 @@ def run(input_path, resolve_db="", pathos_db="", clean=False,
                           cleaned, leftover)
     if out:
         write_report(out, report)
-    else:
+    elif not quiet:
+        # quiet: при --json stdout принадлежит JSON-сводке
         print(report, end="")
 
     c = _counts(findings)
@@ -307,7 +308,8 @@ def main(argv=None):
     try:
         rc, log_file, summary = run(
             args.input, resolve_db=args.resolve_db, pathos_db=args.pathos_db,
-            clean=args.clean, log_path=args.log, out=args.out)
+            clean=args.clean, log_path=args.log, out=args.out,
+            quiet=bool(args.json_out))
     except ValueError as e:
         print(f"Ошибка: {e}", file=sys.stderr)
         return 2
