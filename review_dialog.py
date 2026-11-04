@@ -10,7 +10,7 @@ import threading
 
 import customtkinter as ctk
 
-from widgets_ctk import ActionButton
+from widgets_ctk import ActionButton, FONT_BOLD, FONT_PILL, FONT_TINY
 
 MAX_ROWS = 400
 
@@ -51,7 +51,7 @@ def show(owner, hits, on_apply):
     ctk.CTkLabel(win, text=f"Найдено вхождений: {len(hits)}"
                            + (f" (показаны первые {MAX_ROWS})"
                               if len(hits) > MAX_ROWS else ""),
-                 font=("Segoe UI", 12, "bold"), anchor="w"
+                 font=FONT_BOLD, anchor="w"
                  ).pack(fill="x", padx=14, pady=(12, 4))
 
     scroll = ctk.CTkScrollableFrame(win, fg_color="transparent")
@@ -67,7 +67,7 @@ def show(owner, hits, on_apply):
                                  corner_radius=8)
             frame.pack(fill="x", pady=(8, 2))
             ctk.CTkLabel(frame, text=f"«{ph}» {action}",
-                         font=("Segoe UI", 11, "bold"), anchor="w"
+                         font=FONT_PILL, anchor="w"
                          ).pack(fill="x", padx=10, pady=(4, 0))
             master = ctk.BooleanVar(value=True)
             groups[ph] = {"rows": [], "frame": frame, "master": master}
@@ -79,7 +79,7 @@ def show(owner, hits, on_apply):
             row_text = row_text[:117] + "…"
         cb = ctk.CTkCheckBox(groups[ph]["frame"],
                              text=row_text,
-                             variable=var, font=("Segoe UI", 10),
+                             variable=var, font=FONT_TINY,
                              checkbox_width=18, checkbox_height=18)
         cb.pack(fill="x", padx=22, pady=1)
         groups[ph]["rows"].append((var, f))
@@ -94,7 +94,7 @@ def show(owner, hits, on_apply):
                             # «все» любой группы переключает строки последней
                             command=lambda ph=ph, g=g: toggle_group(
                                 ph, g["master"].get()),
-                            font=("Segoe UI", 10))
+                            font=FONT_TINY)
         m.pack(anchor="w", padx=10, pady=(0, 4))
 
     def apply_selected():

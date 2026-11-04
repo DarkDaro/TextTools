@@ -124,7 +124,8 @@ def _pal(dark=None):
 from gui_config import CFG
 # 26.10: FONT не используется (везде локальные ctk-шрифты), pyflakes — отключён
 # from widgets_ctk import (Tooltip, FONT, FONT_SMALL, BigButton,
-from widgets_ctk import (Tooltip, FONT_SMALL, BigButton,
+from widgets_ctk import (Tooltip, FONT_SMALL, FONT_TITLE, FONT_PILL,
+                         FONT_TINY, BigButton,
                          LogPanel, enable_dnd)
 
 # тема из конфига до построения окна
@@ -525,7 +526,7 @@ class App(ctk.CTk):
         left = ctk.CTkFrame(self._header, fg_color="transparent")
         left.pack(side="left")
         ctk.CTkLabel(left, text="textools",
-                     font=("Segoe UI", 22, "bold")).pack(side="left")
+                     font=FONT_TITLE).pack(side="left")
         ctk.CTkLabel(left, text="  текстовые инструменты для авторов",
                      font=FONT_SMALL, text_color=("gray45", "gray55")).pack(
             side="left", padx=(2, 0), pady=(6, 0))
@@ -558,7 +559,7 @@ class App(ctk.CTk):
         # 24.10: индикатор текущего раздела (аналог индикатора режима)
         self._tab_pill = ctk.CTkLabel(right, text="", height=26,
                                       corner_radius=13, padx=12,
-                                      font=("Segoe UI", 11, "bold"),
+                                      font=FONT_PILL,
                                       fg_color=p["accent"],
                                       text_color="#ffffff")
         self._tab_pill.pack(side="right", padx=(0, 10))
@@ -843,7 +844,7 @@ class App(ctk.CTk):
             inner = tk.Frame(win, bg=p["card"], padx=14, pady=9)
             inner.pack()
             tk.Label(inner, text=text, justify="left", bg=p["card"],
-                     fg=p["log_fg"], font=("Segoe UI", 10),
+                     fg=p["log_fg"], font=FONT_TINY,
                      wraplength=330).pack(anchor="w")
 
             def _drop():

@@ -60,7 +60,7 @@ def attach_clip_menu(entry, extra=None, on_change=None):
     «Вставить и выбрать папку» для полей путей.
     24.10: on_change — уведомить поле, что текст изменён не клавиатурой
     (после удаления textvariable у EntryField)."""
-    menu = tk.Menu(entry, tearoff=0, font=("Segoe UI", 10))
+    menu = tk.Menu(entry, tearoff=0, font=FONT_TINY)
 
     def changed():
         if callable(on_change):
@@ -112,11 +112,35 @@ SMALL_BUTTON = {
 }
 
 
-# масштаб и вид по умолчанию
-ctk.set_widget_scaling(1.0)
-FONT = ("Segoe UI", 12)
-FONT_SMALL = ("Segoe UI", 11)
-FONT_MONO = ("Consolas", 11)
+# масштаб и вид по умолчанию. 11.26: семейство/размер шрифта и масштаб
+# интерфейса читаются из конфига («Вид и журнал»), применяются при
+# следующем запуске; размер шрифта журнала крутится на лету (А+/А-)
+import gui_config as _gcfg
+
+
+def _cfg_num(key, default, lo, hi):
+    try:
+        v = float(str(_gcfg.CFG.get(key, default)).replace(",", "."))
+    except Exception:
+        v = float(default)
+    return max(lo, min(hi, v))
+
+
+ctk.set_widget_scaling(_cfg_num("ui.scale", 1.0, 0.5, 2.0))
+
+UI_FONT_FAMILY = str(_gcfg.CFG.get("ui.font_family", "Segoe UI") or "Segoe UI")
+MONO_FAMILY = str(_gcfg.CFG.get("ui.mono_family", "Consolas") or "Consolas")
+UI_FONT_SIZE = int(_cfg_num("ui.font_size", 12, 8, 24))
+
+FONT = (UI_FONT_FAMILY, UI_FONT_SIZE)
+FONT_SMALL = (UI_FONT_FAMILY, UI_FONT_SIZE - 1)
+FONT_MONO = (MONO_FAMILY, UI_FONT_SIZE - 1)
+FONT_BOLD = (UI_FONT_FAMILY, UI_FONT_SIZE, "bold")
+FONT_SECTION = (UI_FONT_FAMILY, UI_FONT_SIZE + 1, "bold")
+FONT_TITLE = (UI_FONT_FAMILY, 22, "bold")
+FONT_PILL = (UI_FONT_FAMILY, UI_FONT_SIZE - 1, "bold")
+FONT_TINY = (UI_FONT_FAMILY, UI_FONT_SIZE - 2)
+FONT_ICON = (UI_FONT_FAMILY, UI_FONT_SIZE + 2, "bold")
 
 # 24.10: история путей общая для всех полей, привязана к смыслу ключом
 HISTORY_KEY = "gui.path_history"
@@ -149,7 +173,7 @@ class Tooltip:
         self.tip.wm_overrideredirect(True)
         tk.Label(self.tip, text=self.text, justify="left", bg=bg, fg=fg,
                  wraplength=self.wraplength, padx=10, pady=6,
-                 font=("Segoe UI", 10)).pack()
+                 font=FONT_TINY).pack()
         self.tip.update_idletasks()
         # 24.10: подсказка не уезжает за правый/нижний край экрана
         sw = self.widget.winfo_screenwidth()
@@ -242,7 +266,7 @@ class PathField(ctk.CTkFrame):
         # Для режима both «…» выбирает папку, отдельная кнопка «Файл» —
         # один файл (частая операция, терять её нельзя).
         b_pick = ctk.CTkButton(self, text="…", width=34, height=30,
-                               font=("Segoe UI", 14, "bold"),
+                               font=FONT_ICON,
                                command=browse_dir if self._mode in ("both", "dir")
                                else browse_file, **SMALL_BUTTON)
         b_pick.pack(side="left", padx=(0, 2))
@@ -341,7 +365,7 @@ class PathField(ctk.CTkFrame):
         return [r for r in rec if isinstance(r, str) and r][:HISTORY_LIMIT]
 
     def _show_recent(self):
-        menu = tk.Menu(self, tearoff=0, font=("Segoe UI", 10))
+        menu = tk.Menu(self, tearoff=0, font=FONT_TINY)
         rec = self._history_list()
         if not rec:
             menu.add_command(label="(нет недавних путей)", state="disabled")
@@ -488,7 +512,7 @@ class HelpBox(ctk.CTkFrame):
                          corner_radius=12)
         self.pack(fill="x", pady=(0, 12))
         lbl = ctk.CTkLabel(self, text="Как это работает",
-                           font=("Segoe UI", 12, "bold"),
+                           font=FONT_BOLD,
                            text_color=("#6d28d9", "#c4b5fd"),
                            anchor="w")
         lbl.pack(fill="x", padx=14, pady=(10, 0))
@@ -520,7 +544,7 @@ class Section(ctk.CTkFrame):
         self._pad = padding
         head = ctk.CTkFrame(self, fg_color="transparent")
         head.pack(fill="x", padx=padding, pady=(12, 2))
-        ctk.CTkLabel(head, text=title, font=("Segoe UI", 13, "bold"),
+        ctk.CTkLabel(head, text=title, font=FONT_SECTION,
                      anchor="w").pack(side="left")
         if subtitle:
             ctk.CTkLabel(head, text=subtitle, font=FONT_SMALL,
@@ -572,7 +596,7 @@ class ActionButton(ctk.CTkButton):
         style = ACTION_STYLES.get(kind, ACTION_STYLES["primary"])
         super().__init__(master, text=text, command=command,
                          width=width, height=height,
-                         font=("Segoe UI", 12, "bold"),
+                         font=FONT_BOLD,
                          fg_color=style["fg"], hover_color=style["hover"],
                          text_color=style["text"], corner_radius=8,
                          cursor="hand2")
@@ -645,7 +669,7 @@ class LogPanel(ctk.CTkFrame):
         except Exception:
             limit = 5000
         self._max_lines = max(500, min(100000, limit)) if limit else 5000
-        self._font = ctk.CTkFont(family="Consolas", size=self._font_size)
+        self._font = ctk.CTkFont(family=MONO_FAMILY, size=self._font_size)
         self._build()
 
     # --- сборка ---

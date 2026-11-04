@@ -175,6 +175,39 @@ class SettingsTab(ctk.CTkFrame):
                     "Старые строки сверх лимита убираются только из окна, "
                     "файлы не затрагиваются. По умолчанию 5000.")
         self.f_log_limit.pack(fill="x")
+        # 11.26: шрифт и масштаб интерфейса — применяются после перезапуска
+        self.f_ui_scale = EntryField(
+            s_view.inner, "Масштаб интерфейса:", "ui.scale", CFG,
+            width_label=170, placeholder="1.0",
+            tooltip="Масштаб всех элементов окна: от 0.5 до 2.0 "
+                    "(например 1.25 для больших мониторов). "
+                    "Применяется после перезапуска программы.")
+        self.f_ui_scale.pack(fill="x")
+        r_font = ctk.CTkFrame(s_view.inner, fg_color="transparent")
+        r_font.pack(fill="x")
+        self.f_font_family = EntryField(
+            r_font, "Шрифт интерфейса:", "ui.font_family", CFG,
+            width_label=170, placeholder="Segoe UI",
+            tooltip="Семейство шрифта интерфейса. Пусто = Segoe UI "
+                    "(стандарт Windows). Примеры: Arial, Tahoma. "
+                    "Применяется после перезапуска.")
+        self.f_font_family.pack(side="left", fill="x", expand=True,
+                                padx=(0, 12))
+        self.f_font_size = EntryField(
+            r_font, "Размер:", "ui.font_size", CFG,
+            width_label=70, placeholder="12",
+            tooltip="Базовый размер шрифта интерфейса: от 8 до 24 "
+                    "(по умолчанию 12; заголовки и подписи "
+                    "масштабируются от него). Применяется после "
+                    "перезапуска.")
+        self.f_font_size.pack(side="left")
+        self.f_mono_family = EntryField(
+            s_view.inner, "Шрифт журнала и путей:", "ui.mono_family", CFG,
+            width_label=170, placeholder="Consolas",
+            tooltip="Моноширинный шрифт журнала и полей путей. "
+                    "Пусто = Consolas. Альтернативы: Courier New, "
+                    "Lucida Console. Применяется после перезапуска.")
+        self.f_mono_family.pack(fill="x")
         CheckField(
             s_view.inner, "Спрашивать при закрытии во время работы",
             "confirm_close", CFG, default=True,
@@ -208,6 +241,11 @@ class SettingsTab(ctk.CTkFrame):
         self.f_report_dir.entry.bind("<FocusOut>", self._check_report_dir, add="+")
         self.f_log_limit.entry.bind("<FocusOut>", self._check_log_limit, add="+")
         self.f_cjk_ext.entry.bind("<FocusOut>", self._check_cjk_ext, add="+")
+        self.f_editor.entry.bind("<FocusOut>", self._check_editor, add="+")
+        self.f_ui_scale.entry.bind("<FocusOut>", self._check_ui_scale, add="+")
+        self.f_font_family.entry.bind("<FocusOut>", self._check_font_family, add="+")
+        self.f_font_size.entry.bind("<FocusOut>", self._check_font_size, add="+")
+        self.f_mono_family.entry.bind("<FocusOut>", self._check_mono_family, add="+")
 
         # --- Сохранение / сброс ---
         s3 = Section(parent, "Сохранение настроек")
@@ -408,6 +446,64 @@ class SettingsTab(ctk.CTkFrame):
         if p and not Path(p).is_file():
             self._log(f"Редактор не найден, файлы будут открыты "
                       f"по умолчанию: {p}\n", "warn")
+
+    def _check_ui_scale(self, _e=None):
+        # 11.26: масштаб 0.5–2.0; дробная часть — и с точкой, и с запятой
+        raw = self.f_ui_scale.get().strip().replace(",", ".")
+        if not raw:
+            return
+        try:
+            v = float(raw)
+        except ValueError:
+            self.f_ui_scale.set("1.0")
+            self._log("«Масштаб интерфейса»: нужно число от 0.5 до 2.0. "
+                      "Возвращено 1.0.\n", "warn")
+            return
+        if v < 0.5 or v > 2.0:
+            fixed = min(2.0, max(0.5, v))
+            self.f_ui_scale.set(str(fixed))
+            self._log(f"«Масштаб интерфейса»: диапазон 0.5–2.0, "
+                      f"поставлено {fixed}.\n", "warn")
+
+    def _check_font_family(self, _e=None):
+        # 11.26: шрифт проверяем мягко — неверное имя Tk подменит своим
+        name = self.f_font_family.get().strip()
+        if not name:
+            return
+        import tkinter.font
+        try:
+            root = self.winfo_toplevel()
+            families = set(tkinter.font.families(root))
+            if families and name not in families:
+                self._log(f"Шрифта «{name}» нет в системе — Tk подменит "
+                          "ближайшим. Проверьте написание.\n", "warn")
+        except Exception:
+            pass
+
+    def _check_font_size(self, _e=None):
+        # 11.26: базовый размер шрифта 8–24
+        raw = self.f_font_size.get().strip()
+        if not raw:
+            return
+        if not raw.isdigit() or not (8 <= int(raw) <= 24):
+            self.f_font_size.set("12")
+            self._log("«Размер шрифта»: целое число от 8 до 24. "
+                      "Возвращено 12.\n", "warn")
+
+    def _check_mono_family(self, _e=None):
+        # 11.26: моношрифт журнала — та же мягкая проверка
+        name = self.f_mono_family.get().strip()
+        if not name:
+            return
+        import tkinter.font
+        try:
+            root = self.winfo_toplevel()
+            families = set(tkinter.font.families(root))
+            if families and name not in families:
+                self._log(f"Шрифта «{name}» нет в системе — Tk подменит "
+                          "ближайшим. Проверьте написание.\n", "warn")
+        except Exception:
+            pass
 
     # --- о программе (24.10) ---
 
