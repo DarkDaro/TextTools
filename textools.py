@@ -22,6 +22,7 @@ textools — единый CLI текстовых инструментов.
   separators         чистка мусорных разделителей (///// **** =====)
   phrase-check       поиск и чистка фраз-штампов (--clean из консоли)
   yo                 ё/е-аудит: словарные пары, омографы, имена из реестра
+  export-docx        глава .md → Word .docx (для беты и редакторов)
   check-all          профиль «проверить всё»: 6 проверок одним прогоном
   antiresolve        АНТИРЕШИМОСТЬ: поиск/зачистка лексики и пафоса романа
   emoji-icons        эмодзи-иконки → SVG в HTML
@@ -255,6 +256,16 @@ def main():
                       help="печатать каждое вхождение (YO-строки)")
     p_yo.add_argument("--limit", type=int)
     p_yo.add_argument("--out", help="отчёт в .md")
+
+    # 05.11 (BACKLOG №4): экспорт главы Obsidian в Word для беты
+    p_exp = sub.add_parser("export-docx",
+                           help="глава .md → Word .docx (для беты)")
+    p_exp.add_argument("--input", required=True, help=".md файл или папка")
+    p_exp.add_argument("--out", required=True,
+                       help=".docx файл или папка результата")
+    p_exp.add_argument("--force", action="store_true",
+                       help="перезаписывать существующие .docx")
+    p_exp.add_argument("--limit", type=int)
 
     p17 = sub.add_parser("check-all",
                          help="профиль «проверить всё»: obsidian-check, cjk, "
@@ -502,6 +513,13 @@ def main():
                 *(["--limit", str(args.limit)] if args.limit is not None else []),
                 *(["--out", args.out] if args.out else [])]
         sys.exit(yo_audit.main(opts))
+    elif args.cmd == "export-docx":
+        sys.path.insert(0, str(here))
+        from tools import export_docx
+        sys.exit(export_docx.main(
+            ["--input", args.input, "--out", args.out,
+             *(["--force"] if args.force else []),
+             *(["--limit", str(args.limit)] if args.limit is not None else [])]))
     elif args.cmd == "check-all":
         sys.path.insert(0, str(here))
         from tools import full_check
