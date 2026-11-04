@@ -69,7 +69,10 @@ def run(input_path, registry_path, out_dir, limit=None, apply=False, update=Fals
         print(f"Реестр пуст или не найден: {registry_path}")
         return 1
     out = Path(out_dir)
-    out.mkdir(parents=True, exist_ok=True)
+    # 04.11: папка назначения создаётся только при реальной записи —
+    # раньше обзор создавал её даже без --apply
+    if apply:
+        out.mkdir(parents=True, exist_ok=True)
     print(f"РЕЖИМ: {'СОЗДАНИЕ/ДОПОЛНЕНИЕ' if apply else 'ТОЛЬКО ОБЗОР'}")
     created = updated = skipped = 0
     for c in chars:
@@ -86,19 +89,29 @@ def run(input_path, registry_path, out_dir, limit=None, apply=False, update=Fals
             skipped += 1
             continue
         if target.exists() and update:
-            old = target.read_text(encoding="utf-8")
+            try:
+                old = target.read_text(encoding="utf-8")
+            except (PermissionError, OSError, UnicodeDecodeError) as e:
+                print(f"  [ПРОПУСК] {target}: {e}")
+                skipped += 1
+                continue
             if body.strip() in old:
                 skipped += 1
                 continue
             if apply:
                 with open(target, "a", encoding="utf-8") as f:
                     f.write("\n\n" + body)
-            print(f"  [дополнен] {target}")
+                print(f"  [дополнен] {target}")
+            else:
+                # 04.11: в обзоре раньше печаталось «дополнен» без записи
+                print(f"  [будет дополнен] {target}")
             updated += 1
         else:
             if apply:
                 target.write_text(body, encoding="utf-8")
-            print(f"  [создан] {target} ({len(files_map)} файлов)")
+                print(f"  [создан] {target} ({len(files_map)} файлов)")
+            else:
+                print(f"  [будет создан] {target} ({len(files_map)} файлов)")
             created += 1
     print(f"\nИтого: создано {created}, дополнено {updated}, пропущено {skipped}")
     if not apply:
