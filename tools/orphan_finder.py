@@ -35,7 +35,8 @@ def build_incoming(notes, basenames, relpaths):
 
 
 def run(input_path, limit=None, verbose=False, out=None):
-    notes, basenames, relpaths = vs.scan_vault(input_path, limit=limit)
+    notes, basenames, relpaths, _attachments = vs.scan_vault(
+        input_path, limit=limit)
     has_incoming = build_incoming(notes, basenames, relpaths)
     orphans = [n for n in notes
                if not n.links  # нет исходящих

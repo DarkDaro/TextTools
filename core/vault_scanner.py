@@ -39,14 +39,18 @@ class Note:
 
 def scan_vault(vault, exts=(".md",), limit=None):
     """
-    Сканирует vault, возвращает (notes, basenames, relpaths):
+    Сканирует vault, возвращает (notes, basenames, relpaths, attachments):
       notes: list[Note]
-      basenames: set имён файлов без .md (lower) — существующие цели
+      basenames: set имён .md-файлов без .md (lower) — существующие цели
       relpaths: set относительных путей без .md (lower)
+      attachments: set имён и rel-путей прочих файлов (вложения, .canvas,
+        lower, с расширением) — цели ![[…]] и [[x.png]] для broken_links.
+        Собирается в том же проходе; при --limit — до лимита.
     """
     vault = Path(vault)
     basenames = set()
     relpaths = set()
+    attachments = set()
     md_files = []
     count = 0
     # 18.09: один файл как вход — иначе rglob по файлу даёт пустоту
@@ -56,6 +60,13 @@ def scan_vault(vault, exts=(".md",), limit=None):
         candidates = [(f, f.relative_to(vault)) for f in sorted(vault.rglob("*"))]
     for f, rel in candidates:
         if not f.is_file() or f.suffix.lower() != ".md":
+            # 04.11: не-markdown файлы — вложения; индекс имён нужен,
+            # иначе все ![[картинка.png]] попадают в битые ссылки
+            if f.is_file() and f.suffix.lower() != ".md" \
+                    and not (set(f.parts) & SKIP_DIRS):
+                attachments.add(f.name.lower())
+                attachments.add(
+                    str(rel).replace("\\", "/").lower())
             continue
         if set(f.parts) & SKIP_DIRS:
             continue
@@ -90,7 +101,7 @@ def scan_vault(vault, exts=(".md",), limit=None):
         except Exception:
             pass
         notes.append(Note(f, str(rel), links, hash_))
-    return notes, basenames, relpaths
+    return notes, basenames, relpaths, attachments
 
 
 def hashlib_md5(text):
@@ -98,12 +109,14 @@ def hashlib_md5(text):
     return hashlib.md5(text.encode("utf-8")).hexdigest()
 
 
-def is_resolved(target, basenames, relpaths):
-    """Ссылка считается рабочей, если цель существует по пути или по имени."""
-    if target in relpaths:
+def is_resolved(target, basenames, relpaths, attachments=frozenset()):
+    """Ссылка считается рабочей, если цель существует по пути или по имени.
+    attachments — имена/пути прочих файлов (вложения): 04.11 ссылки
+    ![[файл.png]] и [[x.canvas]] больше не считаются битыми."""
+    if target in relpaths or target in attachments:
         return True
     base = target.rsplit("/", 1)[-1]
-    return base in basenames
+    return base in basenames or base in attachments
 
 
 def incoming_filter(notes, target_note, basenames, relpaths):
