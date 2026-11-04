@@ -74,6 +74,15 @@ def near_duplicates(notes, threshold=NEAR_THRESHOLD):
 
 
 def _note_text(note):
+    # 05.11: docx — бинарный zip; сырые байты через read_any давали
+    # мусорный «текст», и два любых Word-файла получали ложный
+    # Жаккар 1.0 («близкие дубликаты»). Читаем через docx_io.
+    if note.path.suffix.lower() == ".docx":
+        from core import docx_io
+        try:
+            return docx_io.read_text(note.path) or ""
+        except Exception:
+            return ""
     try:
         return note.path.read_text(encoding="utf-8")
     except (UnicodeDecodeError, PermissionError, OSError):
@@ -82,9 +91,43 @@ def _note_text(note):
         return t or ""
 
 
+def _extra_text_notes(input_path, limit=None):
+    """05.11: txt/docx участвуют в поиске дубликатов — главы в Word
+    раньше выпадали совсем (scan_vault собирает только .md, он нужен
+    Obsidian-инструментам в md-виде и не трогается). Ссылки не
+    извлекаются: docx-главы не участвуют в вики-графе.
+    Возвращает list[Note]."""
+    from core import docx_io
+    from core import encoding as _enc
+    root = Path(input_path)
+    if root.is_file():
+        root = root.parent
+    extra = []
+    for f in tp.iter_text_files(input_path, limit=limit):
+        if f.suffix.lower() == ".md":
+            continue  # .md уже собрал scan_vault
+        try:
+            if f.suffix.lower() == ".docx":
+                text = docx_io.read_text(f) or ""
+            else:
+                text, _e = _enc.read_any(f)
+                text = text or ""
+        except Exception:  # битый/занятый файл — попадёт в список без хеша
+            text = ""
+        rel = str(f.relative_to(root)).replace("\\", "/")
+        norm = "\n".join(text.split()) if text else ""
+        hash_ = vs.hashlib_md5(norm) if norm else None
+        extra.append(vs.Note(f, rel, set(), hash_))
+    return extra
+
+
 def run(input_path, limit=None, verbose=False, out=None, json_out=None):
     notes, basenames, relpaths, _attachments = vs.scan_vault(
         input_path, limit=limit)
+    # 05.11: txt/docx — в дубликаты (главы в Word раньше выпадали)
+    extra = _extra_text_notes(input_path, limit=limit)
+    notes = notes + extra
+    n_md = len(notes) - len(extra)
 
     # 1. точные дубликаты по нормализованному содержимому
     by_hash = {}
@@ -93,10 +136,12 @@ def run(input_path, limit=None, verbose=False, out=None, json_out=None):
             by_hash.setdefault(n.hash, []).append(n)
     dup_content = [(h, g) for h, g in by_hash.items() if len(g) > 1]
 
-    # 2. одинаковые имена файлов в разных папках
+    # 2. одинаковые имена файлов в разных папках; ключ (stem, суффикс):
+    # «глава.md» и «глава.docx» рядом — не кандидаты на слияние, а
+    # заметка и её Word-исходник
     by_stem = {}
     for n in notes:
-        by_stem.setdefault(n.stem, []).append(n)
+        by_stem.setdefault((n.stem, n.path.suffix.lower()), []).append(n)
     dup_names = [(s, g) for s, g in by_stem.items() if len(g) > 1]
 
     # 3. близкие дубликаты (шинглы/Жаккар, 01.10)
@@ -104,7 +149,10 @@ def run(input_path, limit=None, verbose=False, out=None, json_out=None):
     near = [(a, b, j) for a, b, j in near_duplicates(notes)
             if a not in dups_exact or b not in dups_exact]
 
-    print(f"Заметок: {len(notes)}")
+    label = f"Заметок: {n_md}"
+    if extra:
+        label += f" (+{len(extra)} txt/docx)"
+    print(label)
     print(f"Дубликатов по содержимому: {len(dup_content)} групп")
     print(f"Одинаковых имён в разных папках: {len(dup_names)} групп")
     print(f"Близких дубликатов (>= {NEAR_THRESHOLD:.0%}): {len(near)} пар")
@@ -134,7 +182,10 @@ def run(input_path, limit=None, verbose=False, out=None, json_out=None):
                 lines.append(f"  - {n.rel}")
         lines += ["", f"## Одинаковые имена: {len(dup_names)} групп", ""]
         for s, g in dup_names:
-            lines.append(f"- \"{s}\" ({len(g)} шт.)")
+            # 05.11: s — (stem, суффикс); у md суффикс не показываем,
+            # чтобы вид отчёта не менялся
+            name = s[0] if s[1] == ".md" else f"{s[0]}{s[1]}"
+            lines.append(f"- \"{name}\" ({len(g)} шт.)")
             for n in g:
                 lines.append(f"  - {n.rel}")
         lines += ["", f"## Близкие дубликаты: {len(near)} пар", ""]
@@ -150,7 +201,8 @@ def run(input_path, limit=None, verbose=False, out=None, json_out=None):
             "notes": len(notes),
             "dup_content": [{"hash": h[:8], "files": [n.rel for n in g]}
                             for h, g in dup_content],
-            "dup_names": [{"name": s, "files": [n.rel for n in g]}
+            "dup_names": [{"name": s[0], "ext": s[1],
+                           "files": [n.rel for n in g]}
                           for s, g in dup_names],
             "near": [{"a": a.rel, "b": b.rel, "jaccard": j}
                      for a, b, j in near],
