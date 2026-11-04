@@ -19,6 +19,10 @@ full_check — профиль «проверить всё»: шесть пров
 
 JSON (--json) — агрегат всех шести проверок:
 {"tool": "check-all", "input", "serious", "checks": {имя: {...}}}.
+
+05.11 (--out, BACKLOG №5): человеческая md-сводка в файл — журнал
+проекта: «проверено тогда-то, найдено то-то» приложить к главе.
+«--out -» печатает md в stdout.
 """
 import argparse
 import json
@@ -29,7 +33,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
-def run(input_path, limit=None, exit_zero=False, json_out=None):
+def run(input_path, limit=None, exit_zero=False, json_out=None, out=None):
     if not Path(input_path).exists():
         print(f"Путь не найден: {input_path}", file=sys.stderr)
         return 2
@@ -41,13 +45,14 @@ def run(input_path, limit=None, exit_zero=False, json_out=None):
     if to_stdout:
         sys.stdout = sys.stderr
     try:
-        return _run(input_path, limit, exit_zero, json_out, _real_stdout)
+        return _run(input_path, limit, exit_zero, json_out, _real_stdout,
+                    out=out)
     finally:
         sys.stdout = _real_stdout
 
 
 def _run(input_path, limit=None, exit_zero=False, json_out=None,
-         out_stream=None):
+         out_stream=None, out=None):
     from tools import obsidian_check, integrity_check, merge_finder
     from tools import phrase_check, antiresolve
     from find_cjk import main as cjk_main
@@ -142,9 +147,103 @@ def _run(input_path, limit=None, exit_zero=False, json_out=None,
         else:
             write_json(json_out, payload)
             print(f"JSON-отчёт: {json_out}")
+    if out:
+        # 05.11 (BACKLOG №5): md-сводка в журнал проекта
+        from core.report import write_report
+        write_report(out, build_md(input_path, checks, serious))
+        print(f"md-отчёт: {out}")
     if serious and not exit_zero:
         return 1
     return 0
+
+
+def _md_section(lines, title, rows, empty="не найдено", limit=40):
+    """Секция md-отчёта: заголовок + строки; пустая секция — честное
+    «не найдено», а не пропуск. rows — готовые md-строки (с «- »)."""
+    lines.append(f"## {title}")
+    if rows:
+        lines.extend(rows[:limit])
+        if len(rows) > limit:
+            lines.append(f"- ... ещё {len(rows) - limit}")
+    else:
+        lines.append(f"- {empty}.")
+    lines.append("")
+
+
+def build_md(input_path, checks, serious):
+    """05.11 (BACKLOG №5): человекочитаемая md-сводка шести проверок
+    для журнала проекта. Только компоновка уже собранных данных."""
+    from datetime import datetime
+    findings = checks["obsidian-check"]["findings"]
+    obs_err = [f for f in findings if f["severity"] == "ERROR"]
+    obs_other = len(findings) - len(obs_err)
+    cjk_results = checks["cjk"].get("results", {})
+    cjk_n = sum(len(v) for v in cjk_results.values())
+    problems = checks["integrity"]["problems"]
+    dup_content = checks["merge-finder"]["dup_content"]
+    dup_names = checks["merge-finder"]["dup_names"]
+    near = checks["merge-finder"]["near"]
+    ph = checks["phrase-check"]
+    ph_hits = ph.get("hits", {})
+    ar = checks["antiresolve"]
+
+    L = ["# Проверить всё — сводка", "",
+         f"Дата: {datetime.now().strftime('%Y-%m-%d %H:%M')}  ",
+         f"Источник: {input_path}", "",
+         "| Проверка | Итог |",
+         "|---|---|",
+         f"| obsidian-check | {len(obs_err)} ERROR, {obs_other} прочих |",
+         f"| иероглифы/кодировки | {cjk_n} вхождений |",
+         f"| целостность | {len(problems)} проблем |",
+         f"| дубликаты | {len(dup_content) + len(dup_names)} групп, "
+         f"{len(near)} близких пар |",
+         f"| штампы ИИ | {ph.get('total', 0)} вхождений |",
+         f"| АНТИРЕШИМОСТЬ | {ar.get('всего', 0)} вхождений, "
+         f"hard {ar.get('hard', 0)} |",
+         "",
+         "Серьёзные замечания: "
+         + ("есть — раздел «Серьёзное» ниже." if serious else "нет."),
+         ""]
+
+    _md_section(L, "obsidian-check — ERROR",
+                [f"- [{f['code']}] {f['file']} — {f['message']}"
+                 for f in obs_err])
+    _md_section(L, "Иероглифы и порча кодировки",
+                [f"- {rel}: {len(items)} вхожд. "
+                 f"({', '.join(sorted({i.get('range', '?') for i in items}))})"
+                 for rel, items in sorted(cjk_results.items(),
+                                          key=lambda kv: -len(kv[1]))])
+    _md_section(L, "Целостность заметок",
+                [f"- {p['file']} — {p['issue']}" for p in problems])
+
+    merge_rows = []
+    for g in dup_content:
+        merge_rows.append(f"- по содержимому [{g['hash']}]: "
+                          + ", ".join(g["files"]))
+    for g in dup_names:
+        merge_rows.append(f"- по имени «{g['name']}{g['ext']}»: "
+                          + ", ".join(g["files"]))
+    for pair in near:
+        merge_rows.append(f"- близкая пара: {pair['a']} ↔ {pair['b']} "
+                          f"(схожесть {pair['jaccard']})")
+    _md_section(L, "Дубликаты (на усмотрение)", merge_rows, limit=15)
+
+    ph_rows = []
+    for phrase, lst in sorted(ph_hits.items(),
+                              key=lambda kv: -sum(c["count"]
+                                                  for c in kv[1])):
+        s = sum(c["count"] for c in lst)
+        ph_rows.append(f"- «{phrase}» — {s} вхожд., "
+                       f"{len(lst)} файл(ов)")
+    _md_section(L, f"Штампы ИИ (всего {ph.get('total', 0)})",
+                ph_rows, empty="штампов не найдено — текст чистый",
+                limit=20)
+
+    _md_section(L, "АНТИРЕШИМОСТЬ (на усмотрение)",
+                [f"- {cat}: {n}"
+                 for cat, n in ar.get("по_категориям", {}).items()],
+                empty="находок нет")
+    return "\n".join(L) + "\n"
 
 
 def main(argv=None):
@@ -156,9 +255,12 @@ def main(argv=None):
     ap.add_argument("--json", dest="json_out",
                     help="сохранить сводку всех проверок в JSON "
                          "(«-» — в stdout)")
+    ap.add_argument("--out",
+                    help="человекочитаемая md-сводка в файл "
+                         "(«-» — в stdout)")
     args = ap.parse_args(argv)
     return run(args.input, limit=args.limit, exit_zero=args.exit_zero,
-               json_out=args.json_out)
+               json_out=args.json_out, out=args.out)
 
 
 if __name__ == "__main__":

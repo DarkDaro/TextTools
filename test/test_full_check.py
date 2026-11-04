@@ -98,3 +98,38 @@ def test_json_stdout_is_pure(tmp_path, capsys):
     assert data["tool"] == "check-all"
     assert data["serious"] is True
     assert "СВОДКА" in captured.err  # человеческая сводка не потеряна
+
+
+def test_md_out_written(tmp_path):
+    # 05.11 (BACKLOG №5): --out — человекочитаемая md-сводка шести
+    # проверок в файл-журнал
+    (tmp_path / "плохо.md").write_text(
+        "## Ок\n\n```\nнезакрытый\n\nСтоит отметить, что всё плохо.\n",
+        encoding="utf-8")
+    out = tmp_path / "журнал" / "сводка.md"
+    full_check.run(str(tmp_path), out=str(out))
+    text = out.read_text(encoding="utf-8")
+    assert text.startswith("# Проверить всё — сводка")
+    assert "| Проверка | Итог |" in text
+    assert "FENCE_UNCLOSED" in text  # ERROR валидатора попал в раздел
+    assert "стоит отметить, что" in text  # штампы перечислены
+    assert "Серьёзные замечания: есть" in text
+
+
+def test_md_out_clean_vault(tmp_path):
+    (tmp_path / "ок.md").write_text("## Заголовок\n\nТекст.\n",
+                                    encoding="utf-8")
+    out = tmp_path / "сводка.md"
+    full_check.run(str(tmp_path), out=str(out))
+    text = out.read_text(encoding="utf-8")
+    assert "Серьёзные замечания: нет." in text
+    assert "не найдено" in text  # пустые секции честные, не пропущены
+
+
+def test_md_out_stdout(capsys, tmp_path):
+    # «--out -» печатает md в stdout
+    (tmp_path / "ок.md").write_text("## Заголовок\n\nТекст.\n",
+                                    encoding="utf-8")
+    full_check.run(str(tmp_path), out="-")
+    captured = capsys.readouterr()
+    assert "# Проверить всё — сводка" in captured.out
