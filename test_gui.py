@@ -7,6 +7,7 @@
 
 Запуск: py -3.14 test_gui.py
 """
+import importlib.util
 import sys
 import tempfile
 import time
@@ -19,7 +20,24 @@ sys.path.insert(0, str(HERE))
 import customtkinter as ctk
 
 import gui_config
-import gui_ctk
+
+
+def _load_gui_ctk():
+    """gui_ctk лежит .pyw-файлом — обычный import его не видит
+    (.pyw есть в суффиксах исходников только на Windows)."""
+    from importlib.machinery import SourceFileLoader
+    path = str(HERE / "gui_ctk.pyw")
+    loader = SourceFileLoader("gui_ctk", path)
+    spec = importlib.util.spec_from_loader("gui_ctk", loader)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["gui_ctk"] = mod
+    loader.exec_module(mod)
+    return mod
+
+
+# 04.11: раньше test_gui требовал симлинк gui_ctk.py — без него падала
+# даже коллекция pytest. Грузим тем же способом, что и test_settings.
+gui_ctk = _load_gui_ctk()
 
 CONFIG = HERE / "gui_config.json"
 
