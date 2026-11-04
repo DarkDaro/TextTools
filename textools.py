@@ -150,7 +150,7 @@ def main():
     p_cjk.add_argument("--ext", default="",
                        help="расширения через запятую, например .md,.txt")
     p_cjk.add_argument("--json", dest="json_out", default="",
-                       help="сохранить полный отчёт в JSON")
+                       help="сохранить полный отчёт в JSON («-» — в stdout)")
     p_cjk.add_argument("--quiet", action="store_true", help="только итог, без деталей")
     # 04.11: код 1 у cjk — штатные находки; флаг для скриптов и GUI
     p_cjk.add_argument("--exit-zero", action="store_true",

@@ -95,3 +95,17 @@ def test_write_json_to_stdout(capsys):
     data = json.loads(capsys.readouterr().out)
     assert data["tool"] == "тест"
     assert data["items"] == ["а", "б"]
+
+
+def test_cjk_json_stdout(tmp_path, capsys):
+    # 05.11: «--json -» — stdout целиком под JSON, отчёт уходит в stderr;
+    # раньше создавался файл с именем «-», stdout оставался смесью текста
+    from find_cjk import main as cjk_main
+    (tmp_path / "чисто.md").write_text("без иероглифов\n", encoding="utf-8")
+    code = cjk_main([str(tmp_path), "--json", "-", "--quiet"])
+    assert code == 0
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)  # stdout — только JSON, иначе упадёт
+    assert data["results"] == {}
+    assert data["scanned"] == 1
+    assert "ЧИСТО" in captured.err  # человеческий отчёт не потерян

@@ -151,7 +151,8 @@ def main(argv=None) -> int:
     )
     parser.add_argument("path", nargs="?", default=".", help="папка или файл (по умолчанию текущая)")
     parser.add_argument("--ext", default="", help="расширения через запятую, например .md,.txt")
-    parser.add_argument("--json", dest="json_out", default="", help="сохранить полный отчёт в JSON")
+    parser.add_argument("--json", dest="json_out", default="",
+                        help="сохранить полный отчёт в JSON «-» — в stdout")
     parser.add_argument("--quiet", action="store_true", help="только итог, без деталей")
     # 25.10: для CLI и внешних проверок; GUI сам трактует код 1
     parser.add_argument("--exit-zero", action="store_true",
@@ -163,6 +164,12 @@ def main(argv=None) -> int:
     if not root.exists():
         print(f"Путь не найден: {root}", file=sys.stderr)
         return 2
+
+    # 05.11: «--json -» — stdout целиком под JSON, человеческий отчёт
+    # уходит в stderr; конвейеры (jq и т.п.) получают чистый JSON без примесей
+    _real_stdout = sys.stdout
+    if str(args.json_out).strip() == "-":
+        sys.stdout = sys.stderr
 
     if args.ext:
         exts = tuple(e.strip().lower() if e.startswith(".") else "." + e.strip().lower()
@@ -226,7 +233,13 @@ def main(argv=None) -> int:
 
     total_findings = sum(len(v) for v in results.values())
 
+    # 05.11: «-» вместо пути печатает JSON в stdout, как у остальных
+    # проверок (core.report.write_json) — раньше создавался файл с именем «-»
     def write_json(payload: dict) -> None:
+        if str(args.json_out).strip() == "-":
+            print(json.dumps(payload, ensure_ascii=False, indent=2),
+                  file=_real_stdout)
+            return
         out = Path(args.json_out)
         if out.parent and not out.parent.exists():
             out.parent.mkdir(parents=True, exist_ok=True)
@@ -243,6 +256,7 @@ def main(argv=None) -> int:
             write_json({"root": str(root), "scanned": total_files,
                         "stopped": stopped, "results": {}})
         # 04.11: прерванный прогон больше не неотличим от «чисто»
+        sys.stdout = _real_stdout
         return 2 if stopped else 0
 
     print()
@@ -272,8 +286,10 @@ def main(argv=None) -> int:
             "results": results,
         }
         write_json(report)
-        print(f"Полный отчёт: {args.json_out}")
+        if str(args.json_out).strip() != "-":
+            print(f"Полный отчёт: {args.json_out}")
 
+    sys.stdout = _real_stdout
     return 0 if args.exit_zero else 1
 
 
