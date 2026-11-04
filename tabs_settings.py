@@ -96,8 +96,8 @@ class SettingsTab(ctk.CTkFrame):
         s2 = Section(parent, "Общее")
         self.f_default_vault = PathField(
             s2.inner, "Vault по умолчанию:", "default_vault", CFG, file_mode="dir",
-            tooltip="Подставляется в поля хранилища на других вкладках, "
-                    "если они пустые.")
+            tooltip="Подставляется в пустые поля папок на других вкладках "
+                    "(тексты, хранилище, проверки).")
         ctk.CTkLabel(s2.inner, anchor="w", font=FONT_SMALL,
                      text_color=("gray45", "gray60"),
                      text="Пусто = поля хранилища остаются пустыми."
@@ -690,7 +690,10 @@ class SettingsTab(ctk.CTkFrame):
         added = 0
         for key, field in self._script_fields.items():
             p = found.get(key)
-            if p and (force or not field.get()):
+            # 04.11: устаревший путь (файла больше нет) обновляется,
+            # рабочий ручной путь не трогается
+            stale = bool(field.get()) and not Path(field.get()).is_file()
+            if p and (force or not field.get() or stale):
                 field.set(p)
                 added += 1
         available = 0
