@@ -21,6 +21,7 @@ textools — единый CLI текстовых инструментов.
   whitespace         чистка пробелов и пустых строк
   separators         чистка мусорных разделителей (///// **** =====)
   phrase-check       поиск и чистка фраз-штампов (--clean из консоли)
+  yo                 ё/е-аудит: словарные пары, омографы, имена из реестра
   check-all          профиль «проверить всё»: 6 проверок одним прогоном
   antiresolve        АНТИРЕШИМОСТЬ: поиск/зачистка лексики и пафоса романа
   emoji-icons        эмодзи-иконки → SVG в HTML
@@ -238,6 +239,19 @@ def main():
                      help="не делать бэкапы при чистке")
     p16.add_argument("--json", dest="json_out",
                      help="отчёт поиска в JSON («-» — в stdout)")
+
+    # 05.11: ё/е-аудит был в GUI и прямым вызовом tools/yo_audit.py,
+    # а в textools.py подкоманды не было — по --help команду не найти
+    p_yo = sub.add_parser("yo", help="ё/е-аудит: словарные пары, "
+                                     "омографы, имена из реестра")
+    p_yo.add_argument("--input", required=True,
+                      help="папка или файл .md/.txt/.docx")
+    p_yo.add_argument("--registry", help="реестр персонажей (yaml)")
+    p_yo.add_argument("--dict", dest="dict_", help="свой словарь пар (yaml)")
+    p_yo.add_argument("--review", action="store_true",
+                      help="печатать каждое вхождение (YO-строки)")
+    p_yo.add_argument("--limit", type=int)
+    p_yo.add_argument("--out", help="отчёт в .md")
 
     p17 = sub.add_parser("check-all",
                          help="профиль «проверить всё»: obsidian-check, cjk, "
@@ -460,6 +474,16 @@ def main():
         if args.json_out:
             opts += ["--json", args.json_out]
         sys.exit(phrase_check.main(opts))
+    elif args.cmd == "yo":
+        sys.path.insert(0, str(here))
+        from tools import yo_audit
+        opts = ["--input", args.input,
+                *(["--registry", args.registry] if args.registry else []),
+                *(["--dict", args.dict_] if args.dict_ else []),
+                *(["--review"] if args.review else []),
+                *(["--limit", str(args.limit)] if args.limit is not None else []),
+                *(["--out", args.out] if args.out else [])]
+        sys.exit(yo_audit.main(opts))
     elif args.cmd == "check-all":
         sys.path.insert(0, str(here))
         from tools import full_check
