@@ -21,7 +21,8 @@ textools — единый CLI текстовых инструментов.
   whitespace         чистка пробелов и пустых строк
   separators         чистка мусорных разделителей (///// **** =====)
   phrase-check       поиск и чистка фраз-штампов (--clean из консоли)
-  check-all          профиль «проверить всё»: 4 проверки одним прогоном
+  check-all          профиль «проверить всё»: 6 проверок одним прогоном
+  antiresolve        АНТИРЕШИМОСТЬ: поиск/зачистка лексики и пафоса романа
   emoji-icons        эмодзи-иконки → SVG в HTML
   restore            обзор/восстановление из бэкапов
   archive-backups    архивация старых бэкапов
@@ -240,7 +241,8 @@ def main():
 
     p17 = sub.add_parser("check-all",
                          help="профиль «проверить всё»: obsidian-check, cjk, "
-                              "integrity, merge-finder одним прогоном")
+                              "integrity, merge-finder, штампы и "
+                              "АНТИРЕШИМОСТЬ (скан) одним прогоном")
     p17.add_argument("--input", required=True)
     p17.add_argument("--limit", type=int)
     p17.add_argument("--exit-zero", action="store_true",
