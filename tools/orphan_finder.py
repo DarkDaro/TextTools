@@ -14,14 +14,21 @@ from core import vault_scanner as vs
 
 def build_incoming(notes, basenames, relpaths):
     """01.10 (СЛ7): set заметок, на которые есть хотя бы одна входящая
-    ссылка. O(всех ссылок) вместо O(n^2) попарных проверок."""
+    ссылка. O(всех ссылок) вместо O(n^2) попарных проверок.
+
+    04.11: цель матчится и по полному пути, и по имени файла — ссылки
+    [[Имя]] без папки больше не помечают заметку как orphan."""
     by_target = {}
+    by_base = {}  # vault_scanner возвращает stem уже в нижнем регистре
     for n in notes:
         by_target.setdefault(str(n.rel).removesuffix(".md").lower(), n)
+        by_base.setdefault(n.stem, n)
     has_incoming = set()
     for n in notes:
         for t in n.links:
-            target = by_target.get(t) or by_target.get(t.rsplit("/", 1)[-1])
+            target = by_target.get(t)
+            if target is None:
+                target = by_base.get(t.rsplit("/", 1)[-1])
             if target is not None and target is not n:
                 has_incoming.add(target)
     return has_incoming
