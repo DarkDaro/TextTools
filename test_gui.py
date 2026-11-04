@@ -8,6 +8,8 @@
 Запуск: py -3.14 test_gui.py
 """
 import importlib.util
+import os
+import shutil
 import sys
 import tempfile
 import time
@@ -97,7 +99,20 @@ def main():
     global _config_bytes
     _config_bytes = CONFIG.read_bytes() if CONFIG.exists() else None
     app = None
+    scripts_root = None
     try:
+        # 04.11: герметичные условия. Заглушка внешнего скрипта — раньше
+        # проверка «все» не уходит как имя» зависела от настроенных
+        # скриптов автора; старые пути <key>_recent — теперь они только
+        # читаются как запасной вариант (миграция в gui.path_history).
+        scripts_root = Path(tempfile.mkdtemp(prefix="tt_scripts_"))
+        (scripts_root / "char_search.py").write_text(
+            '"""Поиск персонажей (заглушка теста)."""\n'
+            'import sys\n'
+            'print("--vault", sys.argv)\n', encoding="utf-8")
+        os.environ["TEXTOOLS_SCRIPTS_DIR"] = str(scripts_root)
+        gui_config.CFG.set("names_input_recent",
+                           [f"C:/old/path_{i}" for i in range(5)])
         app = gui_ctk.App()
         for _ in range(6):
             app.update()
@@ -153,11 +168,24 @@ def main():
             gui_ctk.run_cmd = orig_cmd
             app.begin_run = orig_begin
 
+        # 04.11: условие герметичное — заглушка char_search установлена
+        # через TEXTOOLS_SCRIPTS_DIR, запуск прямой: «все» в поле
+        # персонажа должно означать «проверить всех», а не имя.
+        repl_tab = app._tabs["Замены"]
+        gui_ctk.run_cmd = fake_cmd  # после цикла кликов подмена снята
+        try:
+            repl_tab.f_cs_vault.set("C:/tmp/cs_vault")
+            repl_tab.f_cs_char.set("все")
+            repl_tab._run_char_search()
+        finally:
+            gui_ctk.run_cmd = orig_cmd
         char_calls = [c for c in calls if c[0] == "cmd"
                       and any("char_search" in str(x) for x in c[1])]
         check("«все» не уходит как имя персонажа",
               bool(char_calls) and all("все" not in c[1] for c in char_calls),
               str(char_calls[:1]))
+        repl_tab.f_cs_char.set("")
+        repl_tab.f_cs_vault.set("")
 
         # 24.10: кнопка реальной записи краснеет по галочке «Применить»
         repl = app._tabs["Замены"]
@@ -237,8 +265,12 @@ def main():
         check("история в gui.path_history",
               isinstance(stored, dict) and stored.get("vault_input"),
               str(type(stored)))
+        # 04.11: старый ключ <key>_recent больше не пишется, но должен
+        # читаться: поле имён видит старую историю после обновления.
+        names_hist = app._tabs["Имена персонажей"].f_input._history_list()
         check("старые 5 путей не потерялись",
-              isinstance(gui_config.CFG.get("names_input_recent"), list))
+              len(names_hist) == 5 and names_hist[0] == "C:/old/path_0",
+              str(names_hist[:2]))
 
         print("[6] журнал")
         log = app._log_panel
@@ -591,6 +623,9 @@ def main():
         failures.append("исключение")
         traceback.print_exc()
     finally:
+        os.environ.pop("TEXTOOLS_SCRIPTS_DIR", None)
+        if scripts_root is not None:
+            shutil.rmtree(scripts_root, ignore_errors=True)
         if app is not None:
             try:
                 app.destroy()
