@@ -144,7 +144,8 @@ FONT_ICON = (UI_FONT_FAMILY, UI_FONT_SIZE + 2, "bold")
 
 # 24.10: история путей общая для всех полей, привязана к смыслу ключом
 HISTORY_KEY = "gui.path_history"
-HISTORY_LIMIT = 10
+HISTORY_LIMIT = 10          # 11.26: дефолт; настраивается (path_history_limit,
+                            # 3–50) — поле на вкладке «Настройки» → «Вид и журнал»
 
 # 11.26: реестр полей путей по ключу конфига. Два поля на одном ключе
 # (например md_vault в секциях 1 и 2 вкладки «Замены») синхронизируются
@@ -281,7 +282,8 @@ class PathField(ctk.CTkFrame):
         b_recent = ctk.CTkButton(self, text="▾", width=28, height=30,
                                  command=self._show_recent, **SMALL_BUTTON)
         b_recent.pack(side="left", padx=(0, 2))
-        Tooltip(b_recent, "Недавние пути этого поля (последние 10).")
+        Tooltip(b_recent, "Недавние пути этого поля (последние "
+                          f"{self._history_limit()}).")
         self._recent_btn = b_recent
         # 02.10: drag&drop папки/файла прямо в поле
         if DND_ENABLED:
@@ -335,10 +337,19 @@ class PathField(ctk.CTkFrame):
         и автотестам)."""
         self._set(p)
 
+    def _history_limit(self):
+        """11.26: лимит истории из настройки path_history_limit (3–50)."""
+        try:
+            v = int(float(str(self.cfg.get(
+                "path_history_limit", HISTORY_LIMIT) or HISTORY_LIMIT)))
+        except Exception:
+            v = HISTORY_LIMIT
+        return max(3, min(50, v))
+
     def _remember(self, p):
-        """24.10: путь в общую историю поля (10 последних, без дублей,
-        свежие сверху). Хранение — CFG gui.path_history по смыслу поля;
-        старый ключ <key>_recent читается как запасной вариант."""
+        """24.10: путь в общую историю поля (без дублей, свежие сверху).
+        Хранение — CFG gui.path_history по смыслу поля; старый ключ
+        <key>_recent читается как запасной вариант."""
         try:
             hist = self.cfg.get(HISTORY_KEY)
             hist = dict(hist) if isinstance(hist, dict) else {}
@@ -346,7 +357,7 @@ class PathField(ctk.CTkFrame):
             if p in rec:
                 rec.remove(p)
             rec.insert(0, p)
-            hist[self.key] = rec[:HISTORY_LIMIT]
+            hist[self.key] = rec[:self._history_limit()]
             self.cfg.set(HISTORY_KEY, hist)
         except Exception:
             pass
@@ -362,7 +373,8 @@ class PathField(ctk.CTkFrame):
         if not isinstance(rec, list):
             legacy = self.cfg.get(f"{self.key}_recent")
             rec = list(legacy) if isinstance(legacy, list) else []
-        return [r for r in rec if isinstance(r, str) and r][:HISTORY_LIMIT]
+        return [r for r in rec if isinstance(r, str) and r][
+            :self._history_limit()]
 
     def _show_recent(self):
         menu = tk.Menu(self, tearoff=0, font=FONT_TINY)

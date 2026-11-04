@@ -132,6 +132,28 @@ class SettingsTab(ctk.CTkFrame):
                     "других ОС.")
         self.f_editor.pack(fill="x")
         self.f_editor.entry.bind("<FocusOut>", self._check_editor, add="+")
+        # 11.26: поведенческие тайминги из жёстких констант — в настройки
+        self.f_toast_ms = EntryField(
+            s2.inner, "Тост, мс:", "toast_ms", CFG,
+            width_label=230, placeholder="4200",
+            tooltip="Сколько висит всплывающее сообщение: 1500–15000 мс "
+                    "(по умолчанию 4200). Применяется к следующим тостам "
+                    "без перезапуска.")
+        self.f_toast_ms.pack(fill="x")
+        self.f_stop_wait = EntryField(
+            s2.inner, "Ожидание «Стоп», сек:", "stop_wait_sec", CFG,
+            width_label=230, placeholder="15",
+            tooltip="Сколько программа ждёт окончания текущего файла после "
+                    "нажатия «Стоп» перед принудительной остановкой: "
+                    "5–60 (по умолчанию 15).")
+        self.f_stop_wait.pack(fill="x")
+        self.f_review_to = EntryField(
+            s2.inner, "Витрина, мин:", "review_timeout_min", CFG,
+            width_label=230, placeholder="10",
+            tooltip="Сколько ждать сбора вхождений для витрины штампов: "
+                    "1–60 минут (по умолчанию 10). Для очень больших "
+                    "хранилищ увеличьте.")
+        self.f_review_to.pack(fill="x")
 
         # --- Проверки заметок (24.10) ---
         s_checks = Section(parent, "Проверки заметок")
@@ -208,6 +230,12 @@ class SettingsTab(ctk.CTkFrame):
                     "Пусто = Consolas. Альтернативы: Courier New, "
                     "Lucida Console. Применяется после перезапуска.")
         self.f_mono_family.pack(fill="x")
+        self.f_hist_limit = EntryField(
+            s_view.inner, "Путей в истории поля:", "path_history_limit", CFG,
+            width_label=170, placeholder="10",
+            tooltip="Сколько недавних путей хранить для каждого поля "
+                    "(меню ▾): от 3 до 50, по умолчанию 10.")
+        self.f_hist_limit.pack(fill="x")
         CheckField(
             s_view.inner, "Спрашивать при закрытии во время работы",
             "confirm_close", CFG, default=True,
@@ -246,6 +274,18 @@ class SettingsTab(ctk.CTkFrame):
         self.f_font_family.entry.bind("<FocusOut>", self._check_font_family, add="+")
         self.f_font_size.entry.bind("<FocusOut>", self._check_font_size, add="+")
         self.f_mono_family.entry.bind("<FocusOut>", self._check_mono_family, add="+")
+        self.f_hist_limit.entry.bind(
+            "<FocusOut>", lambda e: self._check_int_range(
+                self.f_hist_limit, 3, 50, 10, "Путей в истории"), add="+")
+        self.f_toast_ms.entry.bind(
+            "<FocusOut>", lambda e: self._check_int_range(
+                self.f_toast_ms, 1500, 15000, 4200, "Тост, мс"), add="+")
+        self.f_stop_wait.entry.bind(
+            "<FocusOut>", lambda e: self._check_int_range(
+                self.f_stop_wait, 5, 60, 15, "Ожидание «Стоп», сек"), add="+")
+        self.f_review_to.entry.bind(
+            "<FocusOut>", lambda e: self._check_int_range(
+                self.f_review_to, 1, 60, 10, "Витрина, мин"), add="+")
 
         # --- Сохранение / сброс ---
         s3 = Section(parent, "Сохранение настроек")
@@ -504,6 +544,17 @@ class SettingsTab(ctk.CTkFrame):
                           "ближайшим. Проверьте написание.\n", "warn")
         except Exception:
             pass
+
+    def _check_int_range(self, field, lo, hi, default, label):
+        """11.26: общий валидатор целочисленных полей (FocusOut):
+        вне диапазона — вернуть значение по умолчанию и предупредить."""
+        raw = field.get().strip()
+        if not raw:
+            return
+        if not raw.isdigit() or not (lo <= int(raw) <= hi):
+            field.set(str(default))
+            self._log(f"«{label}»: целое число от {lo} до {hi}. "
+                      f"Возвращено {default}.\n", "warn")
 
     # --- о программе (24.10) ---
 

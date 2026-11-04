@@ -158,6 +158,15 @@ def _cfg_flag(key, default=True):
     return str(v).lower() not in ("false", "0", "no")
 
 
+def _cfg_int(key, default, lo, hi):
+    """11.26: целочисленная настройка из конфига с безопасными границами."""
+    try:
+        v = int(float(str(CFG.get(key, default) or default)))
+    except Exception:
+        v = int(default)
+    return max(lo, min(hi, v))
+
+
 def _toast_beep(level):
     """21.10: короткий системный звук уведомления. Отключается галочкой
     «Звуковые сигналы» на вкладке «Настройки»; ошибки звучат всегда громче."""
@@ -372,10 +381,12 @@ class Runner:
         def _force():
             import time as _t
             rid = self._run_id
-            # 24.10: ждём полные 15 секунд, чтобы инструмент успел
-            # докончить текущий файл. Раньше цикл выходил на первом
-            # появлении proc и убивал процесс сразу.
-            for _ in range(150):
+            # 24.10: ждём полные stop_wait_sec (по умолчанию 15 с), чтобы
+            # инструмент успел докончить текущий файл. Раньше цикл выходил
+            # на первом появлении proc и убивал процесс сразу.
+            # 11.26: таймаут настраивается («Ожидание «Стоп», сек»)
+            wait_s = _cfg_int("stop_wait_sec", 15, 5, 60)
+            for _ in range(wait_s * 10):
                 _t.sleep(0.1)
                 # 24.10: не трогаем следующий запуск, если этот уже кончился
                 if self._run_id != rid or not self.running:
@@ -879,7 +890,8 @@ class App(ctk.CTk):
                     pass
             App._toast_stack.append(win)
             win.geometry(f"+{x}+{y}")
-            win.after(4200, _drop)
+            # 11.26: длительность тоста — настройка toast_ms (1500–15000)
+            win.after(_cfg_int("toast_ms", 4200, 1500, 15000), _drop)
         except Exception:
             pass  # тост никогда не мешает работе инструментов
 
@@ -1035,7 +1047,7 @@ class App(ctk.CTk):
                 p = self.runner.proc
                 if p is not None:
                     try:
-                        p.wait(timeout=15)
+                        p.wait(timeout=_cfg_int("stop_wait_sec", 15, 5, 60))
                     except Exception:
                         # 24.10: не оставляем процесс жить после закрытия
                         try:

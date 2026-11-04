@@ -412,6 +412,9 @@ class VaultTab(ctk.CTkFrame):
             # 20.10: любой сбой (таймаут, нет интерпретатора) кладёт в
             # очередь маркер — раньше полл после ошибки крутился вечно
             proc = None
+            # 11.26: таймаут витрины — настройка review_timeout_min (1–60)
+            from gui_ctk import _cfg_int
+            timeout_s = _cfg_int("review_timeout_min", 10, 1, 60) * 60
             try:
                 proc = subprocess.Popen(
                     tool_cmd("phrase_check", "--input", path, "--review"),
@@ -419,14 +422,14 @@ class VaultTab(ctk.CTkFrame):
                     text=True, encoding="utf-8", errors="replace",
                     creationflags=CREATE_FLAGS)
                 app._bg_proc = proc
-                out, _ = proc.communicate(timeout=600)
+                out, _ = proc.communicate(timeout=timeout_s)
             except subprocess.TimeoutExpired:
                 try:
                     proc.kill()
                 except Exception:
                     pass
-                q.put(("err", "Витрина не успела за 10 минут и была "
-                              "остановлена.\n"))
+                q.put(("err", f"Витрина не успела за {timeout_s // 60} мин "
+                              "и была остановлена.\n"))
                 return
             except Exception as e:
                 q.put(("err", f"Витрина не запустилась: {e}\n"))
