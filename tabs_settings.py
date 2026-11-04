@@ -131,7 +131,6 @@ class SettingsTab(ctk.CTkFrame):
                     "Пусто = Блокнот на Windows, системный способ на "
                     "других ОС.")
         self.f_editor.pack(fill="x")
-        self.f_editor.entry.bind("<FocusOut>", self._check_editor, add="+")
         # 04.11: поведенческие тайминги из жёстких констант — в настройки
         self.f_toast_ms = EntryField(
             s2.inner, "Тост, мс:", "toast_ms", CFG,
