@@ -12,8 +12,11 @@ from pathlib import Path
 TEXT_EXTS = (".md", ".txt", ".docx")
 
 # 04.11: служебные папки, общие для всех обходов хранилища.
-# .trash — корзина Obsidian: удалённые заметки не участвуют в проверках
-SKIP_PARTS = {".obsidian", ".git", ".trash", "md_replace_backups"}
+# .trash — корзина Obsidian: удалённые заметки не участвуют в проверках.
+# .smart-env — кэш плагина Smart Connections (список синхронизирован
+# с core.vault_scanner.SKIP_DIRS)
+SKIP_PARTS = {".obsidian", ".git", ".trash", ".smart-env",
+              "md_replace_backups"}
 
 
 def backup_once(f):
