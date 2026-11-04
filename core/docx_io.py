@@ -8,9 +8,8 @@ document/header/footer/footnotes/endnotes/comments.
 
 API:
   read_text(path)          — текст всех w:t, с \\n между параграфами (для поиска)
-  replace_in_docx(path, old, new, is_regex, backup=True)
+  replace_in_docx(path, old, new, is_regex, backup=True, repl_fn=None)
                            — замена в w:t, возвращает (всего_замен, файлов_изменено=1/0)
-  save_docx_part(...)      — служебное
 """
 import re
 # 26.10: shutil не используется (мёртвый импорт, pyflakes) — отключён
@@ -24,16 +23,18 @@ DOC_PART_KEYWORDS = ("document.xml", "header", "footer",
                      "footnotes", "endnotes", "comments")
 
 
-def _iter_text_elements(doc):
-    """Генератор всех w:t элементов текстовых частей документа."""
+def _iter_doc_parts(doc):
+    """05.11: корневые XML-элементы текстовых частей: тело, колонтитулы,
+    сноски/концевые сноски, комментарии. Единый фильтр для чтения и
+    замены — раньше эта логика дублировалась в read_text и
+    replace_in_docx и могла разъехаться."""
     for part in doc.part.package.iter_parts():
         name = str(part.partname)
         if "/word/" not in name or not any(k in name for k in DOC_PART_KEYWORDS):
             continue
         el = getattr(part, "_element", None)
-        if el is None:
-            continue
-        yield from el.iter(W_NS + "t")
+        if el is not None:
+            yield el
 
 
 def read_text(path):
@@ -46,13 +47,7 @@ def read_text(path):
     except Exception:
         return None
     chunks = []
-    for part in doc.part.package.iter_parts():
-        name = str(part.partname)
-        if "/word/" not in name or not any(k in name for k in DOC_PART_KEYWORDS):
-            continue
-        el = getattr(part, "_element", None)
-        if el is None:
-            continue
+    for el in _iter_doc_parts(doc):
         for p in el.iter(W_NS + "p"):
             t = "".join(t_el.text or "" for t_el in p.iter(W_NS + "t"))
             if t:
@@ -60,33 +55,11 @@ def read_text(path):
     return "\n".join(chunks)
 
 
-def replace_in_docx_text(path, new_full_text):
-    """22.09: перезаписать весь текст docx параграфами из new_full_text.
-
-    Используется чисткой штампов: читаем весь текст (read_text), правим
-    строку, записываем обратно. Форматирование run'ов теряется внутри
-    изменённых параграфов (параграфы пересоздаются) — это плата за
-    cross-run замены. Параграфы = строки new_full_text.
-    20.10: занятый файл (Word, антивирус, синхронизация) больше не роняет
-    весь прогон — печатаем ПРОПУСК и возврат.
-    """
-    from docx import Document
-    try:
-        doc = Document(path)
-    except Exception as e:
-        print(f"  ПРОПУСК (docx не читается): {Path(path).name}: {e}")
-        return
-    # удаляем все существующие параграфы
-    for p in list(doc.paragraphs):
-        p._element.getparent().remove(p._element)
-    for line in new_full_text.split("\n"):
-        doc.add_paragraph(line)
-    try:
-        doc.save(path)
-    except Exception as e:
-        print(f"  ПРОПУСК (файл занят, сохранить не удалось): "
-              f"{Path(path).name}: {e}")
-
+# 05.11: replace_in_docx_text (перезапись всего тела из склеенного
+# текста) удалён: в продакшене не вызывался с 04.11 (чистка штампов
+# перешла на replace_in_docx с кросс-run заменой), а пересоздание
+# параграфов молча убивало форматирование документа — ловушка для
+# будущих вызывающих.
 
 def _replace_in_paragraph(p, pattern, new, pos=0, repl_fn=None):
     """01.10: кросс-run замена внутри параграфа с сохранением
@@ -165,13 +138,7 @@ def replace_in_docx(path, old, new, is_regex=False, backup=True,
 
     total = 0
     broken = 0
-    for part in doc.part.package.iter_parts():
-        name = str(part.partname)
-        if "/word/" not in name or not any(k in name for k in DOC_PART_KEYWORDS):
-            continue
-        el = getattr(part, "_element", None)
-        if el is None:
-            continue
+    for el in _iter_doc_parts(doc):
         for p in el.iter(W_NS + "p"):
             # 20.10: ищем с позиции конца прошлой замены — иначе замена,
             # содержащая искомое («мир» -> «мирный»), растит текст вечно
