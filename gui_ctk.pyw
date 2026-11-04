@@ -1143,8 +1143,9 @@ class App(ctk.CTk):
             return
         # 25.10: для find_cjk код 1 — штатные находки, а не сбой.
         # 04.11: то же для obsidian-check — найденные ERROR это результат
-        # проверки, а не сбой (флаг --exit-zero из запуска убран)
-        if code == 1 and label in ("find_cjk", "obsidian_check"):
+        # проверки, а не сбой (флаг --exit-zero из запуска убран).
+        # 04.11: phrase_check присоединился — код 1 означает найденные штампы.
+        if code == 1 and label in ("find_cjk", "obsidian_check", "phrase_check"):
             self.status.configure(text="есть замечания")
             _toast_beep("warn")
             if _cfg_flag("toast_done", True):

@@ -71,7 +71,9 @@ def run(input_path, fix=False, limit=None):
     else:
         print(f"Не в UTF-8: {n_bad}, перекодировано: {n_fixed}"
               + (f", пропущено {n_skip}" if n_skip else ""))
-    return 0
+    # 04.11: остались файлы не в UTF-8 — код 1 (для сценариев и GUI);
+    # после успешного --fix — код 0
+    return 1 if n_bad > n_fixed else 0
 
 
 def main(argv=None):

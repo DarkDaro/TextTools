@@ -177,6 +177,9 @@ def run(input_path, custom=None, phrases=None, limit=None, out=None):
         print("\nШтампов не найдено — текст чистый.")
         return 0
 
+    # 04.11: код 1 — штампы найдены (как у cjk/obsidian-check),
+    # чтобы сценарии и GUI отличали находки от чистого прогона
+
     # Сортировка по общему числу вхождений
     rows = sorted(total_hits.items(),
                   key=lambda kv: sum(c for _, c in kv[1]), reverse=True)
@@ -203,7 +206,7 @@ def run(input_path, custom=None, phrases=None, limit=None, out=None):
             lines.append("")
         write_report(out, "\n".join(lines))
         print(f"\nОтчёт: {out}")
-    return 0
+    return 1
 
 
 def load_phrases_list(custom=None, extra=None):
