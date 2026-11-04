@@ -7,8 +7,8 @@
 мусор, где абзац состоит из одного и того же слова. Потом она это
 исправляет, если разрешить.
 
-Облака, подписки и искусственного интеллекта здесь нет. Есть 18
-подкоманд CLI, окно на шесть вкладок и ваша папка с текстами, к которой
+Облака, подписки и искусственного интеллекта здесь нет. Есть 21
+подкоманда CLI, окно на шесть вкладок и ваша папка с текстами, к которой
 всё это применяется.
 
 Сделана под русскую прозу в Obsidian: имена и падежи, ё/е, «ёлочки»,
@@ -192,6 +192,7 @@ python textools.py stats            --input <папка> [--out report.md] [--cs
 python textools.py typography       --input <папка> [--fix] [--nbsp]
 python textools.py style-report     --input <папка> [--registry <yaml>] [--window 5] [--long 25]
 python textools.py whitespace       --input <папка> [--fix] [--keep-breaks]
+python textools.py separators       --input <папка> [--fix] [--symbols ...] [--min-run 3]
 python textools.py emoji-icons      --input <файл/папка> [--fix] [--map icons.json]
 ```
 
@@ -216,7 +217,8 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
   статистика текста (с CSV-дневником объёма), стилистический отчёт
   (повторы слов рядом, длинные предложения)
 * **Чистка**: эмодзи, мусор/CJK, пробелы, кодировки (UTF-8),
-  типографика («ёлочки», тире, многоточия, неразрывные пробелы)
+  типографика («ёлочки», тире, многоточия, неразрывные пробелы),
+  мусорные разделители (отбойники сцен ///// **** ===== ———)
 * **Замены**: md_replace (4 режима), char_search, точечная замена
   слова, refile
 * **Настройки**: пути к внешним скриптам, тема, проверки заметок
@@ -271,10 +273,10 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
   кросс-run замену), морфология (pymorphy3), кодировки
 * `tools/`: движки команд (registry_builder, consistency, orphan_finder,
   broken_links, merge_finder, integrity_check, obsidian_check,
-  phrase_check, whitespace_clean, utf8_convert, morph_forms,
-  character_matrix, registry_merge, backup_restore, backup_archive,
-  moc_builder, text_stats, typography, style_report, icon_replace,
-  yo_audit) и словари
+  phrase_check, whitespace_clean, separator_clean, utf8_convert,
+  morph_forms, character_matrix, registry_merge, backup_restore,
+  backup_archive, moc_builder, text_stats, typography, style_report,
+  icon_replace, yo_audit) и словари
   `phrases*.yaml`, `parasites.yaml`, `yo_dict.yaml`
 * `find_cjk.py`: поиск иероглифов, мойбейка и порчи кодировки (CLI `cjk`,
   карточка на вкладке «Хранилище»)
