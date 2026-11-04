@@ -161,7 +161,7 @@ def main():
         sys.path.insert(0, str(here))
         mod = __import__(f"tools.{simple[args.cmd]}", fromlist=["run"])
         opts = ["--input", args.input,
-                *(["--limit", str(args.limit)] if args.limit else []),
+                *(["--limit", str(args.limit)] if args.limit is not None else []),
                 *(["--verbose"] if args.verbose else []),
                 *(["--out", args.out] if args.out else [])]
         sys.exit(mod.main(opts))
@@ -169,7 +169,7 @@ def main():
         sys.path.insert(0, str(here))
         from tools import obsidian_check
         opts = ["--input", args.input,
-                *(["--limit", str(args.limit)] if args.limit else []),
+                *(["--limit", str(args.limit)] if args.limit is not None else []),
                 *(["--fix"] if args.fix else []),
                 *(["--no-bak"] if args.no_bak else []),
                 *(["--exit-zero"] if args.exit_zero else []),
@@ -206,7 +206,7 @@ def main():
         sys.exit(moc_builder.main(
             ["--input", args.input, "--registry", args.registry,
              "--out-dir", args.out_dir,
-             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--limit", str(args.limit)] if args.limit is not None else []),
              *(["--apply"] if args.apply else []),
              *(["--update"] if args.update else [])]))
     elif args.cmd == "stats":
@@ -214,7 +214,7 @@ def main():
         from tools import text_stats
         sys.exit(text_stats.main(
             ["--input", args.input,
-             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--limit", str(args.limit)] if args.limit is not None else []),
              *(["--out", args.out] if args.out else []),
              *(["--csv"] if args.csv else [])]))
     elif args.cmd == "typography":
@@ -231,7 +231,7 @@ def main():
             ["--input", args.input,
              *(["--registry", args.registry] if args.registry else []),
              "--window", str(args.window), "--long", str(args.long),
-             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--limit", str(args.limit)] if args.limit is not None else []),
              *(["--out", args.out] if args.out else [])]))
     elif args.cmd == "restore":
         sys.path.insert(0, str(here))
@@ -251,13 +251,13 @@ def main():
         from tools import utf8_convert
         sys.exit(utf8_convert.main(
             ["--input", args.input, *(["--fix"] if args.fix else []),
-             *(["--limit", str(args.limit)] if args.limit else [])]))
+             *(["--limit", str(args.limit)] if args.limit is not None else [])]))
     elif args.cmd == "matrix":
         sys.path.insert(0, str(here))
         from tools import character_matrix
         sys.exit(character_matrix.main(
             ["--input", args.input, "--registry", args.registry,
-             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--limit", str(args.limit)] if args.limit is not None else []),
              *(["--verbose"] if args.verbose else []),
              *(["--out", args.out] if args.out else [])]))
     elif args.cmd == "registry-builder":
@@ -267,14 +267,14 @@ def main():
             ["--input", args.input, *(["--out", args.out] if args.out else []),
              *(["--registry", args.registry] if args.registry else []),
              "--min-count", str(args.min_count),
-             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--limit", str(args.limit)] if args.limit is not None else []),
              *(["--verbose"] if args.verbose else [])]))
     elif args.cmd == "consistency":
         sys.path.insert(0, str(here))
         from tools import consistency
         sys.exit(consistency.main(
             ["--input", args.input, "--registry", args.registry,
-             *(["--limit", str(args.limit)] if args.limit else []),
+             *(["--limit", str(args.limit)] if args.limit is not None else []),
              *(["--verbose"] if args.verbose else []),
              *(["--out", args.out] if args.out else [])]))
 
