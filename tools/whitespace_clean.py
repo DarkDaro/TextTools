@@ -139,12 +139,17 @@ def run(input_path, max_blank=1, keep_breaks=False, fix=False, out=None):
             if f.suffix.lower() == ".docx":
                 n = clean_docx(f, max_blank, keep_breaks, fix)
             else:
-                # 04.11: с newline="" переводы строк файла не меняются
-                with open(f, "r", encoding="utf-8", newline="") as fh:
-                    text = fh.read()
-                new_text, n = clean_text(text, max_blank, keep_breaks)
+                # 04.11: переводы строк сохраняются — чистка идёт в \n,
+                # CRLF-файл при записи собирается обратно
+                raw = f.read_bytes()
+                text = raw.decode("utf-8")
+                crlf = "\r\n" in text
+                new_text, n = clean_text(
+                    text.replace("\r\n", "\n"), max_blank, keep_breaks)
                 if n and fix:
                     tp.backup_once(f)  # 20.10: старый .bak не затирается
+                    if crlf:
+                        new_text = new_text.replace("\n", "\r\n")
                     with open(f, "w", encoding="utf-8", newline="") as fh:
                         fh.write(new_text)
         except (UnicodeDecodeError, PermissionError, OSError) as e:
