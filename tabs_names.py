@@ -24,7 +24,8 @@ class NamesTab(ctk.CTkFrame):
             "опечатки и опасные формы (например, падежи старого имени)."))
 
         # --- Что такое реестр ---
-        s0 = Section(parent, "Реестр (YAML) — что это")
+        s0 = Section(parent, "Реестр (YAML) — что это",
+                     subtitle="форматы: .yaml (реестр)")
         Tooltip(s0, "Реестр — обычный текстовый файл .yaml со списком персонажей. "
                     "Его создаёт registry-builder (кнопка ниже), а вы потом "
                     "редактируете вручную в блокноте.")
@@ -44,7 +45,8 @@ class NamesTab(ctk.CTkFrame):
         )).pack(anchor="w")
 
         # --- Шаг 1: registry-builder ---
-        s1 = Section(parent, "Шаг 1 — найти имена-кандидаты (registry-builder)")
+        s1 = Section(parent, "Шаг 1 — найти имена-кандидаты (registry-builder)",
+                     subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_input = PathField(s1.inner, "Тексты (папка):", "names_input", CFG,
                                  file_mode="both",
                                  tooltip="Папка или файл .md/.txt/.docx, где искать имена.")
@@ -75,7 +77,8 @@ class NamesTab(ctk.CTkFrame):
                              "в имена.").pack(side="left")
 
         # --- Шаг 2: consistency ---
-        s2 = Section(parent, "Шаг 2 — проверить тексты по реестру (consistency)")
+        s2 = Section(parent, "Шаг 2 — проверить тексты по реестру (consistency)",
+                     subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_cons_input = PathField(s2.inner, "Тексты (папка):", "cons_input", CFG,
                                       file_mode="both",
                                       tooltip="Папка или файл (.md/.txt/.docx), где проверять имена.")
@@ -91,7 +94,8 @@ class NamesTab(ctk.CTkFrame):
                      ).pack(side="left")
 
         # --- Шаг 3: матрица упоминаний (01.10) ---
-        s3 = Section(parent, "Шаг 3 — матрица упоминаний (кто где встречается)")
+        s3 = Section(parent, "Шаг 3 — матрица упоминаний (кто где встречается)",
+                     subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_mat_input = PathField(s3.inner, "Тексты (папка):", "mat_input", CFG,
                                      file_mode="both",
                                      tooltip="Папка или файл, где считать упоминания.")
@@ -106,7 +110,8 @@ class NamesTab(ctk.CTkFrame):
                      ).pack(side="left")
 
         # --- Падежные формы реестра (01.10) ---
-        s4 = Section(parent, "Падежные формы реестра (pymorphy3)")
+        s4 = Section(parent, "Падежные формы реестра (pymorphy3)",
+                     subtitle="форматы: .yaml (реестр)")
         ctk.CTkLabel(s4.inner, justify="left", anchor="w", font=FONT_SMALL,
                      text="Показывает, каких падежных форм не хватает в реестре. "
                           "Дописывает по кнопке ниже, с .bak-бэкапом."
@@ -126,7 +131,8 @@ class NamesTab(ctk.CTkFrame):
         b_forms.link_danger(self.f_forms_fill.var)
 
         # --- Кандидаты -> реестр (01.10) ---
-        s5 = Section(parent, "Кандидаты -> реестр (без ручного копирования)")
+        s5 = Section(parent, "Кандидаты -> реестр (без ручного копирования)",
+                     subtitle="форматы: .yaml (реестр)")
         self.f_merge_cand = PathField(s5.inner, "Кандидаты (yaml):", "merge_candidates",
                                       CFG, file_mode="file",
                                       tooltip="Файл кандидатов, который создал "
@@ -155,7 +161,8 @@ class NamesTab(ctk.CTkFrame):
         b_merge.link_danger(self.c_merge_add.var)
 
         # --- MOC-заметки персонажей (01.10) ---
-        s6 = Section(parent, "MOC-заметки персонажей (Obsidian)")
+        s6 = Section(parent, "MOC-заметки персонажей (Obsidian)",
+                     subtitle="форматы: .md (заметки Obsidian)")
         self.f_moc_input = PathField(s6.inner, "Vault:", "moc_input", CFG,
                                      file_mode="both",
                                      tooltip="Хранилище, где искать упоминания.")

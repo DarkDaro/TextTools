@@ -30,7 +30,8 @@ class CleanTab(ctk.CTkFrame):
             "С бэкапом (.bak рядом с файлом) всегда можно откатить."))
 
         # --- emoji ---
-        s1 = Section(parent, "1. Чистка эмодзи и смайлов (txt / md / docx)")
+        s1 = Section(parent, "1. Чистка эмодзи и смайлов",
+                     subtitle="форматы: .txt, .md, .docx (Word)")
         self.f_emoji = PathField(s1.inner, "Папка или файл:", "clean_emoji_input", CFG,
                                  file_mode="both",
                                  tooltip="Можно выбрать как папку (обработаются все "
@@ -88,7 +89,8 @@ class CleanTab(ctk.CTkFrame):
         _sync_emoji()
 
         # --- clean_text_files ---
-        s2 = Section(parent, "2. Чистка мусора и CJK-символов (txt / md)")
+        s2 = Section(parent, "2. Чистка мусора и CJK-символов",
+                     subtitle="форматы: .txt, .md (только заметки)")
         self.f_text = PathField(s2.inner, "Папка:", "clean_text_input", CFG,
                                 file_mode="both",
                                 tooltip="Папка с txt/md файлами. Обход рекурсивный.")
@@ -109,7 +111,8 @@ class CleanTab(ctk.CTkFrame):
         b_text.link_danger(self.c_fix.var)
 
         # --- whitespace_clean (18.09) ---
-        s3 = Section(parent, "3. Чистка пробелов и пустых строк (txt / md / docx)")
+        s3 = Section(parent, "3. Чистка пробелов и пустых строк",
+                     subtitle="форматы: .txt, .md, .docx (Word)")
         self.f_ws = PathField(s3.inner, "Папка или файл:", "ws_input", CFG,
                               file_mode="both",
                               tooltip="Папка (обход рекурсивный) или один файл "
@@ -144,7 +147,8 @@ class CleanTab(ctk.CTkFrame):
         b_ws.link_danger(self.c_ws_fix.var)
 
         # --- 4. кодировки (01.10) ---
-        s4 = Section(parent, "4. Кодировки: приведение к UTF-8 (txt / md)")
+        s4 = Section(parent, "4. Кодировки: приведение к UTF-8",
+                     subtitle="форматы: .txt, .md (только заметки)")
         self.f_utf8 = PathField(s4.inner, "Папка или файл:", "utf8_input", CFG,
                                 file_mode="both",
                                 tooltip="Старые файлы (koi8-r, cp1251…) "
@@ -166,7 +170,8 @@ class CleanTab(ctk.CTkFrame):
         b_utf8.link_danger(self.c_utf8_fix.var)
 
         # --- 5. типографика (03.10) ---
-        s5 = Section(parent, "5. Типографика: «ёлочки», тире, многоточия (txt / md / docx)")
+        s5 = Section(parent, "5. Типографика: «ёлочки», тире, многоточия",
+                     subtitle="форматы: .txt, .md, .docx (Word)")
         self.f_typo = PathField(s5.inner, "Папка или файл:", "typo_input", CFG,
                                 file_mode="both",
                                 tooltip="Папка (обход рекурсивный) или один файл "
@@ -201,7 +206,8 @@ class CleanTab(ctk.CTkFrame):
         b_typo.link_danger(self.c_typo_fix.var)
 
         # --- 6. эмодзи → SVG-иконки в html (04.11) ---
-        s6 = Section(parent, "6. Эмодзи → SVG-иконки в интерфейсе (html)")
+        s6 = Section(parent, "6. Эмодзи → SVG-иконки в интерфейсе",
+                     subtitle="форматы: .html (иконки интерфейса)")
         self.f_icons = PathField(s6.inner, "Папка или файл:", "icons_input", CFG,
                                  file_mode="both",
                                  tooltip="HTML-файл или папка с html-файлами "
@@ -237,7 +243,8 @@ class CleanTab(ctk.CTkFrame):
         b_icons.link_danger(self.c_icons_fix.var)
 
         # --- 7. мусорные разделители (04.11) ---
-        s7 = Section(parent, "7. Чистка мусорных разделителей (txt / md / docx)")
+        s7 = Section(parent, "7. Чистка мусорных разделителей",
+                     subtitle="форматы: .txt, .md, .docx (Word)")
         self.f_sep = PathField(s7.inner, "Папка или файл:", "sep_input", CFG,
                                file_mode="both",
                                tooltip="Папка (обход рекурсивный) или один файл "

@@ -35,13 +35,20 @@ class WritersTab(ctk.CTkFrame):
             "слова-паразиты; умеет вести CSV-дневник объёма.\n"
             "• Ё/Е-аудит — спорные места с ё: имена из реестра, словарные пары, "
             "омографы (все/всё). Замена — выборочно в витрине.\n"
+            "• Экспорт в Word — глава .md превращается в .docx для беты и "
+            "редактора.\n"
+            "• Эхо-фразы — одинаковые зачины и конструкции, повторяющиеся "
+            "между главами.\n"
+            "Форматы: подпись у каждой карточки говорит, что она читает. "
+            "(Word) — .docx читается и правится; «только заметки» — "
+            "только .md/.txt, Word не трогается.\n"
             "Безопасность: по умолчанию всё только читает и пишет отчёт. "
             "Реальная запись — по галочке, с бэкапом (.bak рядом с файлом)."))
 
         # --- 1. АНТИРЕШИМОСТЬ (05.11: переехала из «Чистки») ---
         s1 = Section(parent,
-                     "1. АНТИРЕШИМОСТЬ — запрещённая лексика и пафос "
-                     "(txt / md / docx)")
+                     "1. АНТИРЕШИМОСТЬ — запрещённая лексика и пафос",
+                     subtitle="форматы: .txt, .md, .docx (Word)")
         self.f_ar = PathField(s1.inner, "Папка или файл:", "ar_input", CFG,
                               file_mode="both",
                               tooltip="Папка (обход рекурсивный) или один файл "
@@ -72,7 +79,8 @@ class WritersTab(ctk.CTkFrame):
         b_ar.link_danger(self.c_ar_fix.var)
 
         # --- 2. штампы ИИ-текста и канцелярит (переехали из «Хранилища») ---
-        s2 = Section(parent, "2. Штампы ИИ-текста и канцелярит (phrase_check)")
+        s2 = Section(parent, "2. Штампы ИИ-текста и канцелярит",
+                     subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_pc = PathField(s2.inner, "Папка или файл:", "pc_input", CFG,
                               file_mode="both",
                               tooltip="Папка с текстами (.md/.txt/.docx) или один файл. "
@@ -118,7 +126,8 @@ class WritersTab(ctk.CTkFrame):
         self.c_pc_review.pack(side="left")
 
         # --- 3. стилистика (переехала из «Хранилища») ---
-        s3 = Section(parent, "3. Стилистика: повторы рядом и длинные предложения")
+        s3 = Section(parent, "3. Стилистика: повторы рядом и длинные предложения",
+                     subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_style = PathField(s3.inner, "Папка или файл:", "style_input", CFG,
                                  file_mode="both",
                                  tooltip="Папка с текстами (.md/.txt/.docx) или "
@@ -153,7 +162,8 @@ class WritersTab(ctk.CTkFrame):
                      ).pack(side="left")
 
         # --- 4. статистика текста (переехала из «Хранилища») ---
-        s4 = Section(parent, "4. Статистика текста (объём, диалоги, паразиты)")
+        s4 = Section(parent, "4. Статистика текста (объём, диалоги, паразиты)",
+                     subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_stats = PathField(s4.inner, "Папка или файл:", "stats_input", CFG,
                                  file_mode="both",
                                  tooltip="Папка с текстами (.md/.txt/.docx) или "
@@ -173,7 +183,8 @@ class WritersTab(ctk.CTkFrame):
                      ).pack(side="left")
 
         # --- 5. ё/е-аудит (переехал из «Имён персонажей») ---
-        s5 = Section(parent, "5. Ё/Е-аудит (txt / md / docx)")
+        s5 = Section(parent, "5. Ё/Е-аудит",
+                     subtitle="форматы: .txt, .md, .docx (Word)")
         self.f_yo_input = PathField(s5.inner, "Тексты (папка/файл):", "yo_input",
                                     CFG, file_mode="both",
                                     tooltip="Папка или файл .md/.txt/.docx. "
@@ -192,6 +203,73 @@ class WritersTab(ctk.CTkFrame):
                              "пары и омографы (все/всё). Замена — только по "
                              "выбранным вхождением в диалоге."
                      ).pack(side="left")
+
+        # --- 6. экспорт в Word (06.11: BACKLOG №4 добрался до GUI) ---
+        s6 = Section(parent, "6. Экспорт в Word",
+                     subtitle="форматы: .md/.markdown → .docx")
+        self.f_export_in = PathField(s6.inner, "Откуда (.md):", "export_input", CFG,
+                                     file_mode="both",
+                                     tooltip="Глава или папка с главами "
+                                             ".md/.markdown. Папка: каждый .md "
+                                             "→ одноимённый .docx, вложенные "
+                                             "папки воспроизводятся.")
+        self.f_export_out = PathField(s6.inner, "Куда (.docx):", "export_output", CFG,
+                                      file_mode="both",
+                                      tooltip="Файл .docx (для одной главы) или "
+                                              "папка приёмник (для папки глав).")
+        self.c_export_force = CheckField(
+            s6.inner, "Перезаписывать существующие .docx", "export_force",
+            CFG, default=False,
+            tooltip="Без галочки существующий .docx не затирается — экспорт "
+                    "молча терять главы нельзя. С галочкой — перезапись "
+                    "всегда.")
+        self.c_export_force.pack(anchor="w")
+        row6 = button_row(s6.inner)
+        ActionButton(row6, "Экспорт в Word", self._run_export,
+                     kind="primary", width=180,
+                     tooltip="Собирает .docx: заголовки, списки, курсив. Пишет "
+                             "новые файлы — существующие только с галочкой "
+                             "перезаписи.").pack(side="left")
+
+        # --- 7. эхо-фразы (06.11: BACKLOG №6 добрался до GUI) ---
+        s7 = Section(parent, "7. Эхо-фразы — повторы конструкций между главами",
+                     subtitle="форматы: .md, .txt, .docx (Word)")
+        self.f_echo = PathField(s7.inner, "Главы (папка/файл):", "echo_input", CFG,
+                                file_mode="both",
+                                tooltip="Главы .md/.txt/.docx или папка. Эхо — "
+                                        "это повтор между РАЗНЫМИ файлами, "
+                                        "внутри одного файла ищет «Стилистика».")
+        row7 = button_row(s7.inner)
+        ActionButton(row7, "Найти эхо-фразы", self._run_echo,
+                     kind="safe", width=200,
+                     tooltip="N-граммы (по умолчанию 3 слова), встретившиеся в "
+                             "двух и более главах: «мир сжался», «задышал "
+                             "ровнее». Топ-25 в отчёте. Файлы не меняются."
+                     ).pack(side="left")
+
+    def _run_export(self):
+        # 06.11: экспорт главы .md → .docx (движок BACKLOG №4, до этого
+        # был только в CLI)
+        from gui_ctk import run_internal
+        src = self.f_export_in.get()
+        dst = self.f_export_out.get()
+        if not src or not dst:
+            self._log("Укажите, откуда брать .md и куда класть .docx.\n")
+            return
+        args = ["--input", src, "--out", dst]
+        if self.c_export_force.get():
+            args.append("--force")
+        self._log(f"Экспорт в Word: {src} → {dst}\n")
+        run_internal("export_docx", args)
+
+    def _run_echo(self):
+        # 06.11: эхо-фразы — повторы конструкций между разными файлами
+        from gui_ctk import run_internal
+        if not self.f_echo.get():
+            self._log("Укажите папку или файл для поиска эхо-фраз.\n")
+            return
+        self._log("Ищу эхо-фразы — повторы между главами...\n")
+        run_internal("echo_finder", ["--input", self.f_echo.get()])
 
     def _log(self, msg, tag=None):
         from gui_ctk import _app

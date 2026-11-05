@@ -35,7 +35,8 @@ class VaultTab(ctk.CTkFrame):
             "символы: частая порча текста после языковых моделей.\n"
             "Все проверки, кроме «Исправить однозначное», ТОЛЬКО читают файлы."))
 
-        s = Section(parent, "Хранилище (vault)")
+        s = Section(parent, "Хранилище (vault)",
+                    subtitle="форматы: заметки .md; дубликаты — и .docx")
         self.f_vault = PathField(s.inner, "Папка vault:", "vault_input", CFG,
                                  file_mode="both",
                                  tooltip="Обычно это папка хранилища Obsidian "
@@ -82,7 +83,8 @@ class VaultTab(ctk.CTkFrame):
         self.c_report.pack(anchor="w", pady=(0, 4))
 
         # --- 24.10: валидатор метафайлов Obsidian ---
-        s_obs = Section(parent, "Валидатор заметок Obsidian (obsidian-check)")
+        s_obs = Section(parent, "Валидатор заметок Obsidian (obsidian-check)",
+                        subtitle="форматы: .md (заметки Obsidian)")
         self.f_obs = PathField(s_obs.inner, "Папка vault:", "obs_input", CFG,
                                file_mode="both",
                                tooltip="Папка хранилища или одна заметка. "
@@ -114,7 +116,8 @@ class VaultTab(ctk.CTkFrame):
         b_obs.link_danger(self.c_obs_fix.var)
 
         # --- 24.10: поиск иероглифов и порчи кодировки (find_cjk) ---
-        s_cjk = Section(parent, "Иероглифы и порча кодировки (find_cjk)")
+        s_cjk = Section(parent, "Иероглифы и порча кодировки (find_cjk)",
+                        subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_cjk = PathField(s_cjk.inner, "Папка или файл:", "cjk_input", CFG,
                                file_mode="both",
                                tooltip="Проверяет .md/.txt/.json/.yaml на китайские "

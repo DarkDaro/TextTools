@@ -29,7 +29,8 @@ class ReplaceTab(ctk.CTkFrame):
             "автоматически в md_replace_backups внутри хранилища."))
 
         # --- 1. замена текста ---
-        s1 = Section(parent, "1. Замена текста в .md / .txt / .docx (md_replace)")
+        s1 = Section(parent, "1. Замена текста (md_replace)",
+                     subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_vault = PathField(s1.inner, "Хранилище (vault):", "md_vault", CFG,
                                  file_mode="both",
                                  tooltip="Папка хранилища (обход по всем .md/.txt/.docx внутри) "
@@ -63,7 +64,8 @@ class ReplaceTab(ctk.CTkFrame):
         b_md.link_danger(self.c_apply.var)
 
         # --- 2. спецрежимы ---
-        s2 = Section(parent, "2. Спецрежимы md_replace (диагностика и починка)")
+        s2 = Section(parent, "2. Спецрежимы md_replace (диагностика и починка)",
+                     subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_vault2 = PathField(s2.inner, "Хранилище (vault):", "md_vault", CFG,
                                   file_mode="both",
                                   tooltip="Тот же vault, что и выше (общее поле). "
@@ -93,7 +95,8 @@ class ReplaceTab(ctk.CTkFrame):
         b3.link_danger(self.c_spec.var)
 
         # --- 3. char_search ---
-        s3 = Section(parent, "3. Имена персонажей по реестру (char_search)")
+        s3 = Section(parent, "3. Имена персонажей по реестру (char_search)",
+                     subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_cs_vault = PathField(s3.inner, "Хранилище (vault):", "cs_vault", CFG,
                                     file_mode="both",
                                     tooltip="Папка хранилища или один файл "
@@ -136,7 +139,8 @@ class ReplaceTab(ctk.CTkFrame):
         self.b_fix_word.link_danger(self.c_fw_dry.var, invert=True)
 
         # --- 4. refile ---
-        s4 = Section(parent, "4. Regex-замена по папке (refile)")
+        s4 = Section(parent, "4. Regex-замена по папке (refile)",
+                     subtitle="форматы: настраиваются (--exts)")
         self.f_rf = PathField(s4.inner, "Папка или файл:", "rf_dir", CFG, file_mode="both",
                               tooltip="Папка (обход рекурсивный) или один файл.")
         self.f_pat = EntryField(s4.inner, "Паттерн (regex):", "rf_pattern", CFG,

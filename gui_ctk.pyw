@@ -1168,8 +1168,10 @@ class App(ctk.CTk):
         # 04.11: phrase_check присоединился — код 1 означает найденные штампы.
         # 05.11: full_check («проверить всё») — код 1 это серьёзные находки,
         # а не сбой; раньше профиль показывал «Ошибка» вместо замечаний.
+        # 06.11: echo_finder — код 1 «эхо найдено», это результат, не сбой.
         if code == 1 and label in ("find_cjk", "obsidian_check",
-                                   "phrase_check", "full_check"):
+                                   "phrase_check", "full_check",
+                                   "echo_finder"):
             self.status.configure(text="есть замечания")
             _toast_beep("warn")
             if _cfg_flag("toast_done", True):
