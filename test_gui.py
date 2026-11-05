@@ -129,6 +129,12 @@ def main():
                    if b.cget("command") is None]
         check("у всех кнопок есть command", not unbound, str(unbound[:5]))
 
+        # 05.11: версия в заголовке окна — чтобы старую копию было видно
+        # сразу; сверяется с единым источником textools.__version__
+        import textools as _cli
+        check("заголовок окна показывает версию",
+              f"textools {_cli.__version__}" in app.title())
+
         print("[2] клики безопасных кнопок")
         calls = []
         orig_internal = gui_ctk.run_internal

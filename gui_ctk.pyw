@@ -38,6 +38,13 @@ else:
     APP_DIR = HERE
 os.chdir(APP_DIR)
 
+# 05.11: версия приложения — единый источник textools.__version__.
+# Показывается в заголовке окна и в стартовом логе журнала, чтобы
+# старую копию было видно с первого взгляда (вопрос «где новая
+# вкладка?» — почти всегда старая копия программы).
+import textools as _textools
+APP_VERSION = _textools.__version__
+
 REPORTS_DIR = APP_DIR / "reports"
 HISTORY_FILE = APP_DIR / "logs" / "history.log"  # 01.10: история операций
 STOP_FILE = APP_DIR / "stop.flag"  # 01.10: мягкая остановка (совпадает с core.text_parser)
@@ -527,7 +534,8 @@ class App(ctk.CTk):
         except Exception:
             pass
 
-        self.title("textools — текстовые инструменты")
+        # 05.11: версия в заголовке — старую копию видно сразу
+        self.title(f"textools {APP_VERSION} — текстовые инструменты")
         # 05.11: минимальный размер подстраивается под экран: на маленьком
         # мониторе (нетбуки, 1024x768) жёсткие 900x640 вылезали за края
         self._min_w = max(560, min(900, self.winfo_screenwidth() - 40))
@@ -1280,7 +1288,7 @@ def main():
                 pass
             sys.exit(1)
     _log_info(f"START pid={os.getpid()} py={sys.version.split()[0]} "
-              f"exe={sys.executable}")
+              f"app={APP_VERSION} exe={sys.executable}")
     try:
         app = App()
         _log_info("BUILD DONE")
