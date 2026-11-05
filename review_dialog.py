@@ -23,7 +23,12 @@ def show(owner, hits, on_apply):
     отмеченные вхождения."""
     win = ctk.CTkToplevel(owner)
     win.title("Выберите вхождения")
-    win.geometry("980x640")
+    # 05.11: геометрия адаптируется к экрану. Было жёстко 980x640 —
+    # на экране ниже 640px кнопки «Применить»/«Отмена» уходили за
+    # нижний край, и применить выбор было невозможно.
+    _sw = win.winfo_screenwidth()
+    _sh = win.winfo_screenheight()
+    win.geometry(f"{min(980, _sw - 40)}x{min(640, _sh - 120)}")
     win.transient(owner)
     win.attributes("-topmost", True)
 

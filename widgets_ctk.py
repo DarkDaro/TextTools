@@ -162,6 +162,8 @@ class Tooltip:
         self.text = text
         self.wraplength = wraplength
         self.tip = None
+        # 05.11: текст подсказки доступен аудиту схемы кнопок
+        widget.tooltip_text = text
         widget.bind("<Enter>", self._show)
         widget.bind("<Leave>", self._hide)
 
@@ -614,6 +616,9 @@ class ActionButton(ctk.CTkButton):
                          cursor="hand2")
         self._base_kind = kind
         self._danger_var = None
+        # 05.11: текст подсказки доступен аудиту схемы кнопок
+        # (test_gui_buttons.py собирает docs/BUTTONS.md из него)
+        self.tooltip_text = tooltip or ""
         self.pack(anchor="w", pady=(8, 0))
         if tooltip:
             Tooltip(self, tooltip)

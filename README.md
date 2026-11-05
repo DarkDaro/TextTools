@@ -326,6 +326,7 @@ GUI проверяется отдельными скриптами в корне
 python test_gui.py                    # все вкладки и кнопки GUI
 python test_settings.py               # настройки GUI: применяются и кликаются
 python test_gui_fit.py                # умещение рядов кнопок (масштабы 1.0 и 1.25)
+python test_gui_buttons.py            # геометрия кнопок + схема docs/BUTTONS.md
 python test_gui_smoke.py              # дымовой прогон окна
 python test_script_presets.py         # автопоиск скриптов и пресеты
 ```

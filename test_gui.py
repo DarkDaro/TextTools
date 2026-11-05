@@ -3,7 +3,9 @@
 Проверяет: у каждой кнопки есть обработчик, безопасные кнопки реально
 кликаются (запуск инструментов подменён заглушкой), вкладки и горячие
 клавиши синхронизированы, история путей, журнал (поиск, очистка,
-масштаб), тосты. Конфиг пользователя восстанавливается байт-в-байт.
+масштаб), тосты. С 05.11 — геометрия кнопок и сверка схемы
+docs/BUTTONS.md с кодом (блок [11], test_gui_buttons.py).
+Конфиг пользователя восстанавливается байт-в-байт.
 
 Запуск: py -3.14 test_gui.py
 """
@@ -622,6 +624,20 @@ def main():
         check("вкладка сохранена",
               gui_config.CFG.get("ui.last_tab") in app._tabs,
               str(gui_config.CFG.get("ui.last_tab")))
+
+        # 05.11: геометрический аудит кнопок и сверка схемы
+        # docs/BUTTONS.md с кодом — ловит кнопку, которой нет на экране
+        # (не упакована, лежит поверх другой, обрезана, без command).
+        print("[11] геометрия и схема кнопок")
+        import test_gui_buttons as tgb
+        tgb.failures.clear()
+        problems = tgb.audit_app(app, print_header=False)
+        check("геометрия кнопок: без перекрытий, обрезов и мёртвых",
+              not problems, "; ".join(problems[:3]))
+        check("схема docs/BUTTONS.md синхронна с кодом",
+              tgb.check_sync(tgb.collect_map(app),
+                             out=lambda s: print(f"       {s}")),
+              "python test_gui_buttons.py --fix-docs")
     except Exception:
         failures.append("исключение")
         traceback.print_exc()
