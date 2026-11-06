@@ -26,7 +26,7 @@
 Документация: [MANUAL.md](MANUAL.md) (сценарии и все кнопки),
 [GUI_GUIDE.md](GUI_GUIDE.md) (окно по шагам, без знания
 программирования), [CHANGELOG.md](CHANGELOG.md) (что и когда менялось).
-Версия 1.2.0, Windows, Python 3.10+, лицензия MIT.
+Версия 1.3.0, Windows, Python 3.10+, лицензия MIT.
 
 ## Кому это надо
 
@@ -203,7 +203,10 @@ python textools.py stats            --input <папка> [--out report.md] [--cs
 python textools.py yo               --input <папка> [--registry <yaml>] [--review] [--out отчёт.md]
 python textools.py export-docx      --input <глава.md> --out <глава.docx> [--force]
 python textools.py echo             --input <папка> [--n 3] [--min-files 2] [--top 25] [--registry <yaml>] [--out отчёт.md]
-python textools.py typography       --input <папка> [--fix] [--nbsp]
+python textools.py typography       --input <папка> [--fix] [--nbsp] [--check]
+python textools.py cast             --input <папка/файл> [--out reports/cast_list.txt] [--min-count 1]
+python textools.py name-check       --name "Название" [--out отчёт.md]
+python textools.py copy-doctor      [--fix] [--roots "папка1;папка2"]
 python textools.py style-report     --input <папка> [--registry <yaml>] [--window 5] [--long 25]
 python textools.py whitespace       --input <папка> [--fix] [--keep-breaks]
 python textools.py separators       --input <папка> [--fix] [--symbols ...] [--min-run 3]
@@ -214,6 +217,9 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
 `--limit N`, `--verbose`, `--json <файл|->` — машинно-читаемый отчёт
 (у всех проверок; при «-» stdout целиком под JSON, человеческий вывод
 в stderr). Пустой или несуществующий `--input` — ошибка с кодом 2.
+Аналитические инструменты (stats, style-report, phrase-check, echo,
+antiresolve, cast) читают и `.html`/`.htm` — текст страницы изымается
+из разметки; правящие инструменты (typography, чистки) html не трогают.
 Долгие операции печатают прогресс строками `PROGRESS:N/M`, GUI рисует по
 ним полосу.
 
@@ -232,7 +238,9 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
   (список проблем по строкам), экспорт в Word, эхо-фразы
 * **Имена персонажей**: registry-builder, consistency, матрица
   упоминаний, падежные формы (pymorphy3), добавление кандидатов в
-  реестр, MOC-заметки персонажей для Obsidian
+  реестр, MOC-заметки персонажей для Obsidian, список персонажей
+  без реестра (cast), проверка придуманного названия на занятость
+  (name-check, оффлайн)
 * **Хранилище**: orphan-finder, broken-links (вики и markdown-ссылки),
   merge-finder, проверка целостности заметок (integrity), валидатор
   Obsidian (obsidian-check), поиск иероглифов и мойбейка (find_cjk),
@@ -243,6 +251,7 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
   слова, refile
 * **Настройки**: пути к внешним скриптам, тема, проверки заметок
   (расширения для иероглифов, `.bak` валидатора), обслуживание бэкапов,
+  поиск старых копий программы и ярлыков к ним (copy-doctor),
   общие параметры, сведения о программе и проверка зависимостей
 * **Журнал**: вывод инструментов, поиск с подсветкой, очистка,
   копирование, сохранение отчёта, масштаб шрифта
@@ -297,11 +306,13 @@ python textools.py emoji-icons      --input <файл/папка> [--fix] [--map
   utf8_convert, full_check, morph_forms, character_matrix,
   registry_merge, backup_restore, backup_archive, moc_builder,
   text_stats, typography, style_report, icon_replace, yo_audit,
-  echo_finder, export_docx)
+  echo_finder, export_docx, cast_list, name_check, copy_doctor)
   и словари `phrases*.yaml`, `parasites.yaml`; `yo_dict.yaml` —
   опциональный словарь ё-пар (без него — встроенный список)
 * `data/`: YAML-словари правил режима АНТИРЕШИМОСТЬ
-  (`resolve_db.yaml`, `pathos_db.yaml`, атрибуция — `SOURCES.md`)
+  (`resolve_db.yaml`, `pathos_db.yaml`, атрибуция — `SOURCES.md`);
+  `name_alerts.yaml` — оффлайн-справочник занятых названий для
+  name-check
 * `find_cjk.py`: поиск иероглифов, мойбейка и порчи кодировки (CLI `cjk`,
   карточка на вкладке «Хранилище»)
 * `wrappers/`: сборка командных строк для внешних скриптов
