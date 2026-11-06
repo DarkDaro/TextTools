@@ -343,6 +343,8 @@ python textools.py check-all --input <папка> --plan план.md
   обновлений интерфейса». Только отчёт; исправление —
   `python textools.py copy-doctor --fix` (папка переименовывается в
   `*_СТАРАЯ`, ярлык переезжает в `_старые_ярлыки_TextTools` — всё обратимо).
+  Если старое — сам ярлык, проще поставить свежий: кнопка «Создать
+  свежий ярлык» в этой же карточке (или `copy-doctor --new-shortcut`).
 - **Показывать команды в логе** — технические детали запусков.
 - **Переходить в журнал при запуске** — после нажатия кнопки
   инструмента открывается вкладка «Журнал» с ходом работы. Без галочки
@@ -466,7 +468,7 @@ python textools.py echo             --input <папка> [--n 3] [--min-files 2]
 python textools.py typography       --input <папка> [--fix] [--nbsp] [--check]
 python textools.py cast             --input <папка/файл> [--out reports/cast_list.txt] [--min-count 1]
 python textools.py name-check       --name "Название" [--out отчёт.md]
-python textools.py copy-doctor      [--fix] [--roots "папка1;папка2"]
+python textools.py copy-doctor      [--fix] [--new-shortcut] [--roots "папка1;папка2"]
 python textools.py style-report     --input <папка> [--registry <yaml>] [--window 5] [--long 25]
 python textools.py whitespace       --input <папка> [--fix] [--keep-breaks]
 python textools.py separators       --input <папка> [--fix] [--symbols ...] [--min-run 3]
@@ -681,7 +683,7 @@ python textools.py name-check --name "Название" [--out отчёт.md]
 ничего не меняется, хотя GitHub обновился.
 
 ```
-python textools.py copy-doctor [--fix] [--roots "папка1;папка2"]
+python textools.py copy-doctor [--fix] [--new-shortcut] [--roots "папка1;папка2"]
 ```
 
 - Сканирует типовые места (Рабочий стол, Загрузки, Документы, меню
@@ -692,7 +694,12 @@ python textools.py copy-doctor [--fix] [--roots "папка1;папка2"]
 - Без `--fix` — только отчёт. С `--fix`: старые папки переименовываются
   в `*_СТАРАЯ`, ярлыки, ведущие в старую копию, переезжают в
   `_старые_ярлыки_TextTools` рядом — всё обратимо, файлы не удаляются.
-- В GUI: кнопка «Найти старые копии и ярлыки» на вкладке «Настройки».
+- `--new-shortcut` — другое лекарство той же болезни: ставит на рабочий
+  стол свежий ярлык `TextTools.lnk`, ведущий в актуальную копию (через
+  `textools_gui.bat` он сам подтягивает обновления перед запуском).
+  После него старые ярлыки можно просто удалить.
+- В GUI: кнопки «Найти старые копии и ярлыки» и «Создать свежий ярлык»
+  на вкладке «Настройки».
 
 ## Мелочи
 
