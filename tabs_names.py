@@ -189,6 +189,37 @@ class NamesTab(ctk.CTkFrame):
         b_moc.pack(side="left")
         b_moc.link_danger(self.c_moc_apply.var)
 
+        # --- список персонажей и проверка имени (07.11) ---
+        s7 = Section(parent, "Список персонажей и проверка названий",
+                     subtitle="форматы: .md, .txt, .docx (Word), .html")
+        self.f_cast = PathField(s7.inner, "Тексты (папка/файл):", "cast_input",
+                                CFG, file_mode="both",
+                                tooltip="Роман целиком или папка с главами. "
+                                        "Инструмент сам собирает все имена "
+                                        "с заглавной буквы, без реестра.")
+        row7 = button_row(s7.inner)
+        ActionButton(row7, "Список персонажей (лог)", self._run_cast,
+                     kind="safe", width=235,
+                     tooltip="Все имена без повторов + счётчик вхождений + "
+                             "пары «Имя Фамилия» + места, где одно имя "
+                             "пишется по-разному (Семён/Семен). Лог: "
+                             "reports/cast_list.txt."
+                     ).pack(side="left")
+        self.e_name = EntryField(s7.inner, "Название или имя:", "name_check_input",
+                                 CFG, placeholder="например, название корпорации",
+                                 tooltip="Проверка придуманного названия на "
+                                         "занятость: оффлайн-справочник "
+                                         "известных приложений и брендов + "
+                                         "советы, где проверить, + готовый "
+                                         "дисклеймер для книги.")
+        row7b = button_row(s7.inner)
+        ActionButton(row7b, "Проверить имя (занятость)", self._run_name_check,
+                     kind="safe", width=235,
+                     tooltip="Оффлайн-проверка: точные совпадения с известными "
+                             "названиями, оценка риска и план проверки "
+                             "до печати книги."
+                     ).pack(side="left")
+
         # 05.11: Ё/Е-аудит переехал во вкладку «Писателям» (tabs_writers)
 
     def _log(self, msg, tag=None):
@@ -283,3 +314,21 @@ class NamesTab(ctk.CTkFrame):
         if self.c_moc_apply.get():
             args.append("--apply")
         run_internal("moc_builder", args)
+    def _run_cast(self):
+        # 07.11: список персонажей без повторов — лог reports/cast_list.txt
+        from gui_ctk import run_internal
+        if not self.f_cast.get():
+            self._log("Укажите папку или файл с текстами.\n")
+            return
+        self._log("Собираю персонажей...\n")
+        run_internal("cast_list", ["--input", self.f_cast.get()])
+
+    def _run_name_check(self):
+        # 07.11: проверка придуманного названия на занятость (оффлайн)
+        from gui_ctk import run_internal
+        name = self.e_name.get().strip()
+        if not name:
+            self._log("Введите название или имя для проверки.\n")
+            return
+        self._log(f"Проверяю название «{name}»...\n")
+        run_internal("name_check", ["--name", name])

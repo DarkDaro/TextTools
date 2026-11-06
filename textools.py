@@ -15,7 +15,10 @@ textools — единый CLI текстовых инструментов.
   obsidian-check     валидатор метафайлов Obsidian: таблицы, заголовки, теги, ссылки
   cjk                иероглифы (CJK), мойбейк и порча кодировки (только чтение)
   utf8               проверка/приведение текстов к UTF-8
-  typography         типографика: «ёлочки», тире, многоточия
+  typography         типографика: «ёлочки», тире, пунктуация, вычитка --check
+  cast               список персонажей без повторов в текстовый лог
+  name-check         проверка придуманного имени/названия на занятость
+  copy-doctor        поиск старых копий TextTools и ярлыков к ним
   style-report       стилистика: повторы слов рядом, длинные предложения
   stats              статистика текстов (объём, диалоги, паразиты)
   whitespace         чистка пробелов и пустых строк
@@ -42,7 +45,7 @@ import argparse
 # вычитка --check) и карточка «Типографика» на вкладке «Писателям».
 # 05.11: 1.1.0 — шесть команд из BACKLOG (yo, check-all --out/--plan,
 # stats --history, export-docx, echo)
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 
 def main():
@@ -168,12 +171,15 @@ def main():
                        help="код 0, даже если найдены иероглифы")
 
     p11 = sub.add_parser("typography",
-                         help="типографика: «ёлочки», тире, многоточия (с .bak)")
+                         help="типографика: «ёлочки», тире, пунктуация (с .bak); "
+                              "--check — вычитка")
     p11.add_argument("--input", required=True)
     p11.add_argument("--fix", action="store_true",
                      help="реально править (по умолчанию dry-run)")
     p11.add_argument("--nbsp", action="store_true",
-                     help="неразрывные пробелы после предлогов и «№»")
+                     help="неразрывные пробелы: предлоги, инициалы, «т. д.», число")
+    p11.add_argument("--check", action="store_true",
+                     help="вычитка: только список проблемных мест, файлы не правятся")
     p11.add_argument("--out")
 
     p12 = sub.add_parser("style-report",
@@ -324,6 +330,28 @@ def main():
     p18.add_argument("--json", dest="json_out", nargs="?", const="-",
                      help="сводка в JSON («-» — в stdout)")
 
+    # 07.11: список персонажей, проверка имени, поиск старых копий
+    p_cast = sub.add_parser("cast",
+                            help="список персонажей без повторов в текстовый лог")
+    p_cast.add_argument("--input", required=True,
+                        help="папка или файл .md/.txt/.docx/.html")
+    p_cast.add_argument("--out", help="лог (по умолчанию reports/cast_list.txt)")
+    p_cast.add_argument("--min-count", type=int, default=1,
+                        help="минимум вхождений (по умолчанию 1 — все)")
+
+    p_name = sub.add_parser("name-check",
+                            help="проверка придуманного имени/названия "
+                                 "на занятость (оффлайн)")
+    p_name.add_argument("--name", required=True, help="имя или название")
+    p_name.add_argument("--out", help="файл отчёта")
+
+    p_doc = sub.add_parser("copy-doctor",
+                           help="поиск старых копий TextTools и ярлыков к ним")
+    p_doc.add_argument("--fix", action="store_true",
+                       help="переименовать старые папки в *_СТАРАЯ, убрать "
+                            "ярлыки (reversibly)")
+    p_doc.add_argument("--roots", help="дополнительные папки скана через «;»")
+
     args = ap.parse_args()
 
     here = Path(__file__).parent
@@ -411,6 +439,7 @@ def main():
         sys.exit(typography.main(
             ["--input", args.input, *(["--fix"] if args.fix else []),
              *(["--nbsp"] if args.nbsp else []),
+             *(["--check"] if args.check else []),
              *(["--out", args.out] if args.out else [])]))
     elif args.cmd == "style-report":
         sys.path.insert(0, str(here))
@@ -556,6 +585,27 @@ def main():
                 *(["--out", args.out] if args.out else []),
                 *(["--json", args.json_out] if args.json_out else [])]
         sys.exit(echo_finder.main(opts))
+    elif args.cmd == "cast":
+        sys.path.insert(0, str(here))
+        from tools import cast_list
+        sys.exit(cast_list.main(
+            ["--input", args.input,
+             *(["--out", args.out] if args.out else []),
+             *(["--min-count", str(args.min_count)]
+               if args.min_count != 1 else [])]))
+    elif args.cmd == "name-check":
+        sys.path.insert(0, str(here))
+        from tools import name_check
+        sys.exit(name_check.main(
+            ["--name", args.name, *(["--out", args.out] if args.out else [])]))
+    elif args.cmd == "copy-doctor":
+        sys.path.insert(0, str(here))
+        from tools import copy_doctor
+        # 07.11: argv всегда списком — иначе main() без аргументов
+        # парсит sys.argv и давится именем команды
+        sys.exit(copy_doctor.main(
+            [*(["--fix"] if args.fix else []),
+             *(["--roots", args.roots] if args.roots else [])]))
     elif args.cmd == "check-all":
         sys.path.insert(0, str(here))
         from tools import full_check
