@@ -38,9 +38,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 import argparse
 
 # 24.10: версия проекта — единый источник для CLI, GUI и pyproject.toml
+# 07.11: 1.2.0 — типографика издательской нормы (пунктуация, диапазоны,
+# вычитка --check) и карточка «Типографика» на вкладке «Писателям».
 # 05.11: 1.1.0 — шесть команд из BACKLOG (yo, check-all --out/--plan,
 # stats --history, export-docx, echo)
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 
 def main():
