@@ -26,7 +26,7 @@
 Документация: [MANUAL.md](MANUAL.md) (сценарии и все кнопки),
 [GUI_GUIDE.md](GUI_GUIDE.md) (окно по шагам, без знания
 программирования), [CHANGELOG.md](CHANGELOG.md) (что и когда менялось).
-Версия 1.3.0, Windows, Python 3.10+, лицензия MIT.
+Версия 1.3.1, Windows, Python 3.10+, лицензия MIT.
 
 ## Кому это надо
 
