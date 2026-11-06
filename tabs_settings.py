@@ -368,13 +368,25 @@ class SettingsTab(ctk.CTkFrame):
             "та, где нет маркера версии. Отчёт ничего не меняет; убрать "
             "найденное — python textools.py copy-doctor --fix (папка "
             "переименовывается в *_СТАРАЯ, ярлык переезжает в "
-            "_старые_ярлыки_TextTools — всё обратимо)."
+            "_старые_ярлыки_TextTools — всё обратимо).\n"
+            "Кнопка «Создать свежий ярлык» ставит на рабочий стол ярлык "
+            "в ЭТУ копию — он сам обновляется перед запуском, старые "
+            "ярлыки после этого можно просто удалить."
         )).pack(anchor="w", pady=(0, 4))
         row_doc = button_row(s_doc.inner)
         ActionButton(row_doc, "Найти старые копии и ярлыки", self._run_doctor,
                      kind="safe", width=260,
                      tooltip="Скан типовых папок: копии TextTools и ярлыки "
                              ".lnk к ним. Только отчёт, ничего не меняет."
+                     ).pack(side="left", padx=(0, 8))
+        # 07.11: свежий ярлык — главное лекарство от «запускается старое GUI»:
+        # ярлык на рабочем столе ведёт в актуальную копию, сам обновляется
+        ActionButton(row_doc, "Создать свежий ярлык", self._make_shortcut,
+                     kind="primary", width=230,
+                     tooltip="Создаёт «TextTools.lnk» на рабочем столе, который "
+                             "ведёт в эту копию (textools_gui.bat сам подтягивает "
+                             "обновления перед запуском). Старые ярлыки после "
+                             "этого можно удалить."
                      ).pack(side="left")
 
         # --- Журнал операций (02.10) ---
@@ -955,3 +967,10 @@ class SettingsTab(ctk.CTkFrame):
         from gui_ctk import run_internal
         self._log("Ищу старые копии TextTools и ярлыки к ним...\n")
         run_internal("copy_doctor", [])
+
+    def _make_shortcut(self):
+        # 07.11: свежий ярлык на рабочем столе — ведёт в актуальную копию;
+        # лечит «старые ярлыки запускают старое GUI» без командной строки
+        from gui_ctk import run_internal
+        self._log("Создаю свежий ярлык на рабочем столе...\n")
+        run_internal("copy_doctor", ["--new-shortcut"])

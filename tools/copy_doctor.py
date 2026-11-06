@@ -2,7 +2,7 @@
 """
 copy_doctor — поиск старых копий TextTools и ярлыков к ним (07.11).
 
-  python textools.py copy-doctor [--fix] [--roots папка1;папка2]
+  python textools.py copy-doctor [--fix] [--new-shortcut] [--roots папка1;папка2]
 
 Головная боль «GUI не обновляется» — старые копии проекта и ярлыки,
 которые запускают именно их: неделю выглядит так, будто ничего не
@@ -18,6 +18,16 @@ copy_doctor — поиск старых копий TextTools и ярлыков �
 не трогается никогда.
 
 Без --fix — только отчёт. На не-Windows скан просто ничего не находит.
+
+07.11: --new-shortcut — обратная задача. Вместо уборки старого ярлыка
+создаёт на рабочем столе СВЕЖИЙ ярлык «TextTools.lnk», который ведёт
+в актуальную копию (textools_gui.bat, он сам подтягивает обновления
+перед запуском). После этого старые ярлыки можно просто удалить.
+Папка «Рабочий стол» берётся через [Environment]::GetFolderPath —
+правильно при локализованном Windows и переносе рабочего стола в OneDrive.
+
+На не-Windows --new-shortcut сообщает, что ярлык создаётся
+только на Windows.
 """
 import argparse
 import os
@@ -186,16 +196,77 @@ def run(fix=False, roots=None, lnk_roots=None):
     return 0
 
 
+def make_shortcut():
+    """Создать свежий ярлык TextTools на рабочем столе (Windows, 07.11).
+
+    Ярлык ведёт в ТЕКУЩУЮ копию (textools_gui.bat), который сам
+    подтягивает обновления из GitHub перед каждым запуском. После этого
+    старые ярлыки, ведущие в старые копии, можно просто удалить.
+    Возвращает 0 (создан) или 1 (не удалось)."""
+    if not sys.platform.startswith("win"):
+        print("Ярлык создаётся только на Windows. В текущей системе "
+              "просто запустите gui_ctk.pyw напрямую.")
+        return 1
+    bat = CURRENT / "textools_gui.bat"
+    if not bat.exists():
+        print(f"Не найден {bat} — ярлыку не на что ссылаться.")
+        return 1
+    import subprocess
+    # Папка «Рабочий стол» через GetFolderPath: правильная при
+    # локализованном Windows («Рабочий стол» вместо Desktop) и при
+    # переносе рабочего стола в OneDrive. Ярлык перезаписывается, если
+    # уже есть: он всегда должен вести в актуальную копию.
+    ps = (
+        "$d=[Environment]::GetFolderPath('Desktop');"
+        "$ws=New-Object -ComObject WScript.Shell;"
+        "$lnk=Join-Path $d 'TextTools.lnk';"
+        "$s=$ws.CreateShortcut($lnk);"
+        f"$s.TargetPath='{bat}';"
+        f"$s.WorkingDirectory='{CURRENT}';"
+        "if (Test-Path (Join-Path $d 'textools.ico')) "
+        "{$s.IconLocation=(Join-Path $d 'textools.ico')};"
+        "$s.Description='TextTools — инструменты для писателей';"
+        "$s.Save();"
+        "Write-Output $lnk"
+    )
+    try:
+        p = subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+             "-Command", ps],
+            capture_output=True, timeout=30)
+    except Exception as e:
+        print(f"Не удалось вызвать PowerShell: {e}")
+        return 1
+    out = (p.stdout or b"").decode("utf-8", errors="replace").strip()
+    if p.returncode == 0 and out:
+        print(f"Ярлык создан: {out}")
+        print("Он ведёт в актуальную копию: textools_gui.bat перед "
+              "запуском сам подтягивает обновления из GitHub.")
+        print("Старые ярлыки TextTools на рабочем столе теперь можно "
+              "удалить (или убрать автоматически: copy-doctor --fix).")
+        return 0
+    err = (p.stderr or b"").decode("utf-8", errors="replace").strip()
+    print("Ярлык создать не удалось.")
+    if err:
+        print(err)
+    return 1
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(
         description="Поиск старых копий TextTools и ярлыков к ним")
     ap.add_argument("--fix", action="store_true",
                     help="переименовать старые папки в *_СТАРАЯ и убрать "
                          "ярлыки к ним (reversibly)")
+    ap.add_argument("--new-shortcut", action="store_true",
+                    help="создать свежий ярлык TextTools на рабочем столе — "
+                         "ведёт в актуальную копию и сам обновляется")
     ap.add_argument("--roots", help="дополнительные папки для скана "
                                     "копий через «;»")
     ap.add_argument("--out", help="файл отчёта не пишется — вывод в лог")
     args = ap.parse_args(argv)
+    if args.new_shortcut:
+        return make_shortcut()
     roots = args.roots.split(";") if args.roots else None
     return run(fix=args.fix, roots=roots)
 

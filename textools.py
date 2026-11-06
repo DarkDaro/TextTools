@@ -352,6 +352,10 @@ def main():
     p_doc.add_argument("--fix", action="store_true",
                        help="переименовать старые папки в *_СТАРАЯ, убрать "
                             "ярлыки (reversibly)")
+    # 07.11: свежий ярлык на рабочем столе — ведёт в актуальную копию
+    p_doc.add_argument("--new-shortcut", action="store_true",
+                       help="создать свежий ярлык TextTools на рабочем "
+                            "столе (ведёт в актуальную копию)")
     p_doc.add_argument("--roots", help="дополнительные папки скана через «;»")
 
     args = ap.parse_args()
@@ -605,9 +609,10 @@ def main():
         from tools import copy_doctor
         # 07.11: argv всегда списком — иначе main() без аргументов
         # парсит sys.argv и давится именем команды
-        sys.exit(copy_doctor.main(
-            [*(["--fix"] if args.fix else []),
-             *(["--roots", args.roots] if args.roots else [])]))
+        fwd = (["--fix"] if args.fix else [])
+        fwd += (["--new-shortcut"] if args.new_shortcut else [])
+        fwd += (["--roots", args.roots] if args.roots else [])
+        sys.exit(copy_doctor.main(fwd))
     elif args.cmd == "check-all":
         sys.path.insert(0, str(here))
         from tools import full_check
