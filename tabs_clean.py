@@ -24,7 +24,7 @@ class CleanTab(ctk.CTkFrame):
             "• Чистка разделителей — убирает строки-отбойники из повторяющихся "
             "символов (///// ***** ====== ———), к тексту они отношения не имеют.\n"
             "Инструменты стиля рукописи (АНТИРЕШИМОСТЬ, штампы, стилистика, "
-            "статистика, ё/е) — на вкладке «Писателям».\n"
+            "статистика, ё/е, типографика) — на вкладке «Писателям».\n"
             "Безопасность: по умолчанию всё в режиме dry-run (только отчёт). "
             "Чтобы реально изменить файлы — снимите dry-run / поставьте «Применить». "
             "С бэкапом (.bak рядом с файлом) всегда можно откатить."))
@@ -169,44 +169,9 @@ class CleanTab(ctk.CTkFrame):
         b_utf8.pack(side="left")
         b_utf8.link_danger(self.c_utf8_fix.var)
 
-        # --- 5. типографика (03.10) ---
-        s5 = Section(parent, "5. Типографика: «ёлочки», тире, многоточия",
-                     subtitle="форматы: .txt, .md, .docx (Word)")
-        self.f_typo = PathField(s5.inner, "Папка или файл:", "typo_input", CFG,
-                                file_mode="both",
-                                tooltip="Папка (обход рекурсивный) или один файл "
-                                        ".md/.txt/.docx.")
-        r5 = ctk.CTkFrame(s5.inner, fg_color="transparent")
-        r5.pack(fill="x", pady=4)
-        self.c_typo_fix = CheckField(r5, "Применить изменения", "typo_fix", CFG,
-                                     default=False,
-                                     tooltip="Без галочки — dry-run (только отчёт). "
-                                             "С галочкой — реально правит, "
-                                             "создавая .bak рядом с файлом.")
-        self.c_typo_fix.pack(side="left", padx=(0, 16))
-        self.c_typo_nbsp = CheckField(r5, "Неразрывные пробелы", "typo_nbsp", CFG,
-                                      default=False,
-                                      tooltip="Ставит неразрывный пробел после "
-                                              "предлогов/союзов (в, и, с, на…) "
-                                              "и после «№». По умолчанию выключено.")
-        self.c_typo_nbsp.pack(side="left", padx=16)
-        ctk.CTkLabel(s5.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
-            "Кавычки \"...\" → «ёлочки» (парные, вокруг кириллицы), "
-            "3+ точки → …, «слово - слово» → «слово — слово», "
-            "«- Реплика» в начале строки → «— Реплика» (txt/docx; в .md списки "
-            "не трогаются). Код-блоки, frontmatter и inline-код не трогаются."
-        )).pack(anchor="w", pady=(0, 2))
-        row5 = button_row(s5.inner)
-        b_typo = ActionButton(
-            row5, "Запустить типографику", self._run_typo,
-            kind="safe", width=235,
-            tooltip="«Ёлочки», тире, многоточия, неразрывные пробелы (опция). "
-                    "Dry-run по умолчанию.")
-        b_typo.pack(side="left")
-        b_typo.link_danger(self.c_typo_fix.var)
-
-        # --- 6. эмодзи → SVG-иконки в html (04.11) ---
-        s6 = Section(parent, "6. Эмодзи → SVG-иконки в интерфейсе",
+        # --- 5. эмодзи → SVG-иконки в html (04.11; 07.11: секция 5 после
+        # переезда типографики в «Писателям») ---
+        s6 = Section(parent, "5. Эмодзи → SVG-иконки в интерфейсе",
                      subtitle="форматы: .html (иконки интерфейса)")
         self.f_icons = PathField(s6.inner, "Папка или файл:", "icons_input", CFG,
                                  file_mode="both",
@@ -242,8 +207,8 @@ class CleanTab(ctk.CTkFrame):
         b_icons.pack(side="left")
         b_icons.link_danger(self.c_icons_fix.var)
 
-        # --- 7. мусорные разделители (04.11) ---
-        s7 = Section(parent, "7. Чистка мусорных разделителей",
+        # --- 6. мусорные разделители (04.11) ---
+        s7 = Section(parent, "6. Чистка мусорных разделителей",
                      subtitle="форматы: .txt, .md, .docx (Word)")
         self.f_sep = PathField(s7.inner, "Папка или файл:", "sep_input", CFG,
                                file_mode="both",
@@ -311,19 +276,6 @@ class CleanTab(ctk.CTkFrame):
         if self.c_utf8_fix.get():
             args.append("--fix")
         run_internal("utf8_convert", args)
-
-    def _run_typo(self):
-        from gui_ctk import run_internal
-        p = self.f_typo.get()
-        if not p:
-            self._log("Укажите папку или файл.\n")
-            return
-        args = ["--input", p]
-        if self.c_typo_fix.get():
-            args.append("--fix")
-        if self.c_typo_nbsp.get():
-            args.append("--nbsp")
-        run_internal("typography", args)
 
     def _run_icons(self):
         from gui_ctk import run_internal

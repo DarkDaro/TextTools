@@ -35,6 +35,9 @@ class WritersTab(ctk.CTkFrame):
             "слова-паразиты; умеет вести CSV-дневник объёма.\n"
             "• Ё/Е-аудит — спорные места с ё: имена из реестра, словарные пары, "
             "омографы (все/всё). Замена — выборочно в витрине.\n"
+            "• Типографика — «ёлочки», тире, многоточия, пунктуация и неразрывные "
+            "пробелы; вычитка показывает проблемные места по строкам (для Word — "
+            "по абзацам).\n"
             "• Экспорт в Word — глава .md превращается в .docx для беты и "
             "редактора.\n"
             "• Эхо-фразы — одинаковые зачины и конструкции, повторяющиеся "
@@ -204,8 +207,57 @@ class WritersTab(ctk.CTkFrame):
                              "выбранным вхождением в диалоге."
                      ).pack(side="left")
 
-        # --- 6. экспорт в Word (06.11: BACKLOG №4 добрался до GUI) ---
-        s6 = Section(parent, "6. Экспорт в Word",
+        # --- 6. типографика (07.11: переехала из «Чистки», добавлена вычитка) ---
+        s_typo = Section(parent, "6. Типографика: «ёлочки», тире, пунктуация",
+                         subtitle="форматы: .md, .txt, .docx (Word)")
+        self.f_typo = PathField(s_typo.inner, "Папка или файл:", "typo_input", CFG,
+                                file_mode="both",
+                                tooltip="Папка (обход рекурсивный) или один файл "
+                                        ".md/.txt/.docx.")
+        r_typo = ctk.CTkFrame(s_typo.inner, fg_color="transparent")
+        r_typo.pack(fill="x", pady=4)
+        self.c_typo_fix = CheckField(r_typo, "Применить изменения", "typo_fix", CFG,
+                                     default=False,
+                                     tooltip="Без галочки — dry-run (только отчёт). "
+                                             "С галочкой — реально правит, "
+                                             "создавая .bak рядом с файлом.")
+        self.c_typo_fix.pack(side="left", padx=(0, 16))
+        self.c_typo_nbsp = CheckField(r_typo, "Неразрывные пробелы", "typo_nbsp", CFG,
+                                      default=False,
+                                      tooltip="Неразрывный пробел: предлоги/союзы "
+                                              "(в, и, с, на…), «№», перед тире; "
+                                              "инициалы «И. И. Иванов»; «т. д.», «и др.»; "
+                                              "число не отрывается от слова "
+                                              "(«10 лет», «1812 г.»).")
+        self.c_typo_nbsp.pack(side="left", padx=16)
+        ctk.CTkLabel(s_typo.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+            "Кавычки \"...\" и „лапки“ → «ёлочки», 3+ точки → …, «?...» → «?..», "
+            "«слово - слово» → «слово — слово», диапазон лет «1941-1945» → "
+            "«1941—1945», «- Реплика» → «— Реплика» (txt/docx). Пунктуация: "
+            "«Да,нет» → «Да, нет», «слово ,» → «слово,», «А.С.Пушкин» → "
+            "«А. С. Пушкин», двойные пробелы сжимаются. Код-блоки, frontmatter и "
+            "inline-код не трогаются. Вычитка — только список проблем, файлы "
+            "не меняет."
+        )).pack(anchor="w", pady=(0, 2))
+        row_typo = button_row(s_typo.inner)
+        b_typo_check = ActionButton(
+            row_typo, "Вычитка: найти проблемы", self._run_typo_check,
+            kind="safe", width=225,
+            tooltip="Список проблем с адресами (файл:строка, для Word — абзац): "
+                    "прямые кавычки, ёлочки без пары, дефис вместо тире, "
+                    "двойные пробелы, «?...» вместо «?..» и другое. Файлы "
+                    "не изменяются.")
+        b_typo_check.pack(side="left", padx=(0, 8))
+        b_typo = ActionButton(
+            row_typo, "Запустить типографику", self._run_typo,
+            kind="safe", width=235,
+            tooltip="«Ёлочки», тире, многоточия, пунктуация, неразрывные пробелы "
+                    "(опция). Dry-run по умолчанию.")
+        b_typo.pack(side="left")
+        b_typo.link_danger(self.c_typo_fix.var)
+
+        # --- 7. экспорт в Word (06.11: BACKLOG №4 добрался до GUI) ---
+        s6 = Section(parent, "7. Экспорт в Word",
                      subtitle="форматы: .md/.markdown → .docx")
         self.f_export_in = PathField(s6.inner, "Откуда (.md):", "export_input", CFG,
                                      file_mode="both",
@@ -231,8 +283,8 @@ class WritersTab(ctk.CTkFrame):
                              "новые файлы — существующие только с галочкой "
                              "перезаписи.").pack(side="left")
 
-        # --- 7. эхо-фразы (06.11: BACKLOG №6 добрался до GUI) ---
-        s7 = Section(parent, "7. Эхо-фразы — повторы конструкций между главами",
+        # --- 8. эхо-фразы (06.11: BACKLOG №6 добрался до GUI) ---
+        s7 = Section(parent, "8. Эхо-фразы — повторы конструкций между главами",
                      subtitle="форматы: .md, .txt, .docx (Word)")
         self.f_echo = PathField(s7.inner, "Главы (папка/файл):", "echo_input", CFG,
                                 file_mode="both",
@@ -246,6 +298,31 @@ class WritersTab(ctk.CTkFrame):
                              "двух и более главах: «мир сжался», «задышал "
                              "ровнее». Топ-25 в отчёте. Файлы не меняются."
                      ).pack(side="left")
+
+    def _run_typo(self):
+        # 07.11: типографика переехала из «Чистки» (ключи конфига не менялись,
+        # история путей переносится), добавлен режим вычитки
+        from gui_ctk import run_internal
+        p = self.f_typo.get()
+        if not p:
+            self._log("Укажите папку или файл.\n")
+            return
+        args = ["--input", p]
+        if self.c_typo_fix.get():
+            args.append("--fix")
+        if self.c_typo_nbsp.get():
+            args.append("--nbsp")
+        run_internal("typography", args)
+
+    def _run_typo_check(self):
+        # 07.11: вычитка — список проблем с адресами, файлы не правятся
+        from gui_ctk import run_internal
+        p = self.f_typo.get()
+        if not p:
+            self._log("Укажите папку или файл.\n")
+            return
+        self._log("Вычитка: ищу проблемные места (файл:строка)...\n")
+        run_internal("typography", ["--input", p, "--check"])
 
     def _run_export(self):
         # 06.11: экспорт главы .md → .docx (движок BACKLOG №4, до этого
