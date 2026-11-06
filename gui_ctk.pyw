@@ -174,6 +174,33 @@ def _cfg_int(key, default, lo, hi):
     return max(lo, min(hi, v))
 
 
+def open_text_file(path, log=None):
+    """06.11: открыть текстовый файл во внешнем редакторе — общая
+    функция. Редактор берётся из настройки ui.editor (можно с флагами,
+    «notepad++ -multiInst»), иначе notepad.exe на Windows и системный
+    способ на других ОС. Тот же способ зовут кнопки «Настроек»
+    (конфиг, журнал, паразиты) и «Открывать отчёт после сохранения»."""
+    editor = str(CFG.get("ui.editor", "") or "").strip()
+    try:
+        if editor:
+            import shlex
+            cmd = shlex.split(editor, posix=False) or [editor]
+            subprocess.Popen(cmd + [str(path)])
+        elif sys.platform == "win32":
+            subprocess.Popen(["notepad.exe", str(path)])
+        else:
+            opener = "open" if sys.platform == "darwin" else "xdg-open"
+            subprocess.Popen([opener, str(path)])
+        return True
+    except Exception as e:
+        if log is not None:
+            try:
+                log(f"Не удалось открыть файл: {e}\n", "err")
+            except Exception:
+                pass
+        return False
+
+
 def _toast_beep(level):
     """21.10: короткий системный звук уведомления. Отключается галочкой
     «Звуковые сигналы» на вкладке «Настройки»; ошибки звучат всегда громче."""
@@ -849,6 +876,18 @@ class App(ctk.CTk):
     def _on_theme_change(self, value):
         ctk.set_appearance_mode(value)
         CFG.set("theme", value)
+        # 06.11: тема меняется из двух мест (шапка и «Настройки») —
+        # оба переключателя всегда показывают одно значение
+        try:
+            self._theme_segment.set(value)
+        except Exception:
+            pass
+        try:
+            st = self._tabs.get("Настройки")
+            if st is not None and hasattr(st, "seg_theme"):
+                st.seg_theme.set("Тёмная" if value == "dark" else "Светлая")
+        except Exception:
+            pass
         p = _pal()
         self._theme_segment.configure(
             fg_color=p["seg_fg"], selected_color=p["accent"],
@@ -1244,6 +1283,9 @@ class App(ctk.CTk):
         self.log_line("Отчёт сохранён: ", "ok")
         self.log_line(f"{pth}\n")
         self.toast(f"Отчёт сохранён: {Path(pth).name}", "ok", beep=False)
+        # 06.11: «Открывать отчёт после сохранения» — файл сразу на экране
+        if _cfg_flag("ui.report_open", False):
+            open_text_file(Path(pth), self.log_line)
 
     def _reports_dir(self):
         """24.10: папка отчётов из настроек, иначе reports/ рядом."""

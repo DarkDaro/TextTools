@@ -293,6 +293,29 @@ class WritersTab(ctk.CTkFrame):
                                 tooltip="Главы .md/.txt/.docx или папка. Эхо — "
                                         "это повтор между РАЗНЫМИ файлами, "
                                         "внутри одного файла ищет «Стилистика».")
+        # 06.11: параметры поиска были только в CLI — теперь и здесь,
+        # значения запоминаются между запусками
+        r7p = ctk.CTkFrame(s7.inner, fg_color="transparent")
+        r7p.pack(fill="x", pady=2)
+        self.e_echo_n = EntryField(r7p, "Слов во фразе:", "echo_n", CFG,
+                                   placeholder="3", width_label=110,
+                                   tooltip="Длина n-граммы: сколько слов должны "
+                                           "повторяться подряд. По умолчанию 3.")
+        self.e_echo_n.pack(side="left", padx=(0, 12))
+        self.e_echo_n.entry.configure(width=64)
+        self.e_echo_min = EntryField(r7p, "Мин. глав:", "echo_min_files", CFG,
+                                     placeholder="2", width_label=80,
+                                     tooltip="Фраза попадает в отчёт, если встретилась "
+                                             "минимум в этом числе РАЗНЫХ файлов. "
+                                             "По умолчанию 2.")
+        self.e_echo_min.pack(side="left", padx=(0, 12))
+        self.e_echo_min.entry.configure(width=64)
+        self.e_echo_top = EntryField(r7p, "В топ:", "echo_top", CFG,
+                                     placeholder="25", width_label=52,
+                                     tooltip="Сколько самых частых эхо показывать "
+                                             "в отчёте. По умолчанию 25.")
+        self.e_echo_top.pack(side="left")
+        self.e_echo_top.entry.configure(width=64)
         row7 = button_row(s7.inner)
         ActionButton(row7, "Найти эхо-фразы", self._run_echo,
                      kind="safe", width=200,
@@ -342,13 +365,26 @@ class WritersTab(ctk.CTkFrame):
         run_internal("export_docx", args)
 
     def _run_echo(self):
-        # 06.11: эхо-фразы — повторы конструкций между разными файлами
+        # 06.11: параметры поиска вынесены в карточку (echo_n,
+        # echo_min_files, echo_top) — раньше только в командной строке
         from gui_ctk import run_internal
         if not self.f_echo.get():
             self._log("Укажите папку или файл для поиска эхо-фраз.\n")
             return
+        args = ["--input", self.f_echo.get()]
+        for field, flag, label in (
+                (self.e_echo_n, "--n", "Слов во фразе"),
+                (self.e_echo_min, "--min-files", "Мин. глав"),
+                (self.e_echo_top, "--top", "В топ")):
+            v = field.get().strip()
+            if v and not v.isdigit():
+                self._log(f"Эхо-фразы, «{label}»: введите целое число.\n",
+                          "warn")
+                return
+            if v:
+                args += [flag, v]
         self._log("Ищу эхо-фразы — повторы между главами...\n")
-        run_internal("echo_finder", ["--input", self.f_echo.get()])
+        run_internal("echo_finder", args)
 
     def _log(self, msg, tag=None):
         from gui_ctk import _app

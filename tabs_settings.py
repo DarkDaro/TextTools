@@ -235,6 +235,35 @@ class SettingsTab(ctk.CTkFrame):
             tooltip="Сколько недавних путей хранить для каждого поля "
                     "(меню ▾): от 3 до 50, по умолчанию 10.")
         self.f_hist_limit.pack(fill="x")
+        # 06.11: тема — теперь и здесь, не только в шапке; два
+        # переключателя синхронизируются через _on_theme_change
+        r_theme = ctk.CTkFrame(s_view.inner, fg_color="transparent")
+        r_theme.pack(fill="x", pady=(2, 0))
+        ctk.CTkLabel(r_theme, text="Тема:", font=FONT_SMALL).pack(side="left")
+        _theme = str(CFG.get("theme", "dark") or "dark").lower()
+        self.seg_theme = ctk.CTkSegmentedButton(
+            r_theme, values=["Светлая", "Тёмная"], width=170, height=26,
+            dynamic_resizing=False, font=FONT_SMALL, command=self._on_theme)
+        self.seg_theme.set("Тёмная" if _theme == "dark" else "Светлая")
+        self.seg_theme.pack(side="left", padx=(8, 0))
+        # 06.11: Tooltip сюда не вешается — CTkSegmentedButton не
+        # поддерживает bind (NotImplementedError), подпись «Тема:» рядом
+        self.c_log_wrap = CheckField(
+            s_view.inner, "Переносить длинные строки в журнале",
+            "ui.log_wrap", CFG, default=True,
+            tooltip="Длинные строки отчёта переносятся на следующую "
+                    "строку. Без галочки строка уезжает за край и "
+                    "смотрится горизонтальной прокруткой. Применяется "
+                    "сразу, без перезапуска.")
+        self.c_log_wrap.pack(anchor="w")
+        CheckField(
+            s_view.inner, "Открывать отчёт после сохранения",
+            "ui.report_open", CFG, default=False,
+            tooltip="Кнопка «Отчёт» на вкладке «Журнал»: после сохранения "
+                    "файл сразу открывается в редакторе (настройка "
+                    "«Редактор» на вкладке «Общее»), не надо искать его "
+                    "в папке.")
+
         CheckField(
             s_view.inner, "Спрашивать при закрытии во время работы",
             "confirm_close", CFG, default=True,
@@ -276,6 +305,8 @@ class SettingsTab(ctk.CTkFrame):
         self.f_hist_limit.entry.bind(
             "<FocusOut>", lambda e: self._check_int_range(
                 self.f_hist_limit, 3, 50, 10, "Путей в истории"), add="+")
+        # 06.11: перенос строк журнала применяется сразу при переключении
+        self.c_log_wrap.var.trace_add("write", self._apply_log_wrap)
         self.f_toast_ms.entry.bind(
             "<FocusOut>", lambda e: self._check_int_range(
                 self.f_toast_ms, 1500, 15000, 4200, "Тост, мс"), add="+")
@@ -590,6 +621,22 @@ class SettingsTab(ctk.CTkFrame):
             field.set(str(default))
             self._log(f"«{label}»: целое число от {lo} до {hi}. "
                       f"Возвращено {default}.\n", "warn")
+
+    # --- вид и журнал (06.11) ---
+
+    def _on_theme(self, label):
+        """Тема в карточке «Вид и журнал»: тот же обработчик, что и в
+        шапке; переключатель в шапке синхронизируется внутри."""
+        from gui_ctk import _app
+        _app._on_theme_change("dark" if label == "Тёмная" else "light")
+
+    def _apply_log_wrap(self, *_):
+        """Перенос строк журнала включается/выключается на лету."""
+        from gui_ctk import _app
+        try:
+            _app._log_panel.set_wrap(bool(self.c_log_wrap.get()))
+        except Exception:
+            pass
 
     # --- о программе (24.10) ---
 

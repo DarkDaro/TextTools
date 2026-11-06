@@ -737,6 +737,12 @@ class LogPanel(ctk.CTkFrame):
         except Exception:
             limit = 5000
         self._max_lines = max(500, min(100000, limit)) if limit else 5000
+        # 06.11: перенос длинных строк журнала — настройка ui.log_wrap
+        # (в JSON может лежать строка «false» — сниваем её явно)
+        _w = cfg.get("ui.log_wrap", True)
+        if isinstance(_w, str):
+            _w = _w.strip().lower() not in ("", "false", "0", "no")
+        self._wrap_word = bool(_w)
         self._font = ctk.CTkFont(family=MONO_FAMILY, size=self._font_size)
         self._build()
 
@@ -804,7 +810,9 @@ class LogPanel(ctk.CTkFrame):
                      font=FONT_SMALL, text_color=("gray45", "gray55"),
                      anchor="e").pack(side="right")
 
-        self.text = ctk.CTkTextbox(self, wrap="word", font=self._font,
+        self.text = ctk.CTkTextbox(self,
+                                   wrap="word" if self._wrap_word else "none",
+                                   font=self._font,
                                    corner_radius=10, border_width=1,
                                    border_color=("#e3e6ec", "#2a2f3a"),
                                    activate_scrollbars=True)
@@ -826,6 +834,15 @@ class LogPanel(ctk.CTkFrame):
             pass
 
     # --- вид ---
+
+    def set_wrap(self, on):
+        """06.11: перенос строк включается/выключается на лету —
+        настройка «Переносить длинные строки в журнале» без перезапуска."""
+        self._wrap_word = bool(on)
+        try:
+            self.text.configure(wrap="word" if on else "none")
+        except Exception:
+            pass
 
     def apply_theme(self, p):
         """Перекраска нестандартных частей: полотно, курсор, выделение, теги."""
