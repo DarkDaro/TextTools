@@ -19,6 +19,7 @@ textools — единый CLI текстовых инструментов.
   cast               список персонажей без повторов в текстовый лог
   name-check         проверка придуманного имени/названия на занятость
   copy-doctor        поиск старых копий TextTools и ярлыков к ним
+  doctor             целостность приложения: файлы, зависимости, скрипты, версии
   style-report       стилистика: повторы слов рядом, длинные предложения
   stats              статистика текстов (объём, диалоги, паразиты)
   whitespace         чистка пробелов и пустых строк
@@ -41,13 +42,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 import argparse
 
 # 24.10: версия проекта — единый источник для CLI, GUI и pyproject.toml
+# 07.11: 1.6.0 — doctor — самопроверка целостности приложения (файлы,
+# зависимости, внешние скрипты, версии)
 # 07.11: 1.3.1 — кнопки-открыватели подменю выделены синим со стрелкой «▸»
 # (витрина ё/е, журнал, папки, README), кнопка истории «▾» тоже синяя
 # 07.11: 1.2.0 — типографика издательской нормы (пунктуация, диапазоны,
 # вычитка --check) и карточка «Типографика» на вкладке «Писателям».
 # 05.11: 1.1.0 — шесть команд из BACKLOG (yo, check-all --out/--plan,
 # stats --history, export-docx, echo)
-__version__ = "1.5.1"
+__version__ = "1.6.0"
 
 
 def main():
@@ -358,6 +361,13 @@ def main():
                             "столе (ведёт в актуальную копию)")
     p_doc.add_argument("--roots", help="дополнительные папки скана через «;»")
 
+    # 07.11: самопроверка «из коробки» — свежая копия цела и рабочая
+    p_dr = sub.add_parser("doctor",
+                          help="целостность приложения: файлы, зависимости, "
+                               "внешние скрипты, версии (только чтение)")
+    p_dr.add_argument("--json", dest="json_out",
+                      help="отчёт в JSON («-» — в stdout)")
+
     args = ap.parse_args()
 
     here = Path(__file__).parent
@@ -613,6 +623,11 @@ def main():
         fwd += (["--new-shortcut"] if args.new_shortcut else [])
         fwd += (["--roots", args.roots] if args.roots else [])
         sys.exit(copy_doctor.main(fwd))
+    elif args.cmd == "doctor":
+        sys.path.insert(0, str(here))
+        from tools import app_check
+        sys.exit(app_check.main(
+            [*( ["--json", args.json_out] if args.json_out else [])]))
     elif args.cmd == "check-all":
         sys.path.insert(0, str(here))
         from tools import full_check
