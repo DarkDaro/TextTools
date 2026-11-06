@@ -47,7 +47,7 @@ import argparse
 # вычитка --check) и карточка «Типографика» на вкладке «Писателям».
 # 05.11: 1.1.0 — шесть команд из BACKLOG (yo, check-all --out/--plan,
 # stats --history, export-docx, echo)
-__version__ = "1.3.1"
+__version__ = "1.4.0"
 
 
 def main():
