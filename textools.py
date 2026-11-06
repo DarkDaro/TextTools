@@ -227,7 +227,7 @@ def main():
     p15.add_argument("--fix", action="store_true",
                      help="реально править (по умолчанию dry-run)")
     p15.add_argument("--symbols",
-                     help="символы-разделители (по умолчанию «*/=~-_+%&@•·—–§»)")
+                     help="символы-разделители (по умолчанию «*/=~-_+%%&@•·—–§»)")
     p15.add_argument("--min-run", type=int, default=3,
                      help="минимальная серия символов (по умолчанию 3)")
     p15.add_argument("--max-blank", type=int, default=1,
