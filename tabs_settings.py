@@ -355,6 +355,25 @@ class SettingsTab(ctk.CTkFrame):
         b_arch.pack(side="left")
         b_arch.link_danger(self.c_bak_move.var)
 
+        # --- старые копии и ярлыки (07.11) ---
+        s_doc = Section(parent, "Старые копии и ярлыки (почему «GUI не обновляется»)",
+                        subtitle="форматы: папки-копии и .lnk на диске")
+        ctk.CTkLabel(s_doc.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+            "Ищет старые копии TextTools на диске (Рабочий стол, Загрузки, "
+            "Документы, меню «Пуск») и ярлыки, которые их запускают: из-за "
+            "них неделями не видно обновлений интерфейса. Старая копия — "
+            "та, где нет маркера версии. Отчёт ничего не меняет; убрать "
+            "найденное — python textools.py copy-doctor --fix (папка "
+            "переименовывается в *_СТАРАЯ, ярлык переезжает в "
+            "_старые_ярлыки_TextTools — всё обратимо)."
+        )).pack(anchor="w", pady=(0, 4))
+        row_doc = button_row(s_doc.inner)
+        ActionButton(row_doc, "Найти старые копии и ярлыки", self._run_doctor,
+                     kind="safe", width=260,
+                     tooltip="Скан типовых папок: копии TextTools и ярлыки "
+                             ".lnk к ним. Только отчёт, ничего не меняет."
+                     ).pack(side="left")
+
         # --- Журнал операций (02.10) ---
         s_h = Section(parent, "Журнал операций")
         ctk.CTkLabel(s_h.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
@@ -927,3 +946,9 @@ class SettingsTab(ctk.CTkFrame):
         # в любом поле молча восстановит старые настройки
         gui_config.reset()
         self._log("Настройки сброшены. Перезапустите программу.\n", "ok")
+
+    def _run_doctor(self):
+        # 07.11: поиск старых копий TextTools и ярлыков (только отчёт)
+        from gui_ctk import run_internal
+        self._log("Ищу старые копии TextTools и ярлыки к ним...\n")
+        run_internal("copy_doctor", [])
