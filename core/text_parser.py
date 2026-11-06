@@ -10,6 +10,13 @@ from pathlib import Path
 
 # 22.09: docx — бинарный zip, читается через docx_io
 TEXT_EXTS = (".md", ".txt", ".docx")
+# 07.11: html для аналитических инструментов (статистика, стиль, штампы,
+# эхо, антирешимость, список персонажей). Текст страницы изымается из
+# разметки: теги и <script>/<style> уходят. Правящие инструменты
+# (типографика, чистка, разделители) html НЕ читают — разметку
+# незачем править как прозу.
+HTML_EXTS = (".html", ".htm")
+ANALYSIS_EXTS = TEXT_EXTS + HTML_EXTS
 
 # 04.11: служебные папки, общие для всех обходов хранилища.
 # .trash — корзина Obsidian: удалённые заметки не участвуют в проверках.
@@ -81,6 +88,25 @@ def stop_requested():
         return False
 
 
+def html_to_text(html):
+    """07.11: текст страницы без разметки — для аналитических
+    инструментов. Убираются комментарии, <script>/<style>/<noscript>,
+    сами теги (на их место — пробел), сущности (&amp; и прочие).
+    Возвращает текст с обычными пустыми строками между блоками."""
+    import html as _html_mod
+    import re as _re
+    if not html:
+        return ""
+    html = _re.sub(r"<!--.*?-->", " ", html, flags=_re.S)
+    html = _re.sub(r"(?is)<(script|style|noscript)[^>]*>.*?</\1>", " ", html)
+    html = _re.sub(r"(?s)<[^>]+>", " ", html)
+    text = _html_mod.unescape(html)
+    text = _re.sub(r"[ \t\f]+", " ", text)
+    text = _re.sub(r" ?\n ?", "\n", text)
+    text = _re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def read_text(path):
     """Читает файл как UTF-8; при неудаче — определяет кодировку
     (core.encoding, 01.10: koi8/cp1251 больше не выпадают из проверок).
@@ -93,6 +119,11 @@ def read_text(path):
         except ImportError:
             pass
         return None
+    if path.suffix.lower() in HTML_EXTS:
+        try:
+            return html_to_text(path.read_text(encoding="utf-8"))
+        except (UnicodeDecodeError, PermissionError, OSError):
+            return None
     try:
         return path.read_text(encoding="utf-8")
     except (UnicodeDecodeError, PermissionError, OSError):

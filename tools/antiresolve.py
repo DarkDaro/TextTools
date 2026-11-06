@@ -236,7 +236,7 @@ def run(input_path, resolve_db="", pathos_db="", clean=False,
     rules = load_rules(resolve_db or DEFAULT_RESOLVE_DB)
     rules += load_rules(pathos_db or DEFAULT_PATHOS_DB)
     root = tp.check_root(input_path)
-    files = list(tp.iter_text_files(root))
+    files = list(tp.iter_text_files(root, exts=tp.ANALYSIS_EXTS))  # 07.11: + html
 
     findings = []
     unread = 0

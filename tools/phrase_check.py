@@ -24,6 +24,7 @@ from core.report import write_report, write_json
 # 26.10: read_text не используется (читаем через docx_io ниже) — отключён
 # from core.text_parser import iter_text_files, read_text, norm_yo
 from core.text_parser import iter_text_files, norm_yo
+from core import text_parser as tp  # 07.11: tp.ANALYSIS_EXTS (+ html)
 
 # --- Встроенный словарь штампов ИИ-текста --------------------------------
 
@@ -151,7 +152,8 @@ def run(input_path, custom=None, phrases=None, limit=None, out=None,
 
     # 22.09: два прохода — сначала считаем файлы (для прогресса),
     # потом сканируем с печатью PROGRESS:N/M (GUI ловит и красит бар)
-    files = list(iter_text_files(input_path, limit=limit))
+    files = list(iter_text_files(input_path, limit=limit,
+                                exts=tp.ANALYSIS_EXTS))  # 07.11: + html
     total = len(files)
     print(f"PROGRESS:0/{total}", flush=True)
 
@@ -416,7 +418,8 @@ def review(input_path, clean_map_path=None, limit=None):
         mapping.update({str(k).lower(): v for k, v in extra.items()})
     items = sorted(mapping.items(), key=lambda kv: len(kv[0]), reverse=True)
 
-    files = list(iter_text_files(input_path, limit=limit))
+    files = list(iter_text_files(input_path, limit=limit,
+                                exts=tp.ANALYSIS_EXTS))  # 07.11: + html
     total = len(files)
     print(f"PROGRESS:0/{total}", flush=True)
     n_files = 0
@@ -567,7 +570,8 @@ def clean(input_path, clean_map_path=None, limit=None, dry_run=True,
     # коротким «стоит отметить»)
     items = sorted(mapping.items(), key=lambda kv: len(kv[0]), reverse=True)
 
-    files = list(iter_text_files(input_path, limit=limit))
+    files = list(iter_text_files(input_path, limit=limit,
+                                exts=tp.ANALYSIS_EXTS))  # 07.11: + html
     total = len(files)
     print(f"PROGRESS:0/{total}", flush=True)
     print(f"РЕЖИМ: {'DRY-RUN (файлы не изменены)' if dry_run else 'РЕАЛЬНАЯ ЗАМЕНА'}")

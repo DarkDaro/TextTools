@@ -30,7 +30,7 @@ from core import name_registry as nr  # 20.10: реестр имён (был н�
 
 SKIP_DIRS = {".git", ".obsidian", ".trash", "reports", "__pycache__",
              "md_replace_backups", ".smart-env"}  # 20.10: бэкапы не сканируем
-EXTS = (".md", ".txt", ".docx")
+EXTS = (".md", ".txt", ".docx", ".html", ".htm")  # 07.11: + html
 FENCE_RE = ("```", "~~~")
 
 MAX_REPEATS = 200      # всего находок-повторов в отчёте
@@ -183,6 +183,8 @@ def run(input_path, registry=None, window=5, long=25, limit=None, out=None):
             if f.suffix.lower() == ".docx":
                 from core import docx_io
                 text = docx_io.read_text(f)
+            elif f.suffix.lower() in (".html", ".htm"):
+                text = tp.read_text(f)  # 07.11: html — текст без разметки
             else:
                 text = f.read_text(encoding="utf-8")
         except (UnicodeDecodeError, PermissionError, OSError) as e:

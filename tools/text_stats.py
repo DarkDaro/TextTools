@@ -209,7 +209,8 @@ def run(input_path, limit=None, out=None, csv_log=False, show_history=False):
     parasites = load_parasites()
     if parasites is not PARASITES:
         print(f"Список паразитов: {PARASITE_FILE} ({len(parasites)} шт.)")
-    files = list(tp.iter_text_files(input_path, limit=limit))
+    files = list(tp.iter_text_files(input_path, limit=limit,
+                                   exts=tp.ANALYSIS_EXTS))  # 07.11: + html
     total = len(files)
     print(f"PROGRESS:0/{total}", flush=True)
 

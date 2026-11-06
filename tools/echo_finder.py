@@ -92,7 +92,8 @@ def find_echo(input_path, n=3, min_files=2, top=25, name_words=None,
     file_sets = defaultdict(set)       # n-грамм -> {файл}
     examples = {}                      # n-грамм -> (файл, предложение)
 
-    files = list(tp.iter_text_files(input_path, limit=limit))
+    files = list(tp.iter_text_files(input_path, limit=limit,
+                                   exts=tp.ANALYSIS_EXTS))  # 07.11: + html
     for f in files:
         text = tp.read_text(f)
         if not text:
