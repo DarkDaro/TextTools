@@ -280,9 +280,15 @@ class PathField(ctk.CTkFrame):
                                    command=browse_file, **SMALL_BUTTON)
             b_file.pack(side="left", padx=(0, 2))
             Tooltip(b_file, "Выбрать отдельный файл — обработается только он.")
-        # 02.10: список недавних путей этого поля
-        b_recent = ctk.CTkButton(self, text="▾", width=28, height=30,
-                                 command=self._show_recent, **SMALL_BUTTON)
+        # 02.10: список недавних путей этого поля. 07.11: кнопка красится
+        # в синий «open» — как крупные кнопки-открыватели: сразу видно,
+        # что за ней раскрывается список, а не прямой выбор из диалога
+        b_recent = ctk.CTkButton(
+            self, text="▾", width=28, height=30,
+            command=self._show_recent,
+            fg_color=ACTION_STYLES["open"]["fg"],
+            hover_color=ACTION_STYLES["open"]["hover"],
+            text_color=ACTION_STYLES["open"]["text"])
         b_recent.pack(side="left", padx=(0, 2))
         Tooltip(b_recent, "Недавние пути этого поля (последние "
                           f"{self._history_limit()}).")
@@ -594,6 +600,12 @@ ACTION_STYLES = {
     "neutral": {"fg": ("#e5e7eb", "#2a2f3a"),
                 "hover": ("#d1d5db", "#3b4250"),
                 "text": ("#111827", "#e5e7eb")},
+    # 07.11: кнопка, которая открывает подменю/окно/список (витрина,
+    # журнал, папка отчётов) — не выполняет операцию сама, а ведёт
+    # «куда-то ещё». Синий цвет + стрелка «▸» в тексте.
+    "open": {"fg": ("#2563eb", "#3b82f6"),
+             "hover": ("#1d4ed8", "#2563eb"),
+             "text": "#ffffff"},
 }
 
 
@@ -601,12 +613,27 @@ class ActionButton(ctk.CTkButton):
     """Кнопка действия с семантическим цветом и фиксированным размером.
 
     kind: safe (зелёная проверка), primary (акцент), danger (запись),
-    neutral (служебная). Для кнопок, которые пишут файлы, вызывайте
+    neutral (служебная), open (синяя «ведёт куда-то ещё»).
+    Для кнопок, которые пишут файлы, вызывайте
     link_danger(var_чекбокса «Применить»): пока галочка снята кнопка
-    акцентная, при включении становится красной."""
+    акцентная, при включении становится красной.
 
-    def __init__(self, master, text, command, tooltip=None, kind="primary",
-                 width=235, height=34):
+    submenu=True — кнопка открывает подменю/окно/список (витрина,
+    журнал, папка отчётов): текст получает стрелку «▸», цвет по
+    умолчанию синий «open». Так сразу видно, что за кнопкой не прямой
+    запуск инструмента, а ещё какой-то список или окно."""
+
+    # 07.11: маркер «открывает что-то ещё» — из текста и вида сразу видно
+    SUBMENU_MARK = " \u25b8"  # ▸
+
+    def __init__(self, master, text, command, tooltip=None, kind=None,
+                 width=235, height=34, submenu=False):
+        if submenu:
+            text = text + self.SUBMENU_MARK
+            if kind is None:
+                kind = "open"
+        if kind is None:
+            kind = "primary"
         style = ACTION_STYLES.get(kind, ACTION_STYLES["primary"])
         super().__init__(master, text=text, command=command,
                          width=width, height=height,

@@ -171,36 +171,36 @@ class CleanTab(ctk.CTkFrame):
 
         # --- 5. эмодзи → SVG-иконки в html (04.11; 07.11: секция 5 после
         # переезда типографики в «Писателям») ---
-        s6 = Section(parent, "5. Эмодзи → SVG-иконки в интерфейсе",
+        s5 = Section(parent, "5. Эмодзи → SVG-иконки в интерфейсе",
                      subtitle="форматы: .html (иконки интерфейса)")
-        self.f_icons = PathField(s6.inner, "Папка или файл:", "icons_input", CFG,
+        self.f_icons = PathField(s5.inner, "Папка или файл:", "icons_input", CFG,
                                  file_mode="both",
                                  tooltip="HTML-файл или папка с html-файлами "
                                          "(обход рекурсивный).")
-        r6 = ctk.CTkFrame(s6.inner, fg_color="transparent")
-        r6.pack(fill="x", pady=4)
-        self.c_icons_fix = CheckField(r6, "Применить изменения", "icons_fix", CFG,
+        r5 = ctk.CTkFrame(s5.inner, fg_color="transparent")
+        r5.pack(fill="x", pady=4)
+        self.c_icons_fix = CheckField(r5, "Применить изменения", "icons_fix", CFG,
                                       default=False,
                                       tooltip="Без галочки — отчёт: какие файлы "
                                               "и сколько иконок будут заменены. "
                                               "С галочкой — замена, копия .bak "
                                               "рядом с файлом.")
         self.c_icons_fix.pack(side="left", padx=(0, 16))
-        self.c_icons_nobak = CheckField(r6, "Без бэкапа .bak", "icons_no_bak", CFG,
+        self.c_icons_nobak = CheckField(r5, "Без бэкапа .bak", "icons_no_bak", CFG,
                                         default=False,
                                         tooltip="Для папок под git: копии .bak "
                                                 "не создаются. Внимание: без "
                                                 "бэкапа откатить замену нечем.")
         self.c_icons_nobak.pack(side="left", padx=16)
-        ctk.CTkLabel(s6.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+        ctk.CTkLabel(s5.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
             "Эмодзи-иконки интерфейса (💰 ❤️ ⏩ 🔊 …) заменяются на векторные "
             "SVG: вид одинаковый на любой системе и не зависит от шрифтов "
             "эмодзи. Повторный запуск безопасен — уже обработанные файлы "
             "пропускаются. Свой набор замен — ключ --map в командной строке."
         )).pack(anchor="w", pady=(0, 2))
-        row6 = button_row(s6.inner)
+        row5 = button_row(s5.inner)
         b_icons = ActionButton(
-            row6, "Заменить иконки", self._run_icons,
+            row5, "Заменить иконки", self._run_icons,
             kind="safe", width=235,
             tooltip="Эмодзи-иконки → SVG в html. Dry-run по умолчанию, "
                     "с галочкой «Применить» — замена с .bak.")
@@ -208,40 +208,40 @@ class CleanTab(ctk.CTkFrame):
         b_icons.link_danger(self.c_icons_fix.var)
 
         # --- 6. мусорные разделители (04.11) ---
-        s7 = Section(parent, "6. Чистка мусорных разделителей",
+        s6 = Section(parent, "6. Чистка мусорных разделителей",
                      subtitle="форматы: .txt, .md, .docx (Word)")
-        self.f_sep = PathField(s7.inner, "Папка или файл:", "sep_input", CFG,
+        self.f_sep = PathField(s6.inner, "Папка или файл:", "sep_input", CFG,
                                file_mode="both",
                                tooltip="Папка (обход рекурсивный) или один файл "
                                        ".md/.txt/.docx.")
-        self.c_sep_fix = CheckField(s7.inner, "Применить изменения", "sep_fix",
+        self.c_sep_fix = CheckField(s6.inner, "Применить изменения", "sep_fix",
                                     CFG, default=False,
                                     tooltip="Без галочки — dry-run (только отчёт). "
                                             "С галочкой — реально чистит, "
                                             "создавая .bak рядом с файлом.")
         self.c_sep_fix.pack(anchor="w")
-        self.e_sep_min = EntryField(s7.inner, "Минимальная серия:",
+        self.e_sep_min = EntryField(s6.inner, "Минимальная серия:",
                                     "sep_min_run", CFG,
                                     width_label=160, placeholder="3",
                                     tooltip="Сколько одинаковых символов подряд "
                                             "считать разделителем. "
                                             "Пусто — 3 (по умолчанию).")
-        self.e_sep_syms = EntryField(s7.inner, "Символы разделителей:",
+        self.e_sep_syms = EntryField(s6.inner, "Символы разделителей:",
                                      "sep_symbols", CFG,
                                      width_label=160,
                                      placeholder="*/=~-_+%&@•·—–§",
                                      tooltip="Из каких символов может состоять "
                                              "строка-разделитель. Пусто — набор "
                                              "по умолчанию.")
-        ctk.CTkLabel(s7.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+        ctk.CTkLabel(s6.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
             "Убирает строки-отбойники из повторяющихся символов: /////, *****, "
             "======, ———, * * *. Frontmatter, код-блоки, заголовки из решёток "
             "и таблицы не трогаются. На месте разделителя остаётся пустая "
             "строка — текст не склеивается."
         )).pack(anchor="w", pady=(0, 2))
-        row7 = button_row(s7.inner)
+        row6 = button_row(s6.inner)
         b_sep = ActionButton(
-            row7, "Запустить чистку разделителей", self._run_sep,
+            row6, "Запустить чистку разделителей", self._run_sep,
             kind="safe", width=235,
             tooltip="Строки из повторяющихся символов (///// ***** ======). "
                     "Dry-run по умолчанию, с галочкой «Применить» — "

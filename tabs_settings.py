@@ -297,8 +297,11 @@ class SettingsTab(ctk.CTkFrame):
                      kind="primary", width=190,
                      tooltip="Принудительно записать все текущие значения "
                              "в gui_config.json.").pack(side="left", padx=(0, 8))
-        b_open = ActionButton(r3, text="Открыть конфиг", command=self._open_config,
-                              kind="neutral", width=160)
+        # 07.11: submenu=True — синяя кнопка со стрелкой «▸»: открывает
+        # файл настроек, а не запускает инструмент
+        b_open = ActionButton(r3, text="Открыть конфиг",
+                              command=self._open_config,
+                              submenu=True, width=160)
         b_open.pack(side="left", padx=(0, 8))
         Tooltip(b_open, "Открыть файл настроек в Блокноте. "
                         "Можно править вручную; изменения подхватятся после перезапуска.")
@@ -382,7 +385,7 @@ class SettingsTab(ctk.CTkFrame):
             "Удобно вспомнить, что и когда делалось с текстами."
         )).pack(anchor="w", pady=(0, 4))
         b_hist = ActionButton(s_h.inner, "Открыть журнал", self._open_history,
-                              kind="neutral", width=180)
+                              submenu=True, width=180)
         b_hist.pack(anchor="w")
         Tooltip(b_hist, "Открыть logs/history.log в Блокноте. "
                         "Файл можно удалять целиком — при следующей операции "
@@ -412,11 +415,11 @@ class SettingsTab(ctk.CTkFrame):
                              "к сообщению об ошибке."
                      ).pack(side="left", padx=(0, 8))
         ActionButton(row_about, "README", self._open_readme,
-                     kind="neutral", width=110,
+                     submenu=True, width=110,
                      tooltip="README.md: описание проекта и список "
                              "возможностей.").pack(side="left", padx=(0, 8))
         ActionButton(row_about, "Папка проекта", self._open_project_dir,
-                     kind="neutral", width=160,
+                     submenu=True, width=160,
                      tooltip="Открыть папку, из которой запущена программа."
                      ).pack(side="left")
 
@@ -433,19 +436,19 @@ class SettingsTab(ctk.CTkFrame):
         )).pack(anchor="w")
         r4 = button_row(s4.inner, pady=(6, 0))
         b_rep = ActionButton(r4, "Открыть папку отчётов", self._open_reports,
-                             kind="neutral", width=210)
+                             submenu=True, width=200)
         b_rep.pack(side="left", padx=(0, 8))
         Tooltip(b_rep, "Папка отчётов из настроек (по умолчанию reports/). "
                        "Сюда же предлагается сохранять журнал.")
         b_par = ActionButton(r4, "Открыть список паразитов", self._open_parasites,
-                             kind="neutral", width=220)
+                             submenu=True, width=210)
         b_par.pack(side="left")
         Tooltip(b_par, "tools/parasites.yaml — свой список слов-паразитов "
                        "для статистики. При первом открытии создаётся шаблон "
                        "из встроенного списка.")
         # 24.10: инструкция по окну лежит рядом с программой
         b_guide = ActionButton(r4, "Открыть инструкцию", self._open_guide,
-                               kind="neutral", width=200)
+                               submenu=True, width=180)
         b_guide.pack(side="left", padx=8)
         Tooltip(b_guide, "GUI_GUIDE.md: пошаговое руководство по окну "
                          "для пользователей без опыта программирования.")
