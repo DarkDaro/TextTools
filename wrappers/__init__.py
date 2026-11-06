@@ -21,29 +21,40 @@ HOME_ROOT = Path.home()
 
 # Относительные пути от одной из базовых папок. Порядок важен:
 # сначала специфичные для проекта каталоги, потом общие имена.
+# 06.11: скрипты переехали в репозиторий (external/) — ищем их
+# в первую очередь там, старые раскладки остались для локальных копий.
 SCRIPT_CANDIDATES = {
     "emoji_cleaner": (
+        "external/emoji-cleaner/clean.py",
+        "external/emoji-cleaner.py",
         "emoji-cleaner/clean.py",
         "emoji_cleaner/clean.py",
         "emoji-cleaner.py",
     ),
     "clean_text": (
+        "external/herodata/clean_text_files.py",
+        "external/clean_text_files.py",
         "scripts/Archive/herodata/clean_text_files.py",
         "herodata/clean_text_files.py",
         "clean_text_files.py",
         "clean-text/clean_text_files.py",
     ),
     "md_replace": (
+        "external/md-replace/md_replace.py",
+        "external/md_replace.py",
         "md-replace/md_replace.py",
         "md_replace/md_replace.py",
         "md_replace.py",
     ),
     "char_search": (
+        "external/md-replace/char_search.py",
+        "external/char_search.py",
         "md-replace/char_search.py",
         "md_replace/char_search.py",
         "char_search.py",
     ),
     "refile": (
+        "external/refile.py",
         "refile.py",
         "refile/refile.py",
     ),
