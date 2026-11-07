@@ -53,13 +53,31 @@ def _clean_clip_path(data):
     return data.replace("\r\n", " ").replace("\n", " ").strip()
 
 
-def attach_clip_menu(entry, extra=None, on_change=None):
-    """21.10: правая кнопка мыши в поле — Копировать/Вставить/Очистить.
+def _edit_base(widget):
+    """07.11 (редизайн): внутренний базовый виджет CTk-обёрток.
+    CTkEntry прячет tk.Entry в ._entry, CTkTextbox — tk.Text в ._textbox.
+    Для обычных Entry/Text возвращает сам виджет."""
+    for attr in ("_entry", "_textbox"):
+        base = getattr(widget, attr, None)
+        if base is not None:
+            return base
+    return widget
+
+
+def attach_clip_menu(entry, extra=None, on_change=None, readonly=False):
+    """Правая кнопка мыши в поле — полное меню правки:
+    Вырезать / Копировать / Вставить / Выделить всё (+Очистить).
+    21.10: правый клик появился только с Копировать/Вставить/Очистить;
+    07.11 (редизайн): «все поля вывода поддерживают копирование, вставку,
+    вырезку» — теперь единое EditMenu с вырезкой и «выделить всё».
     Вставка подчищает кавычки и переводы строк («Копировать как путь»).
     extra — кортеж (подпись, команда): дополнительный пункт, например
     «Вставить и выбрать папку» для полей путей.
-    24.10: on_change — уведомить поле, что текст изменён не клавиатурой
-    (после удаления textvariable у EntryField)."""
+    on_change — уведомить поле, что текст изменён не клавиатурой
+    (после удаления textvariable у EntryField).
+    readonly=True — поле вывода (журнал): Вырезать/Вставить скрываются,
+    остаются копирование и выделение."""
+    base = _edit_base(entry)
     menu = tk.Menu(entry, tearoff=0, font=FONT_TINY)
 
     def changed():
@@ -69,28 +87,84 @@ def attach_clip_menu(entry, extra=None, on_change=None):
             except Exception:
                 pass
 
+    def _sel():
+        # tk.Text умеет get("sel.first", "sel.last"); tk.Entry.get()
+        # индексы не принимает (TypeError) — у него своё API:
+        # selection_present() + selection_get()
+        try:
+            return base.get("sel.first", "sel.last")
+        except Exception:
+            pass
+        try:
+            if base.selection_present() and base.selection_get():
+                return base.selection_get()
+        except Exception:
+            pass
+        return ""
+
+    def cut():
+        data = _sel() or base.get()
+        if data:
+            entry.clipboard_clear()
+            entry.clipboard_append(data)
+        if _sel():
+            base.delete("sel.first", "sel.last")
+        else:
+            base.delete(0, "end")
+        changed()
+
+    def copy_sel():
+        data = _sel() or base.get()
+        if data:
+            entry.clipboard_clear()
+            entry.clipboard_append(data)
+
     def paste():
         try:
             data = _clean_clip_path(entry.clipboard_get())
         except Exception:
             return
-        if data:
-            entry.insert(entry.index("insert"), data)
-            changed()
+        if not data:
+            return
+        if _sel():
+            base.delete("sel.first", "sel.last")
+        try:
+            base.insert(base.index("insert"), data)
+        except Exception:
+            base.insert("end", data)
+        changed()
 
-    def copy_all():
-        data = entry.get()
-        if data:
-            entry.clipboard_clear()
-            entry.clipboard_append(data)
+    def select_all():
+        # Text: tag_add("sel", ...); Entry: selection_range(0, "end")
+        try:
+            base.tag_add("sel", "1.0", "end-1c")
+            base.mark_set("insert", "end-1c")
+            return
+        except Exception:
+            pass
+        try:
+            base.selection_range(0, "end")
+            base.icursor("end")
+        except Exception:
+            pass
 
+    def clear_field():
+        base.delete(0, "end")
+        changed()
+
+    menu.add_command(label="Вырезать", command=cut)
+    menu.add_command(label="Копировать", command=copy_sel)
     menu.add_command(label="Вставить из буфера", command=paste)
-    menu.add_command(label="Копировать всё", command=copy_all)
     if extra:
         menu.add_command(label=extra[0], command=extra[1])
     menu.add_separator()
-    menu.add_command(label="Очистить поле",
-                     command=lambda: (entry.delete(0, "end"), changed()))
+    menu.add_command(label="Выделить всё", command=select_all)
+    if not readonly:
+        menu.add_command(label="Очистить поле", command=clear_field)
+        # readonly — поле только для чтения (журнал): правка не имеет смысла
+    else:
+        menu.entryconfigure("Вырезать", state="disabled")
+        menu.entryconfigure("Вставить из буфера", state="disabled")
 
     def popup(e):
         try:
@@ -100,7 +174,115 @@ def attach_clip_menu(entry, extra=None, on_change=None):
         return "break"
 
     entry.bind("<Button-3>", popup)
+    try:
+        base.bind("<Button-3>", popup)
+    except Exception:
+        pass
     return menu
+
+
+def attach_text_clip_menu(text, label_note=None):
+    """07.11 (редизайн): правый клик в поле ВЫВОДА (readonly-текст):
+    Копировать выделенное / Копировать всё / Выделить всё. Плюс Ctrl+C
+    и Ctrl+A работают даже в выключенном состоянии (tk.Text в state=
+    'disabled' гасит стандартные bindings — копировать было нельзя
+    с клавиатуры)."""
+    base = _edit_base(text)
+    menu = tk.Menu(text, tearoff=0, font=FONT_TINY)
+
+    def _sel():
+        try:
+            return base.get("sel.first", "sel.last")
+        except Exception:
+            return ""
+
+    def copy_sel():
+        data = _sel() or base.get("1.0", "end-1c")
+        if data:
+            text.clipboard_clear()
+            text.clipboard_append(data)
+
+    def copy_all():
+        data = base.get("1.0", "end-1c")
+        if data:
+            text.clipboard_clear()
+            text.clipboard_append(data)
+
+    def select_all():
+        base.tag_add("sel", "1.0", "end")
+        base.mark_set("insert", "end-1c")
+
+    menu.add_command(label="Копировать выделенное", command=copy_sel)
+    menu.add_command(label="Копировать всё", command=copy_all)
+    if label_note:
+        menu.add_command(label=label_note[0], command=label_note[1])
+    menu.add_separator()
+    menu.add_command(label="Выделить всё", command=select_all)
+
+    def popup(e):
+        try:
+            menu.tk_popup(e.x_root, e.y_root)
+        finally:
+            menu.grab_release()
+        return "break"
+
+    text.bind("<Button-3>", popup)
+    try:
+        base.bind("<Button-3>", popup)
+    except Exception:
+        pass
+
+    # клавиатура в readonly-тексте: tk.Text в disabled гасит Ctrl+C/A
+    def _copy_key(_e=None):
+        copy_sel()
+        return "break"
+
+    def _select_key(_e=None):
+        select_all()
+        return "break"
+
+    for w in (text, base):
+        try:
+            w.bind("<Control-c>", _copy_key)
+            w.bind("<Control-C>", _copy_key)
+            w.bind("<Control-a>", _select_key)
+            w.bind("<Control-A>", _select_key)
+        except Exception:
+            pass
+    return menu
+
+
+def focus_border(widget, color_idle, color_focus):
+    """07.11 (редизайн): поле подсвечивается рамкой при фокусе —
+    сразу видно, куда пойдёт ввод с клавиатуры.
+    Важно: CTkEntry перенаправляет фокус внутреннему tk.Entry, поэтому
+    события <FocusIn>/<FocusOut> вешаются на базовый виджет
+    (_edit_base), а border_color настраивается на самой обёртке."""
+
+    def on_focus(_e=None):
+        try:
+            widget.configure(border_color=color_focus)
+        except Exception:
+            pass
+
+    def off_focus(_e=None):
+        try:
+            widget.configure(border_color=color_idle)
+        except Exception:
+            pass
+
+    try:
+        # фокус приходит на внутренний tk.Entry (CTk перенаправляет),
+        # но у простых Entry базой может быть сам виджет — вешаем на оба
+        base = _edit_base(widget)
+        for w in {base, widget}:
+            try:
+                w.bind("<FocusIn>", on_focus)
+                w.bind("<FocusOut>", off_focus)
+            except Exception:
+                pass
+    except Exception:
+        pass
 
 
 # 24.10: служебные кнопки (выбор пути, панель журнала) — не акцентные.
@@ -133,6 +315,11 @@ ctk.set_widget_scaling(_cfg_num("ui.scale", 1.0, 0.5, 2.0))
 UI_FONT_FAMILY = str(_gcfg.CFG.get("ui.font_family", "Segoe UI") or "Segoe UI")
 MONO_FAMILY = str(_gcfg.CFG.get("ui.mono_family", "Consolas") or "Consolas")
 UI_FONT_SIZE = int(_cfg_num("ui.font_size", 12, 8, 24))
+
+# 07.11 (редизайн): рамка полей ввода — спокойная по умолчанию,
+# акцентная при фокусе (см. focus_border); видно, куда пойдёт ввод
+ENTRY_BORDER = ("#d5d8e2", "#3a4052")
+ACCENT_FOCUS = ("#8b5cf6", "#8b5cf6")
 
 FONT = (UI_FONT_FAMILY, UI_FONT_SIZE)
 FONT_SMALL = (UI_FONT_FAMILY, UI_FONT_SIZE - 1)
@@ -244,6 +431,8 @@ class PathField(ctk.CTkFrame):
         self.entry = ctk.CTkEntry(self, textvariable=self.var,
                                   font=FONT_MONO, height=30)
         self.entry.pack(side="left", fill="x", expand=True, padx=6)
+        # 07.11 (редизайн): рамка поля подсвечивается при фокусе
+        focus_border(self.entry, ENTRY_BORDER, ACCENT_FOCUS)
         # 24.10: путь, набранный руками, тоже попадает в историю
         self.entry.bind("<FocusOut>", self._remember_current)
         # 01.10: подсказка и на поле, не только на метке
@@ -445,6 +634,8 @@ class EntryField(ctk.CTkFrame):
         self.entry = ctk.CTkEntry(self, font=FONT_MONO, height=30,
                                   placeholder_text=placeholder or None)
         self.entry.pack(side="left", fill="x", expand=True, padx=4)
+        # 07.11 (редизайн): рамка поля подсвечивается при фокусе
+        focus_border(self.entry, ENTRY_BORDER, ACCENT_FOCUS)
         if self.var.get():
             self.entry.insert(0, self.var.get())
         self.entry.bind("<KeyRelease>", self._on_edit)
@@ -458,7 +649,8 @@ class EntryField(ctk.CTkFrame):
         if tooltip:
             Tooltip(self.entry, tooltip)
         # 21.10: правый клик — Копировать/Вставить/Очистить в любом поле
-        attach_clip_menu(self.entry, on_change=self._on_edit)
+        # 07.11: полное EditMenu (вырезать/копировать/вставить/выделить)
+        self._clip_menu = attach_clip_menu(self.entry, on_change=self._on_edit)
 
     def _autosave(self, *_):
         self.cfg.set(self.key, self.var.get())
@@ -824,6 +1016,9 @@ class LogPanel(ctk.CTkFrame):
                 self.text.bind(seq, lambda e: self._schedule_follow())
             except Exception:
                 pass
+        # 07.11 (редизайн): журнал — поле вывода: правый клик копирует
+        # (выделенное/всё), Ctrl+C и Ctrl+A работают в выключенном состоянии
+        attach_text_clip_menu(self.text)
         self._init_tags()
 
     def _init_tags(self):
