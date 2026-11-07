@@ -859,8 +859,13 @@ class App(ctk.CTk):
         for cls in (WritersTab, NamesTab, VaultTab, CleanTab, ReplaceTab,
                     SettingsTab):
             tab = self.nb.add(cls.LABEL)
-            # скролл-контейнер вкладки
-            scroll = ctk.CTkScrollableFrame(tab, fg_color="transparent")
+            # скролл-контейнер вкладки; 07.11: единый стиль полосы
+            # прокрутки — спокойная кнопка, акцент при наведении
+            scroll = ctk.CTkScrollableFrame(tab, fg_color="transparent",
+                                            scrollbar_button_color=(
+                                                "#d3d6de", "#3a4052"),
+                                            scrollbar_button_hover_color=(
+                                                "#8b5cf6", "#8b5cf6"))
             scroll.pack(fill="both", expand=True, padx=(2, 6), pady=(2, 6))
             t = cls(scroll, fg_color="transparent")
             t._build(t)
@@ -874,6 +879,8 @@ class App(ctk.CTk):
                              pady=(6, 8))
         self._tabs[LOG_TAB] = self._log_panel
         self._log_panel.apply_theme(_pal())
+        # 07.11: журнал больше не встречает пустотой — короткая шпаргалка
+        self._log_welcome()
         # страницы созданы — показываем первую и красим кнопки сайдбара
         self.nb.set(next(iter(self.nb._tab_dict)))
         # 24.10: даже без запоминания вкладки индикатор должен быть заполнен
@@ -881,6 +888,26 @@ class App(ctk.CTk):
             self._update_tab_ui(self.nb.get(), save=False)
         except Exception:
             pass
+
+    def _log_welcome(self):
+        """07.11: приветствие в журнале — версия, правила, горячие клавиши.
+        Раньше вкладка «Журнал» встречала новым пользователей пустотой."""
+        self._log_panel.append(
+            f"TextTools {APP_VERSION} — офлайн-инструменты для авторов. "
+            "Без сети, без AI, файлы на вашем диске.\n"
+            "Выберите раздел слева и инструмент в нём — ход работы и "
+            "результат появятся здесь.\n\n"
+            "Подсказки:\n"
+            "  • Ctrl+1…7 — переход по разделам, Ctrl+F — поиск "
+            "по журналу, Ctrl+S — сохранить настройки;\n"
+            "  • правый клик в любом поле — копировать, вставить, "
+            "вырезать;\n"
+            "  • «Стоп» мягко останавливает операцию — текущий файл "
+            "будет докончен.\n\n"
+            "Безопасность: по умолчанию всё только читает файлы и "
+            "пишет отчёт. Реальная запись — по галочке «Применить», "
+            "с бэкапом .bak рядом с файлом.\n",
+            "dim")
 
     def _collect_big_buttons(self):
         # 21.10: реестр «крупных» кнопок инструментов — на время операции
