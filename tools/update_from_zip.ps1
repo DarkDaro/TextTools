@@ -29,8 +29,10 @@ try {
     if (-not (Test-Path $src)) { throw "В архиве нет папки TextTools-main" }
 
     Write-Host "        Копирую файлы поверх (личные данные не трогаю)..."
-    # /E - всё рекурсивно; /XF, /XD - исключения; exit-код < 8 - успех.
-    robocopy $src $root /E /NFL /NDL /NJH /NJS /NP `
+    # /E - всё рекурсивно; /XF, /XD - исключения; /R:2 /W:2 - при
+    # залоченном файле две попытки по 2 секунды, а не миллион по 30
+    # (вечное зависание); exit-код < 8 - успех.
+    robocopy $src $root /E /R:2 /W:2 /NFL /NDL /NJH /NJS /NP `
         /XF update.bat gui_config.json `
         /XD .git __pycache__ logs reports
     $code = $LASTEXITCODE

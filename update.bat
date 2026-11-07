@@ -1,11 +1,10 @@
 @echo off
-rem TextTools - патник v2: обновляет программу с GitHub и освежает ярлыки.
-rem 07.11 (v2): урок первой версии - если git fetch падал, merge тихо
-rem мержил СТАРЫЙ origin/main и писалось «обновлений нет»; ярлыки
-rem ставились без проверки, что программу вообще есть куда ставить
-rem (ярлык в распакованный архив = сломанный ярлык). Теперь: проверка
-rem каждого шага, показ пути папки, сверка версии после обновления,
-rem отказ ставить ярлык в папку без программы.
+rem TextTools - патник v3: обновляет программу с GitHub и освежает ярлыки.
+rem 07.11 (v2): провал git fetch больше не маскируется под «обновлений
+rem нет»; ярлык не ставится в папку без программы; zip-путь сверяет
+rem версию. 07.11 (v3): merge тихий (диффстат не заливает экран),
+rem robocopy-ретраи ограничены двумя попытками (иначе залоченный файл
+rem вешал обновление навсегда), подписи «до/после».
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 cd /d "%~dp0"
@@ -30,7 +29,7 @@ echo %CD% | findstr /I /C:"TextTools-main" >nul && (
 set "GITOK="
 where git >nul 2>nul && set "GITOK=1"
 
-call :showver BEFORE
+call :showver до
 echo.
 
 if exist ".git" if defined GITOK goto gitupdate
@@ -42,14 +41,14 @@ goto shortcuts
 echo  [1/4] Git-копия: связываюсь с GitHub...
 set "OLD="
 for /f %%i in ('git rev-parse --short HEAD 2^>nul') do set "OLD=%%i"
-git fetch origin main 2>nul
+git fetch origin main --quiet 2>nul
 if errorlevel 1 (
     echo        Git не смог связаться с GitHub - нет сети или кривой адрес.
     echo        Пробую путь через zip...
     call :zipupdate
     goto shortcuts
 )
-git merge --ff-only origin/main 2>nul
+git merge --ff-only origin/main --quiet 2>nul
 if errorlevel 1 (
     echo        Локальные правки мешают git - обновляю через zip...
     call :zipupdate
@@ -79,7 +78,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\make_shortcuts.p
 if errorlevel 1 echo        Ярлыки не создал - смотри причину выше.
 
 echo  [3/4] Проверяю, что обновление легло именно сюда...
-call :showver AFTER
+call :showver после
 
 set "FRESH="
 findstr /C:"SidebarNav" gui_ctk.pyw >nul 2>nul && set "FRESH=1"
@@ -100,7 +99,7 @@ exit /b
 set "VERQ="
 for /f "tokens=3" %%v in ('findstr /B /C:"__version__" textools.py 2^>nul') do set "VERQ=%%v"
 if not defined VERQ (
-    echo   Версия программы %1: файл textools.py не найден - ЭТО НЕ ПАПКА ПРОГРАММЫ!
+    echo   Версия программы (%1): файл textools.py не найден - ЭТО НЕ ПАПКА ПРОГРАММЫ!
     goto :eof
 )
 set "VER=!VERQ:~1!"
