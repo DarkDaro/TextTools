@@ -55,16 +55,40 @@ def show(owner, hits, on_apply):
     except Exception:
         pass
 
-    ctk.CTkLabel(win, text=f"Найдено вхождений: {len(hits)}"
-                           + (f" (показаны первые {MAX_ROWS})"
-                              if len(hits) > MAX_ROWS else ""),
-                 font=FONT_BOLD, anchor="w"
-                 ).pack(fill="x", padx=14, pady=(12, 4))
+    # 07.11 (редизайн): шапка диалога — заголовок + живой счётчик выбранных
+    head = ctk.CTkFrame(win, fg_color="transparent")
+    head.pack(fill="x", padx=14, pady=(12, 4))
+    ctk.CTkLabel(head, text="Выберите вхождения",
+                 font=FONT_BOLD, anchor="w").pack(side="left")
+    total_rows = min(len(hits), MAX_ROWS)
+    counter = ctk.CTkLabel(head, text="", font=FONT_PILL, anchor="e",
+                           fg_color=("#f0edfc", "#262238"),
+                           text_color=("#6d28d9", "#c4b5fd"),
+                           corner_radius=8)
+    counter.pack(side="right", padx=(10, 0))
 
-    scroll = ctk.CTkScrollableFrame(win, fg_color="transparent")
+    sub = f"Найдено вхождений: {len(hits)}"
+    if len(hits) > MAX_ROWS:
+        sub += f" (показаны первые {MAX_ROWS})"
+    ctk.CTkLabel(win, text=sub, font=FONT_TINY, anchor="w",
+                 text_color=("gray40", "gray55")
+                 ).pack(fill="x", padx=14, pady=(0, 2))
+
+    scroll = ctk.CTkScrollableFrame(win, fg_color="transparent",
+                                    scrollbar_button_color=("#d3d6de", "#3a4052"),
+                                    scrollbar_button_hover_color=("#8b5cf6", "#8b5cf6"))
     scroll.pack(fill="both", expand=True, padx=14)
 
     groups = {}  # phrase -> {"rows": [(var, file)], "master": var}
+    all_vars = []
+
+    def _update_counter(*_):
+        try:
+            n = sum(1 for v in all_vars if v.get())
+            counter.configure(text=f"выбрано {n} из {total_rows}")
+        except Exception:
+            pass
+
     for ph, repl, f, ln, frag in hits[:MAX_ROWS]:
         if ph not in groups:
             action = f"→ «{repl}»" if repl else "→ удалить"
@@ -79,6 +103,11 @@ def show(owner, hits, on_apply):
             master = ctk.BooleanVar(value=True)
             groups[ph] = {"rows": [], "frame": frame, "master": master}
         var = ctk.BooleanVar(value=True)
+        all_vars.append(var)
+        try:
+            var.trace_add("write", _update_counter)
+        except Exception:
+            pass
         # 01.10: CTkCheckBox (customtkinter 6) не поддерживает wraplength —
         # длинные фрагменты обрезаем текстом
         row_text = f"{f} :{ln} — …{frag}…"
@@ -103,6 +132,12 @@ def show(owner, hits, on_apply):
                                 ph, g["master"].get()),
                             font=FONT_TINY)
         m.pack(anchor="w", padx=10, pady=(0, 4))
+        all_vars.append(g["master"])
+        try:
+            g["master"].trace_add("write", _update_counter)
+        except Exception:
+            pass
+    _update_counter()
 
     def apply_selected():
         pairs = [(ph, f, ln) for ph, g in groups.items()
