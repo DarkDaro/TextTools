@@ -6,6 +6,7 @@
 Все виджеты сохраняют прежний API (get/set/pack), чтобы вкладки
 менялись минимально."""
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog
 from pathlib import Path
 
@@ -824,7 +825,7 @@ class Section(ctk.CTkFrame):
                      anchor="w").pack(side="left")
         if subtitle:
             ctk.CTkLabel(head, text=subtitle, font=FONT_TINY,
-                         fg_color=("f0edfc", "#262238"),
+                         fg_color=("#f0edfc", "#262238"),
                          text_color=ACCENT_HELP, anchor="e",
                          corner_radius=8).pack(side="right", padx=(10, 0),
                                                pady=2)
@@ -905,6 +906,15 @@ class ActionButton(ctk.CTkButton):
         if kind is None:
             kind = "primary"
         style = ACTION_STYLES.get(kind, ACTION_STYLES["primary"])
+        # 07.11 (редизайн): кнопка гарантированно вмещает подпись при
+        # любом шрифте и любом ui.font_size: width из карточки — минимум,
+        # а не жёсткое значение (раньше при крупном шрифте подписи
+        # обрезались молча — их ловил только геометрический аудит)
+        try:
+            need = int(tkfont.Font(font=FONT_BOLD).measure(text)) + 30
+            width = max(width, need)
+        except Exception:
+            pass
         super().__init__(master, text=text, command=command,
                          width=width, height=height,
                          font=FONT_BOLD,

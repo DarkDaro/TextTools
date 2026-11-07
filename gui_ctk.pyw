@@ -101,23 +101,32 @@ def _walk_widgets(w):
     for c in w.winfo_children():
         yield from _walk_widgets(c)
 
-# 22.09: единая палитра GUI (CTk не использует gui_theme.py)
+# 07.11 (редизайн v2): палитра. Светлая — «тёплая бумага» (спокойный
+# рабочий стол писателя), тёмная — «глубокий графит». Добавлены ключи
+# сайдбара: sidebar (полотно навигации), sidebar_hover (наведение),
+# sidebar_active (выбранный раздел), nav_text (текст кнопок навигации).
 PALETTE = {
     "light": {
         "accent": "#7c3aed", "accent_hover": "#6d28d9",
-        "window": "#f4f5f7", "card": "#ffffff", "help_bg": "#f5f2fd",
+        "window": "#f6f5f2", "card": "#ffffff", "help_bg": "#f5f2fd",
         "log_bg": "#fbfbf8", "log_fg": "#111827", "insert": "#111827",
         "sel": "#c4b5fd", "dim": "#6b7280",
         "ok": "#059669", "warn": "#b45309", "err": "#dc2626",
         "seg_fg": "#ece9f7", "seg_text": "#4b446b",
+        "sidebar": "#efede9", "sidebar_hover": "#e6e3dc",
+        "sidebar_active": "#ffffff", "nav_text": "#43394f",
+        "header_bg": "#f6f5f2",
     },
     "dark": {
         "accent": "#8b5cf6", "accent_hover": "#7c3aed",
-        "window": "#111318", "card": "#1a1d24", "help_bg": "#221f33",
+        "window": "#14161b", "card": "#1c1f27", "help_bg": "#221f33",
         "log_bg": "#0d0f13", "log_fg": "#d1d5db", "insert": "#e5e7eb",
         "sel": "#3b2d5c", "dim": "#9ca3af",
         "ok": "#34d399", "warn": "#fbbf24", "err": "#f87171",
         "seg_fg": "#23262e", "seg_text": "#c9c2e8",
+        "sidebar": "#181b21", "sidebar_hover": "#22262f",
+        "sidebar_active": "#242035", "nav_text": "#cfd2da",
+        "header_bg": "#14161b",
     },
 }
 
@@ -134,6 +143,9 @@ from gui_config import CFG
 from widgets_ctk import (Tooltip, FONT_SMALL, FONT_TITLE, FONT_PILL,
                          FONT_TINY, BigButton,
                          LogPanel, enable_dnd)
+# 07.11 (редизайн): шрифты кнопок сайдбара (обычная и активная)
+FONT_NAV = (FONT_SMALL[0], FONT_SMALL[1] + 1)
+FONT_NAV_BOLD = (FONT_SMALL[0], FONT_SMALL[1] + 1, "bold")
 
 # тема из конфига до построения окна
 _appearance = "dark" if str(CFG.get("theme", "dark")).lower() == "dark" else "light"
@@ -545,6 +557,140 @@ def tool_cmd(modname, *rest):
     return [sys.executable, str(paths[modname]), *rest]
 
 
+class SidebarNav(ctk.CTkFrame):
+    """07.11 (редизайн): вертикальная навигация слева вместо верхней
+    полосы вкладок. Семь разделов больше не толпятся в одной строке —
+    сайдбар растёт вниз, у каждого раздела своё место и активная
+    подсветка.
+
+    Эмулирует нужную часть API CTkTabview (add / get / set /
+    _tab_dict / _segmented_button / focus_set), чтобы вкладки, тесты
+    и автосохранение продолжали работать без переписывания.
+    Слева — колонка навигации с лого и переключателем темы, справа —
+    зона страниц (шапка, статусбар, содержимое вкладок)."""
+
+    def __init__(self, master, command=None, **kw):
+        super().__init__(master, fg_color="transparent", **kw)
+        self._command = command
+        self._tab_dict = {}
+        self._buttons = {}
+        self._current = ""
+
+        p = _pal()
+        # --- левая колонка ---
+        # 07.11: ширина по контенту — длинные названия разделов видны
+        # при любом шрифте (в песочнице/на крупном ui.font_size тоже)
+        self._col = ctk.CTkFrame(self, fg_color=p["sidebar"],
+                                 corner_radius=12)
+        self._col.pack(side="left", fill="y", padx=(0, 12), pady=(0, 2))
+
+        logo = ctk.CTkFrame(self._col, fg_color="transparent")
+        logo.pack(fill="x", padx=16, pady=(18, 14))
+        self._logo = ctk.CTkLabel(logo, text="textools", font=FONT_TITLE,
+                                  text_color=p["accent"])
+        self._logo.pack(anchor="w")
+        self._logo_sub = ctk.CTkLabel(logo, text="текстовые инструменты "
+                                                 "для авторов",
+                                      font=FONT_TINY, text_color=p["dim"],
+                                      justify="left", anchor="w")
+        self._logo_sub.pack(anchor="w")
+
+        self._nav_frame = ctk.CTkFrame(self._col, fg_color="transparent")
+        self._nav_frame.pack(fill="x", padx=10, pady=(0, 8))
+
+        # распорка: тема прижата к низу колонки
+        ctk.CTkFrame(self._col, fg_color="transparent").pack(
+            fill="both", expand=True)
+
+        # --- правая зона: шапка, статус, страницы ---
+        self._pages = ctk.CTkFrame(self, fg_color="transparent")
+        self._pages.pack(side="left", fill="both", expand=True)
+
+    def add(self, label):
+        """Создать страницу раздела (пока скрыта) и кнопку навигации."""
+        page = ctk.CTkFrame(self._pages, fg_color="transparent")
+        self._tab_dict[label] = page
+        btn = ctk.CTkButton(self._nav_frame, text=label,
+                            anchor="w", height=38, corner_radius=9,
+                            fg_color="transparent",
+                            hover_color=_pal()["sidebar_hover"],
+                            text_color=_pal()["nav_text"],
+                            font=FONT_NAV, command=None)
+        btn.configure(command=lambda l=label: self._select(l))
+        btn.pack(fill="x", pady=2)
+        btn.tooltip_text = f"Перейти в раздел «{label}»"
+        self._buttons[label] = btn
+        # страница становится видимой только когда её выбирают
+        return page
+
+    def _select(self, label):
+        if label == self._current:
+            return
+        self.set(label)
+        if self._command:
+            try:
+                self._command()
+            except Exception:
+                pass
+
+    def get(self):
+        return self._current
+
+    def set(self, label):
+        if label not in self._tab_dict:
+            return
+        for page in self._tab_dict.values():
+            page.pack_forget()
+        # pack после forget: страница снова сверху стека pack-порядка
+        self._tab_dict[label].pack(fill="both", expand=True)
+        self._current = label
+        self._sync_buttons()
+
+    def _sync_buttons(self):
+        p = _pal()
+        for label, btn in self._buttons.items():
+            active = (label == self._current)
+            try:
+                if active:
+                    btn.configure(fg_color=p["sidebar_active"],
+                                  text_color=p["accent"],
+                                  font=FONT_NAV_BOLD,
+                                  hover_color=p["sidebar_active"])
+                else:
+                    btn.configure(fg_color="transparent",
+                                  text_color=p["nav_text"],
+                                  font=FONT_NAV,
+                                  hover_color=p["sidebar_hover"])
+            except Exception:
+                pass
+
+    def add_theme_control(self, segment):
+        """Переключатель темы — внизу левой колонки."""
+        segment.pack(in_=self._col, side="bottom", fill="x", padx=12,
+                     pady=(0, 14))
+
+    def retheme(self, p):
+        """Перекраска при смене темы."""
+        try:
+            self._col.configure(fg_color=p["sidebar"])
+            self._logo.configure(text_color=p["accent"])
+            self._logo_sub.configure(text_color=p["dim"])
+            for btn in self._buttons.values():
+                btn.configure(hover_color=p["sidebar_hover"])
+            self._sync_buttons()
+        except Exception:
+            pass
+
+    @property
+    def _segmented_button(self):
+        """Совместимость с test_gui_fit: «панель вкладок умещается».
+        Панель теперь вертикальная — её ширина и есть reqwidth колонки."""
+        return self._col
+
+    def focus_set(self, *args, **kwargs):
+        self._pages.focus_set(*args, **kwargs)
+
+
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -596,6 +742,10 @@ class App(ctk.CTk):
         # запись аккуратно, вместо жёсткого обрыва с недописанным файлом
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
+        # 07.11 (редизайн): сайдбар создаётся ПЕРВЫМ — шапка и статусбар
+        # пакуются в его правую зону (self.nb._pages)
+        self.nb = SidebarNav(self, command=self._on_tab)
+        self.nb.pack(fill="both", expand=True, padx=14, pady=(8, 12))
         self._build_header()
         self._build_statusbar()
         self._build_tabs()
@@ -609,29 +759,35 @@ class App(ctk.CTk):
     # --- построение окна ---
 
     def _build_header(self):
+        """07.11 (редизайн): шапка стала лёгкой — лого и переключатель
+        темы переехали в сайдбар, сверху остался только индикатор
+        текущего раздела и подсказка горячих клавиш."""
         p = _pal()
-        self._header = ctk.CTkFrame(self, fg_color="transparent")
-        self._header.pack(fill="x", padx=16, pady=(12, 0))
+        self._header = ctk.CTkFrame(self.nb._pages, fg_color="transparent")
+        self._header.pack(fill="x", padx=4, pady=(8, 0))
 
-        left = ctk.CTkFrame(self._header, fg_color="transparent")
-        left.pack(side="left")
-        ctk.CTkLabel(left, text="textools",
-                     font=FONT_TITLE).pack(side="left")
-        ctk.CTkLabel(left, text="  текстовые инструменты для авторов",
-                     font=FONT_SMALL, text_color=("gray45", "gray55")).pack(
-            side="left", padx=(2, 0), pady=(6, 0))
+        # 24.10: индикатор текущего раздела (пилла) — остался в шапке
+        self._tab_pill = ctk.CTkLabel(self._header, text="", height=28,
+                                      corner_radius=14, padx=14,
+                                      font=FONT_PILL,
+                                      fg_color=p["accent"],
+                                      text_color="#ffffff")
+        self._tab_pill.pack(side="left", padx=(2, 10))
 
         right = ctk.CTkFrame(self._header, fg_color="transparent")
         right.pack(side="right")
+        ctk.CTkLabel(right, text="Ctrl+1…7 — разделы, Ctrl+F — поиск",
+                     font=FONT_TINY,
+                     text_color=p["dim"]).pack(side="right", padx=(0, 4))
 
         self.theme_var = tk.StringVar(value=_appearance)
-        tb = ctk.CTkSegmentedButton(right, values=["light", "dark"],
+        tb = ctk.CTkSegmentedButton(self.nb._col,
+                                    values=["light", "dark"],
                                     command=self._on_theme_change,
                                     width=160, height=28,
                                     dynamic_resizing=False,
                                     font=FONT_SMALL)
         tb.set(_appearance)
-        tb.pack(side="right")
         tb.configure(
             fg_color=p["seg_fg"], selected_color=p["accent"],
             selected_hover_color=p["accent_hover"],
@@ -643,31 +799,18 @@ class App(ctk.CTk):
                 Tooltip(ch, "Светлая или тёмная тема. Выбор сохраняется.")
             except Exception:
                 pass
-        ctk.CTkLabel(right, text="Тема:", font=FONT_SMALL).pack(
-            side="right", padx=(0, 6))
-
-        # 24.10: индикатор текущего раздела (аналог индикатора режима)
-        self._tab_pill = ctk.CTkLabel(right, text="", height=26,
-                                      corner_radius=13, padx=12,
-                                      font=FONT_PILL,
-                                      fg_color=p["accent"],
-                                      text_color="#ffffff")
-        self._tab_pill.pack(side="right", padx=(0, 10))
+        # 07.11: тема живёт внизу сайдбара
+        self.nb.add_theme_control(tb)
         self._theme_segment = tb
-
-        # 24.10: акцентная полоса под шапкой
-        self._accent_bar = ctk.CTkFrame(self, height=2,
-                                        fg_color=p["accent"],
-                                        corner_radius=0)
-        self._accent_bar.pack(fill="x", padx=16, pady=(8, 0))
 
     def _build_statusbar(self):
         """24.10: статус и прогресс над вкладками — на маленьком окне
         не исчезают, как исчезал подвал. «Стоп» всегда под рукой."""
         p = _pal()
-        bar = ctk.CTkFrame(self, fg_color=("gray92", "gray14"),
+        bar = ctk.CTkFrame(self.nb._pages, fg_color=("gray92", "gray14"),
                            corner_radius=8)
-        bar.pack(fill="x", padx=16, pady=(8, 0))
+        bar.pack(fill="x", padx=4, pady=(8, 0))
+        self._status_frame = bar
 
         self.status = ctk.CTkLabel(bar, text="готов", font=FONT_SMALL,
                                    anchor="w")
@@ -704,6 +847,8 @@ class App(ctk.CTk):
         # 05.11: «Писателям» — отдельная вкладка инструментов для больших
         # текстов (АНТИРЕШИМОСТЬ, штампы, стилистика, статистика, ё/е).
         # Стоит первой: это основная рабочая вкладка автора.
+        # 07.11: сам сайдбар (SidebarNav) уже создан в __init__ — здесь
+        # только страницы.
         from tabs_writers import WritersTab
         from tabs_names import NamesTab
         from tabs_vault import VaultTab
@@ -711,23 +856,12 @@ class App(ctk.CTk):
         from tabs_replace import ReplaceTab
         from tabs_settings import SettingsTab
 
-        p = _pal()
-        self.nb = ctk.CTkTabview(
-            self, anchor="nw", command=self._on_tab,
-            segmented_button_fg_color=p["seg_fg"],
-            segmented_button_selected_color=p["accent"],
-            segmented_button_selected_hover_color=p["accent_hover"],
-            segmented_button_unselected_color=p["seg_fg"],
-            segmented_button_unselected_hover_color=p["card"],
-            text_color=p["seg_text"])
-        self.nb.pack(fill="both", expand=True, padx=16, pady=(8, 12))
-
         for cls in (WritersTab, NamesTab, VaultTab, CleanTab, ReplaceTab,
                     SettingsTab):
             tab = self.nb.add(cls.LABEL)
             # скролл-контейнер вкладки
             scroll = ctk.CTkScrollableFrame(tab, fg_color="transparent")
-            scroll.pack(fill="both", expand=True, padx=(4, 8), pady=(4, 8))
+            scroll.pack(fill="both", expand=True, padx=(2, 6), pady=(2, 6))
             t = cls(scroll, fg_color="transparent")
             t._build(t)
             t.pack(fill="x", anchor="n")
@@ -736,9 +870,12 @@ class App(ctk.CTk):
         log_tab = self.nb.add(LOG_TAB)
         self._log_panel = LogPanel(log_tab, CFG,
                                    on_save_report=self._save_report)
-        self._log_panel.pack(fill="both", expand=True, padx=6, pady=(6, 8))
+        self._log_panel.pack(fill="both", expand=True, padx=6,
+                             pady=(6, 8))
         self._tabs[LOG_TAB] = self._log_panel
         self._log_panel.apply_theme(_pal())
+        # страницы созданы — показываем первую и красим кнопки сайдбара
+        self.nb.set(next(iter(self.nb._tab_dict)))
         # 24.10: даже без запоминания вкладки индикатор должен быть заполнен
         try:
             self._update_tab_ui(self.nb.get(), save=False)
@@ -894,14 +1031,8 @@ class App(ctk.CTk):
             selected_hover_color=p["accent_hover"],
             unselected_color=p["card"], unselected_hover_color=p["card"],
             text_color=p["seg_text"], text_color_disabled=p["dim"])
-        self.nb.configure(
-            segmented_button_fg_color=p["seg_fg"],
-            segmented_button_selected_color=p["accent"],
-            segmented_button_selected_hover_color=p["accent_hover"],
-            segmented_button_unselected_color=p["seg_fg"],
-            segmented_button_unselected_hover_color=p["card"],
-            text_color=p["seg_text"])
-        self._accent_bar.configure(fg_color=p["accent"])
+        # 07.11: перекраска сайдбара вместо CTkTabview-селектора
+        self.nb.retheme(p)
         self._tab_pill.configure(fg_color=p["accent"])
         self._apply_log_theme()
 

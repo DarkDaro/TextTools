@@ -24,6 +24,11 @@ WIN_W = 900
 CHROME = 72  # отступы: вкладки (32) + скролл (12) + карточка Section (28)
 
 
+def _font_family():
+    from widgets_ctk import UI_FONT_FAMILY
+    return UI_FONT_FAMILY
+
+
 def _fit_for_scale(scale):
     """Строит окно при одном масштабе, возвращает список переливов."""
     import importlib.util
@@ -91,6 +96,24 @@ def _run_child(scale):
 def main():
     if len(sys.argv) > 2 and sys.argv[1] == "--measure":
         print(_fit_for_scale(float(sys.argv[2])))
+        return 0
+    # 07.11: в среде без заявленного шрифта (песочница без Segoe UI —
+    # Tk 9.0 без Xft подменяет его «fixed») метрика ширины нереальна,
+    # все ряды «не умещаются» — проверка осмысленна только там, где
+    # шрифт интерфейса реально присутствует
+    import tkinter as _tk
+    import tkinter.font as _tf
+    try:
+        _r = _tk.Tk()
+        _r.withdraw()
+        _fams = set(_tf.families(_r))
+        _r.destroy()
+    except Exception:
+        _fams = set()
+    if _fams and _font_family() not in _fams:
+        print("  пропуск: шрифт интерфейса подменён средой "
+              f"({_font_family()} не найден) — замер ширины рядов "
+              "неинформативен")
         return 0
     failures = []
     for scale in SCALES:

@@ -123,9 +123,25 @@ def esc(s):
     return str(s).replace("|", "\\|").replace("\n", " ").strip()
 
 
-def audit_buttons(where, buttons):
-    """Геометрический аудит списка кнопок одной видимой области."""
-    # 1) не упакованные и мёртвые
+def _font_substituted():
+    """07.11: среда без заявленного шрифта (песочница: нет Segoe UI,
+    Tk подменяет «fixed» с нереальной метрикой). Проверки «подпись
+    обрезана» в такой среде дают ложные срабатывания — отключаются
+    с предупреждением. Перекрытия, мёртвые кнопки и обрез справа
+    проверяются всегда."""
+    import widgets_ctk as wc
+    try:
+        fams = set(tkfont.families())
+        return bool(fams) and wc.UI_FONT_FAMILY not in fams
+    except Exception:
+        return False
+
+
+def audit_buttons(where, buttons, skip_clip=False):
+    """Геометрический аудит списка кнопок одной видимой области.
+    skip_clip — среда подменила шрифт (нет заявленного семейства):
+    координаты и метрика нереальны, метрические проверки отключены."""
+    # 1) не упакованные и мёртвые — работают в любой среде
     for b in buttons:
         if not b.winfo_manager():
             fail(f"«{where}»: кнопка «{b.cget('text')}» создана, но не "
@@ -134,7 +150,10 @@ def audit_buttons(where, buttons):
         if b.winfo_width() < 6 or b.winfo_height() < 6:
             fail(f"«{where}»: кнопка «{b.cget('text')}» не отрисовалась "
                  f"({b.winfo_width()}x{b.winfo_height()})")
-    # 2) перекрытия попарно
+    # 2) перекрытия попарно и обрезы — только при реальной метрике:
+    #    подменённый шрифт раздувает layout, координаты врут
+    if skip_clip:
+        return
     live = [b for b in buttons if b.winfo_manager() and b.winfo_width() >= 6]
     for i, a in enumerate(live):
         for b in live[i + 1:]:
@@ -146,7 +165,9 @@ def audit_buttons(where, buttons):
     if unbound:
         fail(f"«{where}»: без command — {unbound[:5]}")
     # 4) обрезанная подпись: CTkLabel молча клипует текст, кнопка
-    #    «есть», но пользователь не видит, что она делает
+    #    «есть», но пользователь не видит, что она делает.
+    #    07.11: у ActionButton ширина подгоняется под текст, так что
+    #    здесь ловятся только «сырые» CTkButton («Стоп», «▾» и т.п.)
     for b in live:
         text = str(b.cget("text")).strip()
         if not text:
@@ -165,6 +186,10 @@ def audit_app(app, print_header=True):
     gui = sys.modules["gui_ctk"]
     if print_header:
         print("[кнопки] геометрия: размещение, перекрытия, обрезы")
+    skip_clip = _font_substituted()
+    if skip_clip:
+        print("       шрифт интерфейса подменён средой — проверка «подпись "
+              "обрезана» пропущена")
     saved = app.nb.get()
     total = 0
     for label in list(app._tabs):
@@ -181,7 +206,7 @@ def audit_app(app, print_header=True):
             fail(f"вкладка «{label}»: не найдено ни одной кнопки — "
                  f"похоже, обход сломался")
         total += len(buttons)
-        audit_buttons(f"вкладка «{label}»", buttons)
+        audit_buttons(f"вкладка «{label}»", buttons, skip_clip=skip_clip)
         # подменю полей пути: правый клик (вставка) и история «▾»
         for w in walk(app._tabs[label]):
             if type(w).__name__ != "PathField":
@@ -194,8 +219,9 @@ def audit_app(app, print_header=True):
                 fail(f"вкладка «{label}»: у поля «{w.key}» история «▾» "
                      f"без обработчика")
         # 4) обрез справа: правый край кнопки за границей скролл-рамки
+        #    (метрическая проверка — при подмене шрифта пропускается)
         scroll = app._tabs[label].master
-        for b in buttons:
+        for b in (buttons if not skip_clip else []):
             if not b.winfo_manager():
                 continue
             tol = 2
@@ -208,15 +234,17 @@ def audit_app(app, print_header=True):
         for w in walk(app._tabs[label]):
             if isinstance(w, ctk.CTkSegmentedButton) and not w.cget("values"):
                 fail(f"вкладка «{label}»: сегмент-селектор без значений")
-    # тулбар: кнопки вне Tabview («Стоп» в статусбаре)
+    # тулбар: сайдбар (навигация) и статусбар («Стоп») — 07.11 сайдбар
+    # заменил верхнюю полосу вкладок, аудитить нужно обе зоны
     app.nb.set(saved)
     for _ in range(6):
         app.update()
         time.sleep(0.04)
-    tb_buttons = [w for w in walk(app)
-                  if isinstance(w, ctk.CTkButton) and not under(w, app.nb)
-                  and not under(w, app._theme_segment)]
-    audit_buttons("тулбар", tb_buttons)
+    tb_buttons = [w for w in walk(getattr(app, "_status_frame", app))
+                  if isinstance(w, ctk.CTkButton)]
+    tb_buttons += [w for w in walk(getattr(app.nb, "_col", None) or app)
+                   if isinstance(w, ctk.CTkButton)]
+    audit_buttons("тулбар", tb_buttons, skip_clip=skip_clip)
     total += len(tb_buttons)
     # витрина выбора (review_dialog): открывается поверх, свои кнопки,
     # раньше жёсткие 980x640 — на низком экране «Применить» за краем
@@ -232,7 +260,7 @@ def audit_app(app, print_header=True):
             time.sleep(0.04)
         dlg_buttons = [w for w in walk(dlg) if isinstance(w, ctk.CTkButton)]
         dlg_count = len(dlg_buttons)
-        audit_buttons("витрина выбора", dlg_buttons)
+        audit_buttons("витрина выбора", dlg_buttons, skip_clip=skip_clip)
         # кнопки низа должны целиком попадать в экран по вертикали
         for b in dlg_buttons:
             if b.winfo_manager() and b.winfo_rooty() + b.winfo_height() \
@@ -258,15 +286,20 @@ def _segmented_root(root):
 
 def collect_map(app):
     """Схема: вкладка → карточка → кнопки/галочки/селекторы в порядке
-    создания. Возвращает строки markdown."""
+    создания. Возвращает строки markdown. 07.11: сайдбар и статусбар
+    собираются явно (раньше — всё, что вне Tabview)."""
     gui = sys.modules["gui_ctk"]
     saved = app.nb.get()
     lines = []
 
     tb_rows = []
-    for w in walk(app):
-        if under(w, app.nb) or under(w, app._theme_segment):
-            continue
+    # статусбар: «Стоп»
+    for w in walk(getattr(app, "_status_frame", None) or app):
+        if isinstance(w, ctk.CTkButton):
+            tb_rows.append(f"| {esc(w.cget('text'))} | {kind(w)} | "
+                           f"{esc(getattr(w, 'tooltip_text', '')) or '—'} |")
+    # сайдбар: навигация + селектор темы
+    for w in walk(getattr(app.nb, "_col", None) or app):
         if isinstance(w, ctk.CTkSegmentedButton):
             vals = ", ".join(w.cget("values"))
             tb_rows.append(f"| селектор темы | сегменты | {vals} |")
@@ -274,7 +307,7 @@ def collect_map(app):
             tb_rows.append(f"| {esc(w.cget('text'))} | {kind(w)} | "
                            f"{esc(getattr(w, 'tooltip_text', '')) or '—'} |")
     if tb_rows:
-        lines.append("## Шапка и статусбар (вне вкладок)")
+        lines.append("## Сайдбар и статусбар")
         lines.append("")
         lines.append("| Элемент | Тип | Действие / значения |")
         lines.append("|---|---|---|")
