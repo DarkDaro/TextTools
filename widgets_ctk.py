@@ -320,6 +320,8 @@ UI_FONT_SIZE = int(_cfg_num("ui.font_size", 12, 8, 24))
 # акцентная при фокусе (см. focus_border); видно, куда пойдёт ввод
 ENTRY_BORDER = ("#d5d8e2", "#3a4052")
 ACCENT_FOCUS = ("#8b5cf6", "#8b5cf6")
+# акцент заголовков справки/сайдбара
+ACCENT_HELP = ("#6d28d9", "#c4b5fd")
 
 FONT = (UI_FONT_FAMILY, UI_FONT_SIZE)
 FONT_SMALL = (UI_FONT_FAMILY, UI_FONT_SIZE - 1)
@@ -719,28 +721,80 @@ class CheckField(ctk.CTkCheckBox):
 
 
 class HelpBox(ctk.CTkFrame):
-    """Блок-пояснение «как это работает». Перенос текста подстраивается
-    под фактическую ширину блока (раньше wraplength был фиксированным).
-    24.10: карточка с акцентным заголовком и тонкой рамкой."""
+    """Блок-пояснение «как это работает».
 
-    def __init__(self, master, text):
+    07.11 (редизайн): СПРАВКА СВОРАЧИВАЕТСЯ. Раньше это было полотно на
+    пол-экрана сверху каждой вкладки — рабочая область уезжала вниз.
+    Теперь видна одна строка-заголовок с стрелкой; клик раскрывает и
+    сворачивает обратно. Состояние запоминается в конфиге (ui.help.*).
+    Перенос текста подстраивается под фактическую ширину блока."""
+
+    def __init__(self, master, text, key=None):
         super().__init__(master, fg_color=("#f7f5fe", "#211e2e"),
                          border_width=1, border_color=("#e6defb", "#332c4d"),
-                         corner_radius=12)
+                         corner_radius=10)
         self.pack(fill="x", pady=(0, 12))
-        lbl = ctk.CTkLabel(self, text="Как это работает",
+        self._text = text
+        # состояние блока храним по устойчивому ключу: переданному или
+        # короткому хэшу первых строк текста (тексты справок стабильны)
+        self._cfg_key = "ui.help." + (key or f"h{abs(hash(text[:60])) % 99999}")
+        open_now = False
+        try:
+            open_now = bool(_gcfg.CFG.get(self._cfg_key, False))
+        except Exception:
+            pass
+
+        head = ctk.CTkFrame(self, fg_color="transparent")
+        head.pack(fill="x", padx=10, pady=(6, 0))
+        self._arrow = ctk.CTkLabel(head, text="▾" if open_now else "▸",
+                                   font=FONT_ICON,
+                                   text_color=ACCENT_HELP,
+                                   width=22)
+        self._arrow.pack(side="left")
+        lbl = ctk.CTkLabel(head, text="Как это работает",
                            font=FONT_BOLD,
-                           text_color=("#6d28d9", "#c4b5fd"),
-                           anchor="w")
-        lbl.pack(fill="x", padx=14, pady=(10, 0))
+                           text_color=ACCENT_HELP,
+                           anchor="w", cursor="hand2")
+        lbl.pack(side="left")
+        hint = ctk.CTkLabel(head,
+                            text="— нажмите, чтобы развернуть"
+                                 if not open_now else "",
+                            font=FONT_TINY,
+                            text_color=("#8a84a8", "#7d779c"))
+        hint.pack(side="left", padx=(8, 0))
+        self._hint = hint
         self._body = ctk.CTkLabel(self, text=text, justify="left", anchor="w",
                                   font=FONT_SMALL, wraplength=900)
-        self._body.pack(fill="x", padx=14, pady=(2, 12))
+        if open_now:
+            self._body.pack(fill="x", padx=14, pady=(2, 10))
         self.bind("<Configure>", self._on_resize)
+        for w in (head, lbl, self._arrow):
+            w.bind("<Button-1>", self._toggle)
+            try:
+                w.configure(cursor="hand2")
+            except Exception:
+                pass
 
-    def _on_resize(self, event):
+    def _toggle(self, _e=None):
+        open_now = str(self._body.cget("text")) and self._body.winfo_ismapped()
+        if open_now:
+            self._body.pack_forget()
+            self._arrow.configure(text="▸")
+            self._hint.configure(text="— нажмите, чтобы развернуть")
+        else:
+            self._body.pack(fill="x", padx=14, pady=(2, 10))
+            self._arrow.configure(text="▾")
+            self._hint.configure(text="")
+        try:
+            _gcfg.CFG.set(self._cfg_key, not open_now)
+        except Exception:
+            pass
+        self._on_resize()  # пересчитать перенос по новой ширине
+
+    def _on_resize(self, event=None):
         # padx=14 с обеих сторон; на узком окне текст больше не обрезается
-        wl = max(200, event.width - 28)
+        wl = max(200, (event.width if event is not None
+                       else self.winfo_width()) - 28)
         if self._body.cget("wraplength") != wl:
             self._body.configure(wraplength=wl)
 
@@ -751,7 +805,10 @@ class Section(ctk.CTkFrame):
     (совместимость: вкладки правятся на s.inner)
 
     24.10: карточка по стандарту — светлая/тёмная пара цветов, тонкая
-    рамка, скругление 12, заголовок отдельной строкой."""
+    рамка, скругление 12, заголовок отдельной строкой.
+    07.11 (редизайн): подзаголовок с форматами («форматы: .md, .txt…»)
+    уехал вправо и стал «пилюлей» — читается как тег карточки, а не
+    часть заголовка; сразу видно, какие файлы умеет инструмент."""
 
     def __init__(self, master, title, padding=14, subtitle=None):
         super().__init__(master, fg_color=("#ffffff", "#1a1d24"),
@@ -761,12 +818,16 @@ class Section(ctk.CTkFrame):
         self._pad = padding
         head = ctk.CTkFrame(self, fg_color="transparent")
         head.pack(fill="x", padx=padding, pady=(12, 2))
+        # заголовок — ПЕРВЫЙ лейбл шапки (test_gui_buttons.section_title
+        # берёт его для схемы docs/BUTTONS.md)
         ctk.CTkLabel(head, text=title, font=FONT_SECTION,
                      anchor="w").pack(side="left")
         if subtitle:
-            ctk.CTkLabel(head, text=subtitle, font=FONT_SMALL,
-                         text_color=("gray40", "gray55"), anchor="w").pack(
-                side="left", padx=(10, 0))
+            ctk.CTkLabel(head, text=subtitle, font=FONT_TINY,
+                         fg_color=("f0edfc", "#262238"),
+                         text_color=ACCENT_HELP, anchor="e",
+                         corner_radius=8).pack(side="right", padx=(10, 0),
+                                               pady=2)
         self.inner = ctk.CTkFrame(self, fg_color="transparent")
         self.inner.pack(fill="x", padx=padding, pady=(0, padding))
 
@@ -783,18 +844,16 @@ def button_row(master, pady=(2, 0)):
 # 07.11: переработка палитры. Жалоба пользователя: «все кнопки зелёные,
 # не видно, какие ведут в подменю». Раньше kind="safe" красил в ярко-
 # зелёный 41 кнопку из ~55 — зелёный заливал интерфейс, и синие
-# открыватели терялись. Теперь наоборот: ОБЫЧНЫЕ кнопки спокойные серо-
-# голубые, а акцент остаётся только у трёх особых смыслов — красная
-# (реальная запись), фиолетовая (ключевое действие), синяя РАМКА со
-# «▸» (открывает окно/список). Рамка читается и тем, кто плохо
-# различает цвета: отличаются не только цветом, но и формой.
+# открыватели терялись.
+# 07.11 (редизайн): «safe» — НЕ серый (серый читался как «выключено»),
+# а тонированный фиолетовым: спокойная подложка с фиолетовым текстом.
+# Так рабочая кнопка видна сразу, а редкие акценты (красная запись,
+# фиолетовое ключевое действие, синяя рамка-открыватель) остаются ярче.
 ACTION_STYLES = {
-    # обычное действие: запуск инструмента (по умолчанию dry-run).
-    # Зелёным больше не красим — это был самый частый вид, а не
-    # исключение; спокойный серо-голубой, файлы не меняются по умолчанию
-    "safe": {"fg": ("#e8ecf2", "#2e3542"),
-             "hover": ("#d9dfe8", "#3d4658"),
-             "text": ("#2b3442", "#d3d9e4")},
+    # обычное действие: запуск инструмента (по умолчанию dry-run)
+    "safe": {"fg": ("#ede9fb", "#2e2946"),
+             "hover": ("#ddd6f6", "#3a3358"),
+             "text": ("#4c3fa3", "#cfc7f2")},
     # ключевое действие, пишет новые файлы (экспорт, сохранение)
     "primary": {"fg": ("#7c3aed", "#8b5cf6"),
                 "hover": ("#6d28d9", "#7c3aed"),
@@ -803,7 +862,7 @@ ACTION_STYLES = {
     "danger": {"fg": ("#dc2626", "#ef4444"),
                "hover": ("#b91c1c", "#dc2626"),
                "text": "#ffffff"},
-    # служебные действия — тот же спокойный вид, что и «safe»
+    # служебные действия — нейтральные, спокойные
     "neutral": {"fg": ("#e8ecf2", "#2e3542"),
                 "hover": ("#d9dfe8", "#3d4658"),
                 "text": ("#2b3442", "#d3d9e4")},
