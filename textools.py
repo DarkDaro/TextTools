@@ -50,7 +50,7 @@ import argparse
 # вычитка --check) и карточка «Типографика» на вкладке «Писателям».
 # 05.11: 1.1.0 — шесть команд из BACKLOG (yo, check-all --out/--plan,
 # stats --history, export-docx, echo)
-__version__ = "1.7.1"
+__version__ = "1.7.2"
 
 
 def main():
