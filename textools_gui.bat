@@ -7,6 +7,21 @@ rem (скачанный архив), git отсутствует или нет с
 rem как есть.
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
+rem 08.11: старая копия не запускается. Патник записывает путь
+rem основной копии в %APPDATA%\TextTools\canonical.txt; если запустили
+rem копию не оттуда - запускаем основную вместо этой. TT_REDIRECTED
+rem страхует от цикла перезапуска: у переданной копии защита уже
+rem отработала, второй раз она не срабатывает.
+if defined TT_REDIRECTED goto after_guard
+set "CANON="
+if exist "%APPDATA%\TextTools\canonical.txt" set /p CANON=<"%APPDATA%\TextTools\canonical.txt"
+if defined CANON if /i not "!CANON!"=="%CD%" if exist "!CANON!\textools_gui.bat" (
+    echo [TextTools] это копия не основная - запускаю основную: !CANON!
+    set "TT_REDIRECTED=1"
+    start "" "!CANON!\textools_gui.bat"
+    exit /b
+)
+:after_guard
 if exist ".git" (
     where git >nul 2>nul
     if not errorlevel 1 (
