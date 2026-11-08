@@ -1462,6 +1462,72 @@ class App(ctk.CTk):
         return base
 
 
+def _stale_redirect():
+    """08.11: старая копия не запускается — эстафета свежей.
+
+    Патник (update.bat + ярлыки) записывает путь основной копии в
+    %APPDATA%/TextTools/canonical.txt. Если запустили копию СТАРШЕ
+    канонической — показываем сообщение и открываем каноническую:
+    ни через батник, ни через ярлык, ни напрямую pythonw старая
+    версия больше не запустится. Любая ошибка здесь глушится —
+    защита не имеет права сломать обычный запуск. Для --tool-run
+    не вызывается (внутренние инструменты живут в своей копии)."""
+    try:
+        if getattr(sys, "frozen", False):
+            return  # exe-сборка следит за собой сама
+        root = os.environ.get("APPDATA", "")
+        if not root:
+            return
+        marker = Path(root) / "TextTools" / "canonical.txt"
+        if not marker.is_file():
+            return
+        raw = marker.read_text(encoding="utf-8-sig", errors="ignore")
+        raw = raw.strip().strip('"').strip()
+        if not raw:
+            return
+        canon = Path(raw)
+        if not canon.is_dir() or not (canon / "gui_ctk.pyw").is_file():
+            return  # маркер протух — обычный запуск без блокировки
+        try:
+            canon = canon.resolve()
+        except Exception:
+            return
+        if os.path.normcase(str(canon)) == os.path.normcase(str(HERE)):
+            return  # это и есть основная копия
+        src = canon / "textools.py"
+        m = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']',
+                      src.read_text(encoding="utf-8", errors="ignore")[:4000])
+        if not m:
+            return
+        can_ver = m.group(1)
+
+        def _num(v):
+            return tuple(int(x) for x in v.split(".") if x.isdigit())
+
+        if _num(can_ver) <= _num(APP_VERSION):
+            return  # каноническая не новее нас — маркер устарел, работаем
+        # Диалог — по возможности; если он не открылся (нет дисплея,
+        # странный environment), эстафета всё равно состояться должна.
+        try:
+            from tkinter import messagebox
+            _r = tk.Tk()
+            _r.withdraw()
+            messagebox.showinfo(
+                "TextTools — запускаю свежую копию",
+                f"Запущена старая копия {APP_VERSION}:\n{HERE}\n\n"
+                f"Свежая версия {can_ver} живёт здесь:\n{canon}\n\nОткрываю её.")
+            _r.destroy()
+        except Exception:
+            pass
+        subprocess.Popen([sys.executable, str(canon / "gui_ctk.pyw")],
+                         cwd=str(canon))
+        sys.exit(0)
+    except SystemExit:
+        raise
+    except Exception:
+        pass  # защита не имеет права сломать обычный запуск
+
+
 def main():
     sys.excepthook = _sys_excepthook  # 20.10: runtime падения тоже в журнал
     # 26.10 (exe): self-run внутренних инструментов. exe перезапускает
@@ -1489,6 +1555,7 @@ def main():
             except Exception:
                 pass
             sys.exit(1)
+    _stale_redirect()  # 08.11: старая копия не запускается — открываем свежую
     _log_info(f"START pid={os.getpid()} py={sys.version.split()[0]} "
               f"app={APP_VERSION} exe={sys.executable}")
     try:
