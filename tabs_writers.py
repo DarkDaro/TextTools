@@ -66,7 +66,8 @@ class WritersTab(ctk.CTkFrame):
                                            "штампы) только подсвечиваются — "
                                            "решает автор.")
         self.c_ar_fix.pack(anchor="w")
-        ctk.CTkLabel(s1.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+        ctk.CTkLabel(s1.inner, justify="left", anchor="w", font=FONT_SMALL,
+                     wraplength=500, text=(
             "Словари: data/resolve_db.yaml (лексика памятки) и "
             "data/pathos_db.yaml (антипафос) — правятся вручную. Находки с "
             "подсказками («Она смотрела в одну точку. Не мигала») дописываются "
@@ -120,7 +121,9 @@ class WritersTab(ctk.CTkFrame):
                     "«стоит отметить, что» -> удалить. С бэкапом.")
         b_pc_clean.pack(side="left", padx=(0, 8))
         b_pc_clean.link_danger(self.c_pc_dry.var, invert=True)
-        self.c_pc_review = CheckField(btns_pc, "Выборочно (витрина)",
+        # 08.11: ряд делился надвое — при масштабе 1.25 не влезал в 900px
+        btns_pc2 = button_row(s2.inner, pady=(4, 0))
+        self.c_pc_review = CheckField(btns_pc2, "Выборочно (витрина)",
                                       "pc_review", CFG, default=False,
                                       tooltip="Показать каждое вхождение "
                                               "с контекстом и выбрать, что "
@@ -232,7 +235,8 @@ class WritersTab(ctk.CTkFrame):
                                               "число не отрывается от слова "
                                               "(«10 лет», «1812 г.»).")
         self.c_typo_nbsp.pack(side="left", padx=16)
-        ctk.CTkLabel(s_typo.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+        ctk.CTkLabel(s_typo.inner, justify="left", anchor="w", font=FONT_SMALL,
+                        wraplength=500, text=(
             "Кавычки \"...\" и „лапки“ → «ёлочки», 3+ точки → …, «?...» → «?..», "
             "«слово - слово» → «слово — слово», диапазон лет «1941-1945» → "
             "«1941—1945», «- Реплика» → «— Реплика» (txt/docx). Пунктуация: "

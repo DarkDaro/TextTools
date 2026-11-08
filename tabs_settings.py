@@ -70,7 +70,7 @@ class SettingsTab(ctk.CTkFrame):
             self._script_fields[key] = field
 
         ctk.CTkLabel(s1.inner, anchor="w", font=FONT_SMALL,
-                     text_color=("gray45", "gray60"),
+                     text_color=("gray45", "gray60"), wraplength=500,
                      text="Пусто = автопоиск рядом с проектом; если скрипт "
                           "лежит в другом месте, укажите путь вручную."
                      ).pack(anchor="w", pady=(2, 0))
@@ -319,7 +319,8 @@ class SettingsTab(ctk.CTkFrame):
 
         # --- Сохранение / сброс ---
         s3 = Section(parent, "Сохранение настроек")
-        ctk.CTkLabel(s3.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+        ctk.CTkLabel(s3.inner, justify="left", anchor="w", font=FONT_SMALL,
+                     wraplength=500, text=(
             "Все настройки сохраняются автоматически при каждом изменении "
             "(путь, галочка, тема). Кнопки ниже — для ручного управления."
         )).pack(anchor="w", pady=(0, 4))
@@ -392,7 +393,8 @@ class SettingsTab(ctk.CTkFrame):
         # --- старые копии и ярлыки (07.11) ---
         s_doc = Section(parent, "Старые копии и ярлыки (почему «GUI не обновляется»)",
                         subtitle="форматы: папки-копии и .lnk на диске")
-        ctk.CTkLabel(s_doc.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+        ctk.CTkLabel(s_doc.inner, justify="left", anchor="w", font=FONT_SMALL,
+                       wraplength=500, text=(
             "Ищет старые копии TextTools на диске (Рабочий стол, Загрузки, "
             "Документы, меню «Пуск») и ярлыки, которые их запускают: из-за "
             "них неделями не видно обновлений интерфейса. Старая копия — "
@@ -422,7 +424,8 @@ class SettingsTab(ctk.CTkFrame):
 
         # --- Журнал операций (02.10) ---
         s_h = Section(parent, "Журнал операций")
-        ctk.CTkLabel(s_h.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+        ctk.CTkLabel(s_h.inner, justify="left", anchor="w", font=FONT_SMALL,
+                     wraplength=500, text=(
             "Каждый запуск инструмента из GUI пишется в logs/history.log: "
             "время, команда, код завершения и длительность. "
             "Удобно вспомнить, что и когда делалось с текстами."
@@ -457,11 +460,13 @@ class SettingsTab(ctk.CTkFrame):
                              "зависимостей в буфер обмена — удобно приложить "
                              "к сообщению об ошибке."
                      ).pack(side="left", padx=(0, 8))
-        ActionButton(row_about, "README", self._open_readme,
+        # 08.11: два ряда вместо одного — при масштабе 1.25 не влезало в 900px
+        row_about2 = button_row(s_about.inner, pady=(4, 0))
+        ActionButton(row_about2, "README", self._open_readme,
                      submenu=True, width=110,
                      tooltip="README.md: описание проекта и список "
                              "возможностей.").pack(side="left", padx=(0, 8))
-        ActionButton(row_about, "Папка проекта", self._open_project_dir,
+        ActionButton(row_about2, "Папка проекта", self._open_project_dir,
                      submenu=True, width=160,
                      tooltip="Открыть папку, из которой запущена программа."
                      ).pack(side="left")
@@ -489,8 +494,10 @@ class SettingsTab(ctk.CTkFrame):
         Tooltip(b_par, "tools/parasites.yaml — свой список слов-паразитов "
                        "для статистики. При первом открытии создаётся шаблон "
                        "из встроенного списка.")
+        # 08.11: инструкция — на второй ряд: при 1.25 ряд не влезал в 900px
+        r4b = button_row(s4.inner, pady=(4, 0))
         # 24.10: инструкция по окну лежит рядом с программой
-        b_guide = ActionButton(r4, "Открыть инструкцию", self._open_guide,
+        b_guide = ActionButton(r4b, "Открыть инструкцию", self._open_guide,
                                submenu=True, width=180)
         b_guide.pack(side="left", padx=8)
         Tooltip(b_guide, "GUI_GUIDE.md: пошаговое руководство по окну "

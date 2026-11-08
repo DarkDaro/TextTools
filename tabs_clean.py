@@ -41,16 +41,16 @@ class CleanTab(ctk.CTkFrame):
         self.c_dry = CheckField(r1, "Только отчёт (dry-run)", "emoji_dry_run", CFG,
                                 default=True,
                                 tooltip="Файлы не изменяются, показывается, что было бы удалено.")
-        self.c_dry.pack(side="left", padx=(0, 16))
+        self.c_dry.pack(side="left", padx=(0, 12))
         self.c_bak = CheckField(r1, "Бэкап .bak", "emoji_backup", CFG, default=False,
                                 tooltip="Перед изменением рядом с файлом создаётся копия "
                                         "<имя>.bak. Откат — кнопкой ниже.")
-        self.c_bak.pack(side="left", padx=16)
-        self.c_res = CheckField(r1, "Восстановить из .bak", "emoji_restore", CFG,
+        self.c_bak.pack(side="left", padx=12)
+        self.c_res = CheckField(r1, "Вернуть .bak", "emoji_restore", CFG,
                                 default=False,
                                 tooltip="Откат: вернуть содержимое из копий .bak. "
                                         "Сами копии не удаляются.")
-        self.c_res.pack(side="left", padx=16)
+        self.c_res.pack(side="left", padx=12)
 
         # 24.10: при восстановлении из .bak режим dry-run и бэкап
         # бессмысленны — гасим их, чтобы не путать
@@ -131,7 +131,8 @@ class CleanTab(ctk.CTkFrame):
                                               "в конце строки. Без галочки они "
                                               "удаляются как обычные пробелы.")
         self.c_ws_breaks.pack(side="left", padx=16)
-        ctk.CTkLabel(s3.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+        ctk.CTkLabel(s3.inner, justify="left", anchor="w", font=FONT_SMALL,
+                     wraplength=500, text=(
             "Убирает: пробелы/табы в конце строк, лишние пустые строки "
             "(оставляет одну между абзацами), пустые строки в начале файла. "
             "Блоки кода ``` не трогаются. В docx правится только текст — "
@@ -192,7 +193,8 @@ class CleanTab(ctk.CTkFrame):
                                                 "не создаются. Внимание: без "
                                                 "бэкапа откатить замену нечем.")
         self.c_icons_nobak.pack(side="left", padx=16)
-        ctk.CTkLabel(s5.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+        ctk.CTkLabel(s5.inner, justify="left", anchor="w", font=FONT_SMALL,
+                     wraplength=500, text=(
             "Эмодзи-иконки интерфейса (💰 ❤️ ⏩ 🔊 …) заменяются на векторные "
             "SVG: вид одинаковый на любой системе и не зависит от шрифтов "
             "эмодзи. Повторный запуск безопасен — уже обработанные файлы "
@@ -233,7 +235,8 @@ class CleanTab(ctk.CTkFrame):
                                      tooltip="Из каких символов может состоять "
                                              "строка-разделитель. Пусто — набор "
                                              "по умолчанию.")
-        ctk.CTkLabel(s6.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
+        ctk.CTkLabel(s6.inner, justify="left", anchor="w", font=FONT_SMALL,
+                     wraplength=500, text=(
             "Убирает строки-отбойники из повторяющихся символов: /////, *****, "
             "======, ———, * * *. Frontmatter, код-блоки, заголовки из решёток "
             "и таблицы не трогаются. На месте разделителя остаётся пустая "

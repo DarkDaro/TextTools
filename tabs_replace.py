@@ -41,19 +41,19 @@ class ReplaceTab(ctk.CTkFrame):
                                 tooltip="Новый текст. Пусто = просто удалить найденное.")
         r1 = ctk.CTkFrame(s1.inner, fg_color="transparent")
         r1.pack(fill="x", pady=4)
-        self.c_regex = CheckField(r1, "Regex (регулярное выражение)", "md_regex", CFG,
+        self.c_regex = CheckField(r1, "Regex (паттерн)", "md_regex", CFG,
                                   tooltip="Искать по регулярному выражению, например "
                                           r"\d{2}\.\d{2}\.\d{4} — любая дата.")
-        self.c_regex.pack(side="left", padx=(0, 16))
+        self.c_regex.pack(side="left", padx=(0, 12))
         self.c_apply = CheckField(r1, "Применить изменения", "md_apply", CFG,
                                   default=False,
                                   tooltip="Без галочки — dry-run. С галочкой — реально "
                                           "заменяет (бэкап создаётся автоматически).")
-        self.c_apply.pack(side="left", padx=16)
+        self.c_apply.pack(side="left", padx=12)
         self.c_nobak = CheckField(r1, "Без бэкапа", "md_no_backup", CFG,
                                   default=False,
                                   tooltip="Не создавать бэкап. Не рекомендуется.")
-        self.c_nobak.pack(side="left", padx=16)
+        self.c_nobak.pack(side="left", padx=12)
         row1 = button_row(s1.inner)
         b_md = ActionButton(
             row1, "Заменить", self._run_md_replace,
@@ -81,12 +81,14 @@ class ReplaceTab(ctk.CTkFrame):
         b2.pack(side="left", padx=(0, 8))
         Tooltip(b2, "Пересохранить файлы в нормальную кодировку UTF-8. "
                     "С «Применить» — реально исправляет, с бэкапом.")
-        b3 = ActionButton(r2, "Вырезать мусор", self._run_strip_bad,
+        # 08.11: ряд делился надвое — при масштабе 1.25 не влезал в 900px
+        r2b = button_row(s2.inner, pady=(4, 0))
+        b3 = ActionButton(r2b, "Вырезать мусор", self._run_strip_bad,
                           kind="safe", width=150)
         b3.pack(side="left", padx=(0, 8))
         Tooltip(b3, "Удалить мусорные unicode-символы из .md файлов. "
                     "С «Применить» — реально вырезает, с бэкапом.")
-        self.c_spec = CheckField(r2, "Применить", "mdspec_apply", CFG,
+        self.c_spec = CheckField(r2b, "Применить", "mdspec_apply", CFG,
                                  default=False,
                                  tooltip="Без галочки — только отчёт. С галочкой — "
                                          "реально исправляет.")
