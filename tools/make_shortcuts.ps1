@@ -1,8 +1,10 @@
-# TextTools: (пере)создание ярлыков на рабочем столе.
-# Два ярлыка: запуск GUI (textools_gui.bat) и обновление (update.bat).
-# v2: сначала проверяем, что в этой папке вообще есть программа -
-# иначе получится «сломанный ярлык» в распакованный архив или пустую
-# папку. Цели печатаются, чтобы было видно, куда указывают ярлыки.
+# TextTools: (пере)создание ярлыков на рабочем столе + фиксация
+# канонической папки.
+# v3: (1) маркер canonical.txt в %APPDATA%/TextTools - по нему GUI и
+# лаунчер узнают основную копию и эстафуют запуск ей (старая копия не
+# запускается); (2) чужие и сломанные ярлыки TextTools с рабочего
+# стола удаляются - остаются один запуск и одно обновление, и оба от
+# свежей копии. Цели печатаются, чтобы было видно, куда указывают.
 $ErrorActionPreference = "Stop"
 $root    = Split-Path -Parent $PSScriptRoot
 $desktop = [Environment]::GetFolderPath("Desktop")
@@ -19,7 +21,18 @@ if (-not (Test-Path $launcher)) {
 
 $ws = New-Object -ComObject WScript.Shell
 
-# Иконка - от pythonw, если он найден, иначе системная.
+# --- 1) Чужие и сломанные ярлыки TextTools - долой ---
+Get-ChildItem $desktop -Filter *.lnk -ErrorAction SilentlyContinue | ForEach-Object {
+    $target = ""
+    try { $target = $ws.CreateShortcut($_.FullName).TargetPath } catch {}
+    $isTT = ($_.BaseName -match "TextTools") -or ($target -match "(?i)textools")
+    if ($isTT -and ($target -notlike "$root*")) {
+        Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+        Write-Host "       Удалён старый/чужой ярлык: $($_.Name)"
+    }
+}
+
+# --- 2) Свежие ярлыки от текущей копии ---
 $pyw = $null
 $cmd = Get-Command pythonw -ErrorAction SilentlyContinue
 if ($cmd) { $pyw = $cmd.Source }
@@ -43,4 +56,11 @@ $lnk2.Description       = "TextTools - обновиться с GitHub"
 if ($pyw -and (Test-Path $pyw)) { $lnk2.IconLocation = "$pyw, 0" }
 $lnk2.Save()
 Write-Host "       Ярлык обновления: TextTools - Обновить -> $updater"
+
+# --- 3) Каноническая папка: GUI и лаунчер читают этот маркер и
+#        эстафуют запуск основной копии (старая не запускается). ---
+$canonDir = Join-Path $env:APPDATA "TextTools"
+New-Item -Path $canonDir -ItemType Directory -Force | Out-Null
+[IO.File]::WriteAllText((Join-Path $canonDir "canonical.txt"), $root)
+Write-Host "       Основная копия зафиксирована: $root"
 exit 0

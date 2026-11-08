@@ -1,10 +1,11 @@
 @echo off
-rem TextTools - патник v3: обновляет программу с GitHub и освежает ярлыки.
-rem 07.11 (v2): провал git fetch больше не маскируется под «обновлений
-rem нет»; ярлык не ставится в папку без программы; zip-путь сверяет
-rem версию. 07.11 (v3): merge тихий (диффстат не заливает экран),
-rem robocopy-ретраи ограничены двумя попытками (иначе залоченный файл
-rem вешал обновление навсегда), подписи «до/после».
+rem TextTools - патник v4: обновляет программу, отключает старые копии,
+rem освежает ярлыки. 08.11: новый шаг [2/5] - tools\disable_stale_copies.ps1
+rem переименовывает запускалки в других копиях TextTools на диске
+rem (*.СТАРАЯ_ОТКЛЮЧЕНА), чтобы старая версия не запускалась ни через
+rem какой батник; make_shortcuts.ps1 удаляет чужие/сломанные ярлыки
+rem TextTools и фиксирует каноническую папку в canonical.txt - по ней
+rem GUI и лаунчеры эстафуют запуск свежей копии.
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 cd /d "%~dp0"
@@ -33,12 +34,12 @@ call :showver до
 echo.
 
 if exist ".git" if defined GITOK goto gitupdate
-echo  [1/4] Это не git-копия или git не найден - обновлю через zip.
+echo  [1/5] Это не git-копия или git не найден - обновлю через zip.
 call :zipupdate
-goto shortcuts
+goto stale
 
 :gitupdate
-echo  [1/4] Git-копия: связываюсь с GitHub...
+echo  [1/5] Git-копия: связываюсь с GitHub...
 set "OLD="
 for /f %%i in ('git rev-parse --short HEAD 2^>nul') do set "OLD=%%i"
 git fetch origin main --quiet 2>nul
@@ -46,23 +47,23 @@ if errorlevel 1 (
     echo        Git не смог связаться с GitHub - нет сети или кривой адрес.
     echo        Пробую путь через zip...
     call :zipupdate
-    goto shortcuts
+    goto stale
 )
 git merge --ff-only origin/main --quiet 2>nul
 if errorlevel 1 (
     echo        Локальные правки мешают git - обновляю через zip...
     call :zipupdate
-    goto shortcuts
+    goto stale
 )
 set "NEW="
 for /f %%i in ('git rev-parse --short HEAD 2^>nul') do set "NEW=%%i"
-if not defined OLD goto shortcuts
+if not defined OLD goto stale
 if "!OLD!"=="!NEW!" (
     echo        Обновлений нет: !NEW! - уже последняя версия.
 ) else (
     echo        Готово: !OLD! -^> !NEW!
 )
-goto shortcuts
+goto stale
 
 :zipupdate
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\update_from_zip.ps1"
@@ -72,12 +73,16 @@ if errorlevel 1 (
 )
 goto :eof
 
+:stale
+echo  [2/5] Отключаю запускалки в старых копиях на диске...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\disable_stale_copies.ps1"
+
 :shortcuts
-echo  [2/4] Ярлыки на рабочем столе...
+echo  [3/5] Ярлыки на рабочем столе...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\make_shortcuts.ps1"
 if errorlevel 1 echo        Ярлыки не создал - смотри причину выше.
 
-echo  [3/4] Проверяю, что обновление легло именно сюда...
+echo  [4/5] Проверяю, что обновление легло именно сюда...
 call :showver после
 
 set "FRESH="
@@ -90,7 +95,7 @@ if defined FRESH (
     echo        программу. Скажи мне путь, откуда запускаешь TextTools.
 )
 
-echo  [4/4] Готово. Это окно можно закрыть.
+echo  [5/5] Готово. Это окно можно закрыть.
 echo.
 pause
 exit /b
