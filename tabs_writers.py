@@ -181,6 +181,14 @@ class WritersTab(ctk.CTkFrame):
                                               "reports/stats_log.csv — удобно "
                                               "следить за прогрессом в Excel.")
         self.c_stats_csv.pack(anchor="w")
+        self.c_stats_history = CheckField(
+            s4.inner, "Динамика объёма из дневника (--history)",
+            "stats_history", CFG, default=False,
+            tooltip="CLI-ключ --history: слова по датам, дельты и темп "
+                    "из reports/stats_log.csv (дневник заполняют обычный "
+                    "прогон с «Дописывать в CSV-дневник»). Тексты не "
+                    "сканируются — папку указывать не обязательно.")
+        self.c_stats_history.pack(anchor="w")
         row4 = button_row(s4.inner)
         ActionButton(row4, "Построить статистику", self._run_stats,
                      kind="safe", width=235,
@@ -492,6 +500,12 @@ class WritersTab(ctk.CTkFrame):
 
     def _run_stats(self):
         from gui_ctk import run_internal
+        # 18.11: --history читает дневник, тексты не сканируются —
+        # как в CLI, папка не обязательна
+        if self.c_stats_history.get():
+            self._log("Динамика объёма: читаю reports/stats_log.csv...\n")
+            run_internal("text_stats", ["--history"])
+            return
         if not self.f_stats.get():
             self._log("Укажите папку или файл.\n")
             return

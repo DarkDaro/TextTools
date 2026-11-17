@@ -34,5 +34,6 @@
   "script_md_replace": "",
   "script_char_search": "",
   "script_refile": "",
-  "moc_update": false
+  "moc_update": false,
+  "stats_history": false
 }
