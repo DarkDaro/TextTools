@@ -36,7 +36,7 @@
 [TECH_DEBT.md](TECH_DEBT.md) (ведомость техдолгов проекта),
 [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md) (соответствие CLI и GUI).
 Целая ли копия — одной командой: `python textools.py doctor`.
-Версия 1.8.1, Windows, Python 3.10+, лицензия MIT.
+Версия 1.8.2, Windows, Python 3.10+, лицензия MIT.
 
 ## Скриншоты
 

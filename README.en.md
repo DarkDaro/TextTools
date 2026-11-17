@@ -40,7 +40,7 @@ changed and when), [TECH_DEBT.md](TECH_DEBT.md) (the project's
 register of technical debt), [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md)
 (CLI-to-GUI correspondence).
 Check whether your copy is intact with
-one command: `python textools.py doctor`. Version 1.8.1, Windows,
+one command: `python textools.py doctor`. Version 1.8.2, Windows,
 Python 3.10+, MIT license.
 
 ## Screenshots
