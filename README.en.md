@@ -16,7 +16,7 @@ a manuscript to hunt typos is the kind of work you burn out on before
 you finish the book; the program takes that work for itself.
 
 There are no clouds, no subscriptions and no artificial intelligence
-here. What there is: 32 CLI subcommands, a window with seven tabs,
+here. What there is: 32 CLI subcommands, a window with eight tabs,
 and your folder of texts, to which all of it is applied.
 
 Built for Russian-language prose in Obsidian: names and their
@@ -40,18 +40,19 @@ changed and when), [TECH_DEBT.md](TECH_DEBT.md) (the project's
 register of technical debt), [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md)
 (CLI-to-GUI correspondence).
 Check whether your copy is intact with
-one command: `python textools.py doctor`. Version 1.8.2, Windows,
+one command: `python textools.py doctor`. Version 1.8.3, Windows,
 Python 3.10+, MIT license.
 
 ## Screenshots
 
-The window in both themes, all 7 tabs: folder
+The window in both themes, all 8 tabs: folder
 [docs/screenshots](docs/screenshots/README.md) — with a table of
 every shot.
 
 | Writers (light) | Settings (dark) |
 |---|---|
 | ![Writers](docs/screenshots/light-writers.png) | ![Settings](docs/screenshots/dark-settings.png) |
+| ![Pomodoro](docs/screenshots/light-pomodoro.png) | ![Log](docs/screenshots/dark-log.png) |
 
 ## In plain terms
 
@@ -400,6 +401,11 @@ here to help you navigate):
   (UTF-8), junk scene dividers (///// **** ===== ———)
 * **Replace (Замены)**: md_replace (4 modes), char_search, targeted
   single-word replacement, refile
+* **Pomodoro (Помодоро)**: a writer's timer for the Pomodoro
+  technique — 25 minutes of work, a 5-minute break, a long break
+  after the series; phase auto-start, daily counters (pomodoros
+  and clean working time), fully offline; no CLI command (an
+  interactive timer has nowhere to draw its countdown in a terminal)
 * **Settings (Настройки)**: paths to external scripts, theme, fonts
   and UI scale, timings (toast, Stop, showcase), log line wrapping
   and opening the report after saving, note checks (extensions for
@@ -425,7 +431,7 @@ system error or completion sound; the status shows the tool name and
 the elapsed time. Any path can be pasted with a right click ("Paste
 from clipboard", quotes are stripped); the field history keeps up to
 50 recent paths (the limit is configured on the Settings tab).
-Hotkeys: Ctrl+1…7 for the tabs, Ctrl+F for log search, Ctrl+S to save
+Hotkeys: Ctrl+1…8 for the tabs, Ctrl+F for log search, Ctrl+S to save
 settings. Window size and the last open tab are restored on launch.
 
 **Safety:** write operations run in dry-run; a real write happens
@@ -495,7 +501,7 @@ Restoration lives on the Settings tab.
 The main suite is pytest:
 
 ```
-python -m pytest test/ -q             # 209 tests: engines, CLI, docx, GUI utilities
+python -m pytest test/ -q             # 231 tests: engines, CLI, docx, pomodoro, GUI utilities
 ```
 
 The GUI is checked by separate scripts in the root (they open a
