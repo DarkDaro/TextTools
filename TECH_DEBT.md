@@ -31,6 +31,7 @@
 | TD-06 | открыт | 2026-11-18 | Запускатели и патник только под Windows |
 | TD-07 | открыт | 2026-11-18 | `archive/` — старый набор под прежний интерфейс |
 | TD-08 | открыт | 2026-11-18 | `find_cjk.py` в корне — кандидат на переезд в `core/` |
+| TD-09 | открыт | 2026-11-18 | Поле About на GitHub пустое — токен без права Administration |
 
 ## TD-01 — Тестовый мусор в `external/emoji-cleaner/` (ждёт решения)
 
@@ -147,6 +148,30 @@ GUI-скрипты оставить локальными: им нужен дис
 **План.** Перенести в `core/` при ближайшей правке импортов:
 обновить `py-modules` в `pyproject.toml`, импорт в `textools.py` и
 импорт в GUI. Отдельным коммитом — раз это ломает точки входа.
+
+## TD-09 — Поле About на GitHub пустое (открыт)
+
+**Суть.** У репозитория не заполнено описание в поле About (description
+и topics): PATCH через API вернул 403 — у fine-grained токена владельца
+нет разрешения Administration (пуш оно даёт, метаданные репозитория —
+нет).
+
+**Чем мешает.** Витрина репо выглядит безымянной: без описания и
+топиков репозиторий не находится ни поиском GitHub, ни по темам.
+
+**Решение владельца (18.11.2026): пока оставить как есть.** Текст для
+будущего заполнения подготовлен:
+
+* description: `Offline writing toolkit for fiction: character-name
+  consistency, typography, cliché cleanup, vault integrity. CLI + GUI.
+  No AI, no cloud.`
+* topics: `python`, `cli`, `gui`, `customtkinter`, `obsidian`,
+  `writing`, `text-processing`, `typography`, `offline`, `writers`
+
+**План.** Либо владельцу выдать токену право Administration: Read and
+write (Settings → Developer settings → Fine-grained tokens), либо
+вставить текст вручную через шестерёнку About на странице репозитория.
+После заполнения — статус `закрыт`.
 
 ## Как заводить новый пункт
 
