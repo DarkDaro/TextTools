@@ -41,6 +41,16 @@ register of technical debt). Check whether your copy is intact with
 one command: `python textools.py doctor`. Version 1.8.1, Windows,
 Python 3.10+, MIT license.
 
+## Screenshots
+
+The window in both themes, all 7 tabs: folder
+[docs/screenshots](docs/screenshots/README.md) — with a table of
+every shot.
+
+| Writers (light) | Settings (dark) |
+|---|---|
+| ![Writers](docs/screenshots/light-writers.png) | ![Settings](docs/screenshots/dark-settings.png) |
+
 ## In plain terms
 
 A novel lives in a folder of sixty files, and it is no longer a
