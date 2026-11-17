@@ -180,6 +180,13 @@ class NamesTab(ctk.CTkFrame):
                                               "<Имя>.md со ссылками на файлы "
                                               "с упоминаниями.")
         self.c_moc_apply.pack(anchor="w")
+        self.c_moc_update = CheckField(s6.inner, "Дописать в существующие",
+                                       "moc_update", CFG, default=False,
+                                       tooltip="CLI-ключ --update: существующие "
+                                               "заметки не пропускаются — в них "
+                                               "добавляются свежие ссылки в конец. "
+                                               "Работает вместе с «Создать заметки».")
+        self.c_moc_update.pack(anchor="w")
         row6 = button_row(s6.inner)
         b_moc = ActionButton(
             row6, "MOC-заметки персонажей", self._run_moc,
@@ -313,6 +320,8 @@ class NamesTab(ctk.CTkFrame):
                 "--out-dir", self.f_moc_dir.get()]
         if self.c_moc_apply.get():
             args.append("--apply")
+        if self.c_moc_update.get():
+            args.append("--update")
         run_internal("moc_builder", args)
     def _run_cast(self):
         # 07.11: список персонажей без повторов — лог reports/cast_list.txt

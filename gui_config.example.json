@@ -33,5 +33,6 @@
   "script_clean_text": "",
   "script_md_replace": "",
   "script_char_search": "",
-  "script_refile": ""
+  "script_refile": "",
+  "moc_update": false
 }
