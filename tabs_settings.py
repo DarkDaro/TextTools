@@ -466,6 +466,12 @@ class SettingsTab(ctk.CTkFrame):
                      submenu=True, width=110,
                      tooltip="README.md: описание проекта и список "
                              "возможностей.").pack(side="left", padx=(0, 8))
+        ActionButton(row_about2, "Полная проверка (doctor)", self._run_app_check,
+                     kind="safe", width=215,
+                     tooltip="Целиком проверяет программу: файлы, словари, "
+                             "зависимости, внешние скрипты, версии — то же "
+                             "самое, что python textools.py doctor. "
+                             "Только чтение.").pack(side="left", padx=(0, 8))
         ActionButton(row_about2, "Папка проекта", self._open_project_dir,
                      submenu=True, width=160,
                      tooltip="Открыть папку, из которой запущена программа."
@@ -644,6 +650,13 @@ class SettingsTab(ctk.CTkFrame):
             _app._log_panel.set_wrap(bool(self.c_log_wrap.get()))
         except Exception:
             pass
+
+    def _run_app_check(self):
+        # 18.11: полный doctor из GUI — то же, что python textools.py doctor:
+        # файлы, словари, зависимости, внешние скрипты, версии (только чтение)
+        self._log("Полная проверка программы (doctor)...\n")
+        from gui_ctk import run_internal
+        run_internal("app_check", [])
 
     # --- о программе (24.10) ---
 
