@@ -158,6 +158,19 @@ def test_auto_work_starts_work_by_itself():
     assert e.running is True
 
 
+def test_done_work_seconds_accumulates():
+    e = make_engine()
+    e.start()
+    cycle_work(e)                     # помидор засчитан
+    assert e.done_work_seconds == 60
+    cycle_work(e)                     # перерыв досчитал — время не растёт
+    assert e.done_work_seconds == 60
+    e.start()
+    cycle_work(e)                     # второй помидор
+    assert e.done_work_seconds == 120
+    assert e.state()["done_work_seconds"] == 120
+
+
 def test_skip_moves_on_without_counting():
     e = make_engine(rounds=2)
     e.start()

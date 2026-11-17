@@ -35,5 +35,13 @@
   "script_char_search": "",
   "script_refile": "",
   "moc_update": false,
-  "stats_history": false
+  "stats_history": false,
+  "pomo.work_min": "25",
+  "pomo.short_min": "5",
+  "pomo.long_min": "15",
+  "pomo.rounds": "4",
+  "pomo.auto_break": true,
+  "pomo.auto_work": false,
+  "pomo.sound": true,
+  "pomo.stats": { "day": "", "work_done": 0, "work_seconds": 0 }
 }

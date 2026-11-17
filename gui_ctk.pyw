@@ -776,7 +776,7 @@ class App(ctk.CTk):
 
         right = ctk.CTkFrame(self._header, fg_color="transparent")
         right.pack(side="right")
-        ctk.CTkLabel(right, text="Ctrl+1…7 — разделы, Ctrl+F — поиск",
+        ctk.CTkLabel(right, text="Ctrl+1…8 — разделы, Ctrl+F — поиск",
                      font=FONT_TINY,
                      text_color=p["dim"]).pack(side="right", padx=(0, 4))
 
@@ -854,10 +854,13 @@ class App(ctk.CTk):
         from tabs_vault import VaultTab
         from tabs_clean import CleanTab
         from tabs_replace import ReplaceTab
+        from tabs_pomodoro import PomodoroTab
         from tabs_settings import SettingsTab
 
+        # 23.11: «Помодоро» — таймер писателя, стоит между рабочими
+        # инструментами и настройками; журнал остаётся последним.
         for cls in (WritersTab, NamesTab, VaultTab, CleanTab, ReplaceTab,
-                    SettingsTab):
+                    PomodoroTab, SettingsTab):
             tab = self.nb.add(cls.LABEL)
             # скролл-контейнер вкладки; 07.11: единый стиль полосы
             # прокрутки — спокойная кнопка, акцент при наведении
@@ -898,7 +901,7 @@ class App(ctk.CTk):
             "Выберите раздел слева и инструмент в нём — ход работы и "
             "результат появятся здесь.\n\n"
             "Подсказки:\n"
-            "  • Ctrl+1…7 — переход по разделам, Ctrl+F — поиск "
+            "  • Ctrl+1…8 — переход по разделам, Ctrl+F — поиск "
             "по журналу, Ctrl+S — сохранить настройки;\n"
             "  • правый клик в любом поле — копировать, вставить, "
             "вырезать;\n"

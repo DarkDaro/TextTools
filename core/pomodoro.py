@@ -112,6 +112,9 @@ class PomodoroEngine:
         self.running = False
         # завершённые помидоры с последнего длинного перерыва
         self._round_in_series = 0
+        # чистое время завершённых помидоров за сессию (для дневной
+        # статистики GUI и будущего CLI-режима)
+        self.done_work_seconds = 0
 
     # --- настройки ---
 
@@ -142,6 +145,7 @@ class PomodoroEngine:
             "round_in_series": self._round_in_series,
             "rounds": self.rounds,
             "durations": dict(self._durations),
+            "done_work_seconds": self.done_work_seconds,
         }
 
     # --- управление ---
@@ -184,6 +188,7 @@ class PomodoroEngine:
         events = [("phase_end", self.phase)]
         if self.phase == WORK:
             self._round_in_series += 1
+            self.done_work_seconds += self._durations[WORK]
             events.append(("work_done", self._round_in_series))
         nxt = self._advance_phase()
         self.phase = nxt

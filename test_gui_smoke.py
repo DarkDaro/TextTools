@@ -5,7 +5,8 @@
 - поля-инструменты живут на ней (f_ar, f_pc, f_style, f_stats, f_yo_input);
 - на старых вкладках их больше нет (f_ar у CleanTab и т.д.);
 - кнопки перенесённых инструментов вызывают нужные движки;
-- журнал открывается по Ctrl+7.
+- журнал открывается по Ctrl+8 (23.11: вкладка «Помодоро» шестая,
+  «Настройки» седьмая, журнал стал восьмой).
 Запуск: python test_gui_smoke.py  (Windows, с окном)
         xvfb-run -a python test_gui_smoke.py  (Linux, без дисплея)
 Под pytest только импортируется: вся работа — в main().
@@ -91,10 +92,10 @@ def main():
           any(c[0] == "cmd" and any("phrase_check" in str(x) for x in c[1])
               for c in calls))
 
-    # горячие клавиши: журнал — 7-я вкладка
-    app.event_generate("<Control-Key-7>")
+    # горячие клавиши: журнал — восьмая вкладка (23.11: + «Помодоро»)
+    app.event_generate("<Control-Key-8>")
     app.update()
-    check("Ctrl+7 → журнал",
+    check("Ctrl+8 → журнал",
           app._current_tab == gui_ctk.LOG_TAB, app._current_tab)
     app.event_generate("<Control-Key-1>")
     app.update()
