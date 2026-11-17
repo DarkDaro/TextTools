@@ -37,7 +37,9 @@ Documentation: [MANUAL.md](MANUAL.md) (scenarios and every button),
 [GUI_GUIDE.md](GUI_GUIDE.md) (the window, step by step, no
 programming knowledge required), [CHANGELOG.md](CHANGELOG.md) (what
 changed and when), [TECH_DEBT.md](TECH_DEBT.md) (the project's
-register of technical debt). Check whether your copy is intact with
+register of technical debt), [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md)
+(CLI-to-GUI correspondence).
+Check whether your copy is intact with
 one command: `python textools.py doctor`. Version 1.8.1, Windows,
 Python 3.10+, MIT license.
 
@@ -327,7 +329,7 @@ python textools.py registry-builder --input <folder> [--registry <yaml>] [--min-
 python textools.py consistency      --input <folder> --registry <yaml>
 python textools.py forms            --registry <yaml> [--fill]
 python textools.py matrix           --input <folder> --registry <yaml>
-python textools.py merge-registry   --candidates <yaml> --registry <yaml> [--add]
+python textools.py merge-registry   --candidates <yaml> --registry <yaml> [--add] [--names "name1,name2"]
 python textools.py utf8             --input <folder> [--fix]
 python textools.py orphan-finder    --input <folder>
 python textools.py broken-links     --input <folder>
@@ -379,13 +381,15 @@ here to help you navigate):
 * **Writers (Писателям)**: ANTIRESONANCE (finding and cleaning
   inflated pathos), AI-text clichés (search, cleanup, interactive
   showcase), style report (word repetitions in close proximity, long
-  sentences), text statistics (with a CSV volume diary), the ё/е
+  sentences), text statistics
+  (with a CSV volume diary and the --history dynamics), the ё/е
   audit (showcase), typography («guillemets», dashes, punctuation,
   non-breaking spaces) and the read-through report (issues by line),
   Word export, echo phrases
 * **Character names (Имена персонажей)**: registry-builder,
   consistency, the mention matrix, inflected forms (pymorphy3),
-  adding candidates to the registry, MOC notes for Obsidian, the
+  adding candidates to the registry, MOC notes for Obsidian (with
+  updating existing ones, --update), the
   cast list outside the registry (cast), checking a made-up title
   for collisions (name-check, offline)
 * **Vault (Хранилище)**: orphan-finder, broken-links (wiki and
@@ -401,7 +405,7 @@ here to help you navigate):
   and opening the report after saving, note checks (extensions for
   CJK, validator `.bak`), backup housekeeping, finding stale copies
   and creating a fresh shortcut (copy-doctor), general parameters,
-  about the program and dependency checks
+  about the program, dependency checks and the full doctor check
 * **Log (Журнал)**: tool output, search with highlighting, clearing,
   copying, saving a report, font scaling
 

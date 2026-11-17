@@ -33,7 +33,8 @@
 Документация: [MANUAL.md](MANUAL.md) (сценарии и все кнопки),
 [GUI_GUIDE.md](GUI_GUIDE.md) (окно по шагам, без знания
 программирования), [CHANGELOG.md](CHANGELOG.md) (что и когда менялось),
-[TECH_DEBT.md](TECH_DEBT.md) (ведомость техдолгов проекта).
+[TECH_DEBT.md](TECH_DEBT.md) (ведомость техдолгов проекта),
+[docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md) (соответствие CLI и GUI).
 Целая ли копия — одной командой: `python textools.py doctor`.
 Версия 1.8.1, Windows, Python 3.10+, лицензия MIT.
 
@@ -295,7 +296,7 @@ python textools.py registry-builder --input <папка> [--registry <yaml>] [--
 python textools.py consistency      --input <папка> --registry <yaml>
 python textools.py forms            --registry <yaml> [--fill]
 python textools.py matrix           --input <папка> --registry <yaml>
-python textools.py merge-registry   --candidates <yaml> --registry <yaml> [--add]
+python textools.py merge-registry   --candidates <yaml> --registry <yaml> [--add] [--names "имя1,имя2"]
 python textools.py utf8             --input <папка> [--fix]
 python textools.py orphan-finder    --input <папка>
 python textools.py broken-links     --input <папка>
@@ -345,12 +346,13 @@ antiresolve, cast) читают и `.html`/`.htm` — текст страниц�
 * **Писателям**: АНТИРЕШИМОСТЬ (поиск и зачистка пафоса), штампы
   ИИ-текста (поиск, чистка, интерактивная витрина), стилистический
   отчёт (повторы слов рядом, длинные предложения), статистика текста
-  (с CSV-дневником объёма), Ё/Е-аудит (витрина), типографика
+  (с CSV-дневником объёма и динамикой --history), Ё/Е-аудит (витрина), типографика
   («ёлочки», тире, пунктуация, неразрывные пробелы) и вычитка
   (список проблем по строкам), экспорт в Word, эхо-фразы
 * **Имена персонажей**: registry-builder, consistency, матрица
   упоминаний, падежные формы (pymorphy3), добавление кандидатов в
-  реестр, MOC-заметки персонажей для Obsidian, список персонажей
+  реестр, MOC-заметки персонажей для Obsidian (с дописыванием
+  существующих, --update), список персонажей
   без реестра (cast), проверка придуманного названия на занятость
   (name-check, оффлайн)
 * **Хранилище**: orphan-finder, broken-links (вики и markdown-ссылки),
@@ -366,7 +368,8 @@ antiresolve, cast) читают и `.html`/`.htm` — текст страниц�
   и открытие отчёта после сохранения, проверки заметок (расширения для
   иероглифов, `.bak` валидатора), обслуживание бэкапов,
   поиск старых копий и создание свежего ярлыка (copy-doctor),
-  общие параметры, сведения о программе и проверка зависимостей
+  общие параметры, сведения о программе, проверка зависимостей
+  и полная проверка (doctor)
 * **Журнал**: вывод инструментов, поиск с подсветкой, очистка,
   копирование, сохранение отчёта, масштаб шрифта
 
