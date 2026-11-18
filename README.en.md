@@ -37,7 +37,9 @@ Documentation: [MANUAL.md](MANUAL.md) (scenarios and every button),
 [GUI_GUIDE.md](GUI_GUIDE.md) (the window, step by step, no
 programming knowledge required), [CHANGELOG.md](CHANGELOG.md) (what
 changed and when), [TECH_DEBT.md](TECH_DEBT.md) (the project's
-register of technical debt), [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md)
+register of technical debt), [docs/AUDIT.md](docs/AUDIT.md)
+(audit reports), [docs/STATUS.md](docs/STATUS.md) (the project's
+current state), [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md)
 (CLI-to-GUI correspondence).
 Check whether your copy is intact with
 one command: `python textools.py doctor`. Version 1.8.3, Windows,

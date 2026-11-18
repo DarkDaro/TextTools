@@ -34,6 +34,8 @@
 [GUI_GUIDE.md](GUI_GUIDE.md) (окно по шагам, без знания
 программирования), [CHANGELOG.md](CHANGELOG.md) (что и когда менялось),
 [TECH_DEBT.md](TECH_DEBT.md) (ведомость техдолгов проекта),
+[docs/AUDIT.md](docs/AUDIT.md) (отчёты аудитов),
+[docs/STATUS.md](docs/STATUS.md) (текущее состояние проекта),
 [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md) (соответствие CLI и GUI).
 Целая ли копия — одной командой: `python textools.py doctor`.
 Версия 1.8.3, Windows, Python 3.10+, лицензия MIT.
