@@ -3,15 +3,16 @@
 text_stats — статистика текстов (01.10, дешёвая новая вкладка).
 
 Объём (слова/предложения), средняя длина предложения, доля диалогов
-(строки, начинающиеся с тире), частотные слова-паразиты (на 1000 слов).
-Только читает файлы.
+(строки, начинающиеся с тире — русский текст; с кавычки — английский),
+частотные слова-паразиты (на 1000 слов). Только читает файлы.
 
 Свой список паразитов: tools/parasites.yaml (список строк) заменяет
-встроенный, если файл существует.
+встроенный, если файл существует. Для английского — tools/parasites_en.yaml
+(18.11, docs/LOC_PLAN.md), нет файла — встроенный англ. список.
 
 Использование:
   python textools.py stats --input <папка/файл> [--out report.md]
-      [--limit N] [--csv]
+      [--limit N] [--csv] [--lang ru|en]
   --csv: дописать строку на каждый файл в reports/stats_log.csv
   (дневник объёма для отслеживания прогресса в Excel).
   python textools.py stats --history [--out история.md]
@@ -28,6 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core.report import write_report
+from core import lang as lang_mod
 from core import text_parser as tp
 
 # классические слова-паразиты и усилители (сравнение без ё, по границам слов)
@@ -36,9 +38,20 @@ PARASITES = [
     "на самом деле", "в принципе", "короче", "типа", "как будто",
     "именно", "даже", "вот", "уже", "еще", "только", "потом", "итак",
 ]
+# 18.11: английский встроенный список (docs/LOC_PLAN.md)
+PARASITES_EN = [
+    "just", "very", "really", "quite", "rather", "somewhat",
+    "actually", "basically", "literally", "totally", "definitely",
+    "obviously", "simply", "suddenly", "somehow", "kind of",
+    "sort of", "of course", "in fact",
+]
 # 03.10: свой список (полностью заменяет встроенный)
 PARASITE_FILE = Path(__file__).resolve().parent / "parasites.yaml"
+# 18.11: английский аналог — файл необязателен
+PARASITE_FILE_EN = Path(__file__).resolve().parent / "parasites_en.yaml"
 DIALOG_RE = re.compile(r"^\s*[—–-]\s*\S")
+# 18.11: английский диалог — строка начинается с кавычки
+DIALOG_RE_EN = re.compile(r'^\s*["“«]\s*\S')
 WORD_RE = re.compile(r"[А-ЯЁа-яёA-Za-z]+(?:-[А-ЯЁа-яёA-Za-z]+)*")
 # 05.11: дневник объёма, куда --csv дописывает строки; оттуда же
 # --history читает динамику (BACKLOG №3)
@@ -46,32 +59,50 @@ HISTORY_FILE = (Path(__file__).resolve().parent.parent / "reports"
                 / "stats_log.csv")
 
 
-def load_parasites():
-    """Список паразитов: parasites.yaml, если есть, иначе встроенный.
-    05.11: файл не-списка больше не проходит молча — предупреждение,
-    как у словарей штампов и ё-аудита."""
-    if PARASITE_FILE.exists():
+def load_parasites(lang=None):
+    """Список паразитов: parasites.yaml (parasites_en.yaml для англ.),
+    если есть, иначе встроенный. 05.11: файл не-списка больше не
+    проходит молча — предупреждение, как у словарей штампов и ё-аудита.
+    18.11: параметр lang (docs/LOC_PLAN.md); None — из настроек."""
+    if lang is None:
+        lang = lang_mod.get_text_lang(None)
+    is_en = lang_mod.is_en(lang)
+    if is_en:
+        return _load_parasite_file(PARASITE_FILE_EN, PARASITES_EN)
+    return _load_parasite_file(PARASITE_FILE, PARASITES)
+
+
+def _load_parasite_file(path, fallback):
+    """YAML-список из path; нет файла или битый файл — fallback."""
+    if path.exists():
         try:
             import yaml
-            data = yaml.safe_load(PARASITE_FILE.read_text(encoding="utf-8"))
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
             if isinstance(data, list) and all(isinstance(x, str) for x in data):
                 return [x for x in data if x.strip()]
-            print(f"ПРЕДУПРЕЖДЕНИЕ: {PARASITE_FILE.name}: ожидался список "
+            print(f"ПРЕДУПРЕЖДЕНИЕ: {path.name}: ожидался список "
                   f"строк — используется встроенный список.")
         except Exception as e:
-            print(f"ПРЕДУПРЕЖДЕНИЕ: parasites.yaml не прочитан ({e}) — "
+            print(f"ПРЕДУПРЕЖДЕНИЕ: {path.name} не прочитан ({e}) — "
                   f"используется встроенный список.")
-    return PARASITES
+    return fallback
 
 
-def analyze_text(text, parasites=None):
-    """Словарь со статистикой одного текста."""
+def analyze_text(text, parasites=None, lang=None):
+    """Словарь со статистикой одного текста. lang влияет только на
+    детект диалогов: для en реплика начинается с кавычки."""
+    if lang is None:
+        lang = lang_mod.get_text_lang(None)
     lines = text.splitlines()
     words = WORD_RE.findall(text)
     n_words = len(words)
     sents = [s for s in tp.sentences(text) if s.strip()]
     n_sents = len(sents)
-    dialog = sum(1 for ln in lines if DIALOG_RE.match(ln))
+    if lang_mod.is_en(lang):
+        dialog = sum(1 for ln in lines
+                     if DIALOG_RE.match(ln) or DIALOG_RE_EN.match(ln))
+    else:
+        dialog = sum(1 for ln in lines if DIALOG_RE.match(ln))
     non_empty = sum(1 for ln in lines if ln.strip())
     return {
         "words": n_words,
@@ -201,14 +232,17 @@ def history(csv_path=None, out=None):
     return 0
 
 
-def run(input_path, limit=None, out=None, csv_log=False, show_history=False):
+def run(input_path, limit=None, out=None, csv_log=False, show_history=False,
+        lang=None):
     if show_history:
         # 05.11 (BACKLOG №3): --history — динамика из дневника; --input
         # не нужен, сканировать тексты не надо
         return history(out=out)
-    parasites = load_parasites()
-    if parasites is not PARASITES:
-        print(f"Список паразитов: {PARASITE_FILE} ({len(parasites)} шт.)")
+    parasites = load_parasites(lang)
+    if lang is None:
+        lang = lang_mod.get_text_lang(None)
+    if parasites is not (PARASITES_EN if lang_mod.is_en(lang) else PARASITES):
+        print(f"Список паразитов: {PARASITE_FILE_EN if lang_mod.is_en(lang) else PARASITE_FILE} ({len(parasites)} шт.)")
     files = list(tp.iter_text_files(input_path, limit=limit,
                                    exts=tp.ANALYSIS_EXTS))  # 07.11: + html
     total = len(files)
@@ -227,7 +261,7 @@ def run(input_path, limit=None, out=None, csv_log=False, show_history=False):
         text = tp.read_text(f)
         if not text:
             continue
-        st = analyze_text(text, parasites)
+        st = analyze_text(text, parasites, lang)
         rows.append((f, st))
         totals["words"] += st["words"]
         totals["sents"] += st["sents"]
@@ -300,11 +334,13 @@ def main(argv=None):
                     help="дописать строки в reports/stats_log.csv")
     ap.add_argument("--history", action="store_true",
                     help="динамика объёма из дневника reports/stats_log.csv")
+    ap.add_argument("--lang", choices=lang_mod.LANGS,
+                    help="язык текстов (по умолчанию — из настроек)")
     args = ap.parse_args(argv)
     if not args.history and not args.input:
         ap.error("--input обязателен (кроме --history)")
     return run(args.input, limit=args.limit, out=args.out,
-               csv_log=args.csv, show_history=args.history)
+               csv_log=args.csv, show_history=args.history, lang=args.lang)
 
 
 if __name__ == "__main__":

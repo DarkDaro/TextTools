@@ -1,0 +1,25 @@
+# Слова-паразиты для статистики — английский список (18.11, LOC_PLAN.md).
+# Файл полностью заменяет встроенный англ. список, если существует.
+# Формат — элементы YAML-списка, регистр не важен:
+#   - слово
+#   - составная фраза
+
+- just
+- very
+- really
+- quite
+- rather
+- somewhat
+- actually
+- basically
+- literally
+- totally
+- definitely
+- obviously
+- simply
+- suddenly
+- somehow
+- kind of
+- sort of
+- of course
+- in fact

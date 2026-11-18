@@ -77,3 +77,43 @@ def test_parasites_yaml_bad_structure_fallback(tmp_path, monkeypatch,
 def test_hyphenated_words_counted():
     st = ts.analyze_text("Светло-серый костюм.")
     assert st["words"] == 2  # «светло-серый» + «костюм»
+
+
+# --- 18.11: двуязычие (docs/LOC_PLAN.md) ---------------------------------
+
+def test_english_dialog_quotes():
+    # для en реплика начинается с кавычки
+    st = ts.analyze_text('"Hello," she said.\n"Go away," he said.\n'
+                         "They left the hangar.", lang="en")
+    assert st["dialog_share"] == round(100 * 2 / 3, 1)
+
+
+def test_russian_dialog_ignores_quotes():
+    # для ru кавычки репликой не считаются — как раньше
+    st = ts.analyze_text('"Привет," сказала Эрика.\n— Куда?\nОни вышли.',
+                         lang="ru")
+    assert st["dialog_share"] == round(100 * 1 / 3, 1)
+
+
+def test_parasites_english_found():
+    st = ts.analyze_text('She just looked. He was very quiet. '
+                         "It was kind of strange.", parasites=["just"],
+                         lang="en")
+    assert st["parasites"]["just"][0] == 1
+
+
+def test_parasites_en_list_used_for_english():
+    assert "just" in ts.load_parasites("en")
+    assert "просто" in ts.load_parasites("ru")
+
+
+def test_parasites_en_yaml_override(tmp_path, monkeypatch):
+    f = tmp_path / "parasites_en.yaml"
+    f.write_text('- bloody hell\n', encoding="utf-8")
+    monkeypatch.setattr(ts, "PARASITE_FILE_EN", f)
+    assert ts.load_parasites("en") == ["bloody hell"]
+
+
+def test_parasites_en_missing_file_builtin(tmp_path, monkeypatch):
+    monkeypatch.setattr(ts, "PARASITE_FILE_EN", tmp_path / "nope.yaml")
+    assert ts.load_parasites("en") is ts.PARASITES_EN

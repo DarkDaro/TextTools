@@ -123,6 +123,8 @@ def main():
     # 05.11 (BACKLOG №3): динамика объёма из уже копящегося дневника
     p8.add_argument("--history", action="store_true",
                     help="динамика объёма: слова по датам, дельты, темп")
+    # 18.11: язык текстов (docs/LOC_PLAN.md)
+    p8.add_argument("--lang", choices=["ru", "en"], help="язык текстов")
 
     p9 = sub.add_parser("archive-backups",
                         help="архивация старых бэкапов (перенос в archive/backups)")
@@ -453,7 +455,8 @@ def main():
             opts = ["--input", args.input,
                     *(["--limit", str(args.limit)] if args.limit is not None else []),
                     *(["--out", args.out] if args.out else []),
-                    *(["--csv"] if args.csv else [])]
+                    *(["--csv"] if args.csv else []),
+                    *(["--lang", args.lang] if args.lang else [])]
         sys.exit(text_stats.main(opts))
     elif args.cmd == "typography":
         sys.path.insert(0, str(here))
