@@ -148,6 +148,31 @@ def main():
                   len(f._history_list()) <= limit,
                   f"(хранится {len(f._history_list())})")
 
+        # 7. помодоро: настройки таймера на «Настройках» (18.11)
+        print("[7] помодоро на «Настройках»")
+        pomo = app._tabs.get("Помодоро")
+        if st is not None and pomo is not None:
+            check("поля длительностей на «Настройках»",
+                  all(hasattr(st, a) for a in
+                      ("f_pomo_work", "f_pomo_short", "f_pomo_long",
+                       "f_pomo_rounds")))
+            check("на «Помодоро» нет своих полей настроек",
+                  not any(hasattr(pomo, a) for a in
+                          ("e_work", "e_short", "e_long", "e_rounds")))
+            eng = getattr(pomo, "engine", None)
+            st.f_pomo_short.set("7")
+            app.update()
+            check("правка поля доезжает до движка таймера",
+                  eng is not None
+                  and eng.state()["durations"]["short"] == 420,
+                  str(eng.state() if eng is not None else None))
+            st.f_pomo_short.set("5")
+            app.update()
+            check("невидимых галочек нет: «Открывать отчёт…» упакована",
+                  any(bool(w.winfo_manager()) for w in walk(st)
+                      if isinstance(w, widgets_ctk.CheckField)
+                      and w.key == "ui.report_open"))
+
         app.destroy()
     finally:
         # вернуть настройки пользователя

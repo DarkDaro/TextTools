@@ -262,7 +262,8 @@ class SettingsTab(ctk.CTkFrame):
             tooltip="Кнопка «Отчёт» на вкладке «Журнал»: после сохранения "
                     "файл сразу открывается в редакторе (настройка "
                     "«Редактор» на вкладке «Общее»), не надо искать его "
-                    "в папке.")
+                    "в папке."
+            ).pack(anchor="w")
 
         CheckField(
             s_view.inner, "Спрашивать при закрытии во время работы",
@@ -316,6 +317,95 @@ class SettingsTab(ctk.CTkFrame):
         self.f_review_to.entry.bind(
             "<FocusOut>", lambda e: self._check_int_range(
                 self.f_review_to, 1, 60, 10, "Витрина, мин"), add="+")
+
+        # --- Помодоро (18.11): длительности и автостарт таймера писателя
+        # переехали с вкладки «Помодоро» — все настройки в одном месте,
+        # таймер подхватывает правки без перезапуска
+        s_pomo = Section(parent, "Помодоро (таймер писателя)")
+        self.f_pomo_work = EntryField(
+            s_pomo.inner, "Работа, мин:", "pomo.work_min", CFG,
+            width_label=230, placeholder="25",
+            tooltip="Длительность сфокусированной работы: целое число "
+                    "от 1 до 240. Пусто или не число — классические 25. "
+                    "Новая длительность берёт следующая фаза; пока "
+                    "таймер стоит в начале фазы — сразу.")
+        self.f_pomo_short = EntryField(
+            s_pomo.inner, "Короткий перерыв, мин:", "pomo.short_min", CFG,
+            width_label=230, placeholder="5",
+            tooltip="Пауза после каждого помидора: целое число от 1 "
+                    "до 240. Пусто или не число — классические 5.")
+        self.f_pomo_long = EntryField(
+            s_pomo.inner, "Длинный перерыв, мин:", "pomo.long_min", CFG,
+            width_label=230, placeholder="15",
+            tooltip="Отдых после всей серии помидоров: целое число "
+                    "от 1 до 240. Пусто или не число — классические 15.")
+        self.f_pomo_rounds = EntryField(
+            s_pomo.inner, "Помидоров до длинного перерыва:", "pomo.rounds",
+            CFG, width_label=230, placeholder="4",
+            tooltip="Сколько помидоров в серии: от 1 до 12. Пусто или "
+                    "не число — классические 4.")
+        self.c_pomo_auto_break = CheckField(
+            s_pomo.inner, "Автоматически начинать перерыв",
+            "pomo.auto_break", CFG, default=True,
+            tooltip="Фаза работы кончилась — перерыв стартует сам, "
+                    "чтобы отдохнуть не забыть.")
+        self.c_pomo_auto_work = CheckField(
+            s_pomo.inner, "Автоматически начинать работу",
+            "pomo.auto_work", CFG, default=False,
+            tooltip="Перерыв кончился — новая работа стартует сама. "
+                    "По умолчанию выключено: когда садиться писать, "
+                    "решает автор.")
+        self.c_pomo_sound = CheckField(
+            s_pomo.inner, "Звук в конце фазы", "pomo.sound", CFG,
+            default=True,
+            tooltip="В конце фазы — системный звук и всплывающая "
+                    "подсказка. Общий звук программы (галочка "
+                    "«Звуковые сигналы» в «Общем») тоже учитывается.")
+        ctk.CTkLabel(
+            s_pomo.inner, justify="left", anchor="w", font=FONT_SMALL,
+            text_color=("gray45", "gray60"),
+            text="Правка применяется к следующей фазе; пока таймер "
+                 "стоит в начале фазы, новая длительность видна сразу. "
+                 "Кнопки таймера и счётчики дня — на вкладке "
+                 "«Помодоро»."
+            ).pack(anchor="w", pady=(0, 2))
+        self.f_pomo_work.entry.bind(
+            "<FocusOut>", lambda e: self._check_int_range(
+                self.f_pomo_work, 1, 240, 25, "Работа, мин"), add="+")
+        self.f_pomo_short.entry.bind(
+            "<FocusOut>", lambda e: self._check_int_range(
+                self.f_pomo_short, 1, 240, 5, "Короткий перерыв, мин"),
+            add="+")
+        self.f_pomo_long.entry.bind(
+            "<FocusOut>", lambda e: self._check_int_range(
+                self.f_pomo_long, 1, 240, 15, "Длинный перерыв, мин"),
+            add="+")
+        self.f_pomo_rounds.entry.bind(
+            "<FocusOut>", lambda e: self._check_int_range(
+                self.f_pomo_rounds, 1, 12, 4, "Помидоров в серии"),
+            add="+")
+
+        # 18.11: правки полей Помодоро сразу едут в таймер вкладки
+        # «Помодоро». after_idle, а не прямой вызов: трейсы поля
+        # срабатывают раньше его же автосохранения, и конфиг в момент
+        # трейса ещё старый — очередь событий даёт автосохранению
+        # дописаться первым.
+        def _push_pomodoro(*_):
+            try:
+                from gui_ctk import _app
+                pomo = getattr(_app, "_tabs", {}).get("Помодоро")
+                if pomo is not None and hasattr(pomo, "_apply_cfg"):
+                    pomo.after_idle(pomo._apply_cfg)
+            except Exception:
+                pass
+
+        for f in (self.f_pomo_work, self.f_pomo_short, self.f_pomo_long,
+                  self.f_pomo_rounds, self.c_pomo_auto_break,
+                  self.c_pomo_auto_work, self.c_pomo_sound):
+            try:
+                f.var.trace_add("write", _push_pomodoro)
+            except Exception:
+                pass
 
         # --- Сохранение / сброс ---
         s3 = Section(parent, "Сохранение настроек")

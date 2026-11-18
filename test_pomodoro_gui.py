@@ -1,10 +1,12 @@
-"""Точечный тест вкладки «Помодоро» (23.11).
+"""Точечный тест вкладки «Помодоро» (18.11).
 
 Собирает реальное окно (нужен дисплей: под Linux — Xvfb) и проверяет:
 - вкладка «Помодоро» есть и стоит шестой (перед «Настройками»);
-- поля длительностей, галочки автостарта и счётчики на месте;
-- настройка длительности при стоящем таймере сразу видна на экране;
-- мусор в поле длительности не ломает движок;
+- кнопки таймера и счётчики дня на месте; полей длительностей у
+  вкладки больше нет — настройки живут на «Настройках» (раздел
+  «Помодоро», 18.11) и едут в движок мгновенно;
+- правка длительности при стоящем таймере сразу видна на экране;
+  мусор в поле даёт классические 25/5/15/4, как в подсказке;
 - «Старт»/«Пауза» переключаются, «Сброс» возвращает полную фазу;
 - короткая работа до нуля: помидор засчитан, статистика дня в конфиге,
   в журнале запись, фаза сменилась на перерыв;
@@ -78,12 +80,24 @@ def main():
               list(tabs)[5] == "Помодоро", str(list(tabs)))
         p = tabs["Помодоро"]
         check("класс PomodoroTab", isinstance(p, PomodoroTab))
-        for attr in ("engine", "e_work", "e_short", "e_long", "e_rounds",
-                     "c_auto_break", "c_auto_work", "c_sound",
-                     "b_start", "b_reset", "b_skip", "b_zero",
+        for attr in ("engine", "b_start", "b_reset", "b_skip", "b_zero",
                      "lbl_time", "lbl_phase", "lbl_series",
                      "lbl_done", "lbl_total"):
             check(f"элемент {attr}", hasattr(p, attr))
+
+        # настройки таймера — на «Настройках» (18.11), у самой вкладки
+        # полей больше нет
+        stt = app._tabs.get("Настройки")
+        check("вкладка «Настройки» есть", stt is not None,
+              str(list(app._tabs)))
+        for attr in ("f_pomo_work", "f_pomo_short", "f_pomo_long",
+                     "f_pomo_rounds", "c_pomo_auto_break",
+                     "c_pomo_auto_work", "c_pomo_sound"):
+            check(f"на «Настройках» есть {attr}", hasattr(stt, attr))
+        check("у вкладки «Помодоро» нет своих полей настроек",
+              not any(hasattr(p, a) for a in
+                      ("e_work", "e_short", "e_long", "e_rounds",
+                       "c_auto_break", "c_auto_work", "c_sound")))
 
         # движок получил классические настройки из пустого конфига
         st = p.engine.state()
@@ -95,9 +109,9 @@ def main():
         check("на экране 25:00", p.lbl_time.cget("text") == "25:00",
               p.lbl_time.cget("text"))
 
-        # длительности едут в конфиг и в движок
-        p.e_work.set("3")
-        pump(app, 0.3)
+        # длительности едут из «Настроек» в конфиг и в движок мгновенно
+        stt.f_pomo_work.set("3")
+        pump(app, 1.0)
         check("поле «Работа» пишет в конфиг",
               str(gui_config.CFG.get("pomo.work_min")) == "3",
               str(gui_config.CFG.get("pomo.work_min")))
@@ -106,21 +120,27 @@ def main():
               str(p.engine.state()["durations"]))
         check("на экране 03:00", p.lbl_time.cget("text") == "03:00",
               p.lbl_time.cget("text"))
-        p.e_work.set("abc")
-        pump(app, 0.3)
-        check("мусор в поле не ломает движок",
-              p.engine.state()["durations"]["work"] == 180,
+        stt.f_pomo_work.set("abc")
+        pump(app, 1.0)
+        check("мусор в поле — классические 25 (как в подсказке)",
+              p.engine.state()["durations"]["work"] == 1500,
               str(p.engine.state()["durations"]))
-        p.e_work.set("1")
+        check("на экране 25:00", p.lbl_time.cget("text") == "25:00",
+              p.lbl_time.cget("text"))
+        stt.f_pomo_work.set("1")
+        pump(app, 1.0)
+        check("на экране 01:00", p.lbl_time.cget("text") == "01:00",
+              p.lbl_time.cget("text"))
 
-        # галочки автостарта связаны с движком
-        p.c_auto_break.var.set(False)
-        p.c_auto_break._save()
-        pump(app, 0.2)
+        # галочка автостарта связана с движком через «Настройки»
+        stt.c_pomo_auto_break.var.set(False)
+        stt.c_pomo_auto_break._save()
+        pump(app, 1.0)
         check("галочка «авто-перерыв» связана с движком",
               p.engine.auto_break is False, str(p.engine.auto_break))
-        p.c_auto_break.var.set(True)
-        p.c_auto_break._save()
+        stt.c_pomo_auto_break.var.set(True)
+        stt.c_pomo_auto_break._save()
+        pump(app, 1.0)
 
         # старт / пауза / сброс
         p.b_start.invoke()
