@@ -3,7 +3,7 @@
 cast_list — список персонажей без повторов в текстовый лог (07.11).
 
   python textools.py cast --input <папка/файл> [--registry characters.yaml]
-      [--min-count 1] [--out reports/cast_list.txt]
+      [--min-count 1] [--out reports/cast_list.txt] [--lang ru|en]
 
 Собирает все имена с заглавной буквы из .md/.txt/.docx/.html, убирает
 повторы, считает вхождения и пишет текстовый лог: сколько персонажей,
@@ -12,6 +12,12 @@ cast_list — список персонажей без повторов в те�
 
 Польза: одна страница — и видно весь состав книги и грязь в именах.
 Реестр (--registry) не обязателен: инструмент сам находит всех.
+
+18.11: язык текстов (docs/LOC_PLAN.md). Для английского — свои
+регэкспы имён (латиница, дефис, апостроф) и свой стоп-лист; титулы
+и месяцы отсеиваются даже в середине предложения (the Captain —
+не имя). По умолчанию язык берётся из настроек (ключ text_lang),
+флаг --lang переопределяет.
 """
 import argparse
 import re
@@ -20,6 +26,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core import lang as lang_mod
 from core import text_parser as tp
 
 # Имя: заглавная + строчные, возможно через дефис (Анна-Мария).
@@ -27,32 +34,53 @@ from core import text_parser as tp
 RE_NAME = re.compile(r"\b[А-ЯЁ][а-яё]+(?:-[а-яё]+)?")
 RE_PAIR = re.compile(r"\b([А-ЯЁ][а-яё]+) ([А-ЯЁ][а-яё]+)\b")
 
+# 18.11: английское имя — латиница; дефис и апостроф внутри имени
+# допустимы (Anne-Marie, O’Brian для стартера ловится как Brien —
+# граница апострофа уточнится по практике).
+RE_NAME_EN = re.compile(r"\b[A-Z][a-z]+(?:[-‘’][A-Z][a-z]+)*")
+RE_PAIR_EN = re.compile(
+    r"\b([A-Z][a-z]+(?:[-‘’][A-Z][a-z]+)*)"
+    r" ([A-Z][a-z]+(?:[-‘’][A-Z][a-z]+)*)\b")
+
 DEFAULT_OUT = Path("reports") / "cast_list.txt"
 
 
-def scan_text(text):
+def _regexes(is_en):
+    return (RE_NAME_EN, RE_PAIR_EN) if is_en else (RE_NAME, RE_PAIR)
+
+
+def scan_text(text, lang=None):
     """(одиночные имена, пары «Имя Фамилия») со счётчиками.
 
     Шум отсекается так: имя считается «настоящим», если встретилось
-    не только в начале предложения. Служебные слова (tp.STOPLIST) не
-    попадают в кандидаты вовсе."""
+    не только в начале предложения. Служебные слова не попадают в
+    кандидаты вовсе. Для английского строже: титул, месяц или день
+    недели с заглавной в середине предложения (the Captain) — тоже
+    не имя, отсекается всегда.
+
+    lang: «ru»/«en»; None — из настроек (text_lang в gui_config.json)."""
+    if lang is None:
+        lang = lang_mod.get_text_lang(None)
+    is_en = lang_mod.is_en(lang)
+    re_name, re_pair = _regexes(is_en)
+    stops = tp.stoplist(lang)
     single = Counter()
     mid = Counter()          # в середине предложения — сильный сигнал
     pairs = Counter()
     for sent in tp.sentences(text):
-        words = RE_NAME.findall(sent)
+        words = re_name.findall(sent)
         for i, w in enumerate(words):
             single[w] += 1
             if i > 0:
                 mid[w] += 1
-        for a, b in RE_PAIR.findall(sent):
+        for a, b in re_pair.findall(sent):
             pairs[f"{a} {b}"] += 1
-    # отсеиваем: только начало предложения и в списке служебных
+    # отсеиваем: для en — служебные всегда; для ru — как раньше,
+    # только если имя не встречалось в середине предложения
     for w in list(single):
-        if mid[w] == 0:
-            low = tp.norm_yo(w.lower())
-            if low in tp.STOPLIST:
-                del single[w]
+        low = tp.norm_yo(w.lower())
+        if low in stops and (is_en or mid[w] == 0):
+            del single[w]
     return single, pairs
 
 
@@ -63,7 +91,7 @@ def collect(input_path):
     return list(tp.iter_text_files(root, exts=tp.ANALYSIS_EXTS))
 
 
-def run(input_path, out=None, min_count=1):
+def run(input_path, out=None, min_count=1, lang=None):
     try:
         files = collect(input_path)
     except ValueError as e:  # 07.11: пустой/несуществующий путь — не падаем
@@ -82,7 +110,7 @@ def run(input_path, out=None, min_count=1):
         text = tp.read_text(f)
         if not text:
             continue
-        s, p = scan_text(text)
+        s, p = scan_text(text, lang)
         single.update(s)
         pairs.update(p)
         print(f"PROGRESS:{idx}/{total}", flush=True)
@@ -140,8 +168,11 @@ def main(argv=None):
     ap.add_argument("--out", help=f"лог (по умолчанию {DEFAULT_OUT})")
     ap.add_argument("--min-count", type=int, default=1,
                     help="минимум вхождений (по умолчанию 1 — все)")
+    ap.add_argument("--lang", choices=lang_mod.LANGS,
+                    help="язык текстов (по умолчанию — из настроек)")
     args = ap.parse_args(argv)
-    return run(args.input, out=args.out, min_count=args.min_count)
+    return run(args.input, out=args.out, min_count=args.min_count,
+               lang=args.lang)
 
 
 if __name__ == "__main__":

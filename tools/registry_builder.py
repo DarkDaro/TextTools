@@ -6,6 +6,10 @@
 Использование:
   python textools.py registry-builder --input <файл/папка> [--out candidates.yaml]
       [--registry characters.yaml] [--min-count 2] [--limit N] [--verbose]
+      [--lang ru|en]
+
+18.11: язык текстов (docs/LOC_PLAN.md) — стоп-лист и правила отбора
+под язык; по умолчанию берётся из настроек, --lang переопределяет.
 """
 import argparse
 import sys
@@ -13,13 +17,14 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core import lang as lang_mod
 from core import morph
 from core import text_parser as tp
 from core import name_registry as nr
 
 
 def run(input_path, out=None, registry=None, min_count=2, limit=None,
-        verbose=False):
+        verbose=False, lang=None):
     chars = nr.load_registry(registry) if registry else []
     known = nr.known_forms(chars)
     known_titles = nr.known_first_names(chars)
@@ -37,9 +42,9 @@ def run(input_path, out=None, registry=None, min_count=2, limit=None,
         if not text:
             continue
         files_n += 1
-        for w in tp.find_name_candidates(text, known=known):
+        for w in tp.find_name_candidates(text, known=known, lang=lang):
             uni[w] += 1
-        for bg in tp.find_bigrams(text, known=known):
+        for bg in tp.find_bigrams(text, known=known, lang=lang):
             # второй компонент bigram — главный кандидат (имя),
             # если второй компонент - известный титул, пропускаем пару
             if bg.split()[0] not in known_titles:
@@ -88,9 +93,12 @@ def main(argv=None):
     ap.add_argument("--min-count", type=int, default=2)
     ap.add_argument("--limit", type=int, help="обработать не больше N файлов")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--lang", choices=lang_mod.LANGS,
+                    help="язык текстов (по умолчанию — из настроек)")
     args = ap.parse_args(argv)
     return run(args.input, out=args.out, registry=args.registry,
-               min_count=args.min_count, limit=args.limit, verbose=args.verbose)
+               min_count=args.min_count, limit=args.limit, verbose=args.verbose,
+               lang=args.lang)
 
 
 if __name__ == "__main__":

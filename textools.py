@@ -67,6 +67,8 @@ def main():
     p1.add_argument("--min-count", type=int, default=2)
     p1.add_argument("--limit", type=int)
     p1.add_argument("--verbose", action="store_true")
+    # 18.11: язык текстов (docs/LOC_PLAN.md), по умолчанию — из настроек
+    p1.add_argument("--lang", choices=["ru", "en"], help="язык текстов")
 
     p2 = sub.add_parser("consistency",
                         help="проверка имён по реестру")
@@ -343,6 +345,8 @@ def main():
     p_cast.add_argument("--out", help="лог (по умолчанию reports/cast_list.txt)")
     p_cast.add_argument("--min-count", type=int, default=1,
                         help="минимум вхождений (по умолчанию 1 — все)")
+    # 18.11: язык текстов (docs/LOC_PLAN.md)
+    p_cast.add_argument("--lang", choices=["ru", "en"], help="язык текстов")
 
     p_name = sub.add_parser("name-check",
                             help="проверка придуманного имени/названия "
@@ -502,7 +506,8 @@ def main():
              *(["--registry", args.registry] if args.registry else []),
              "--min-count", str(args.min_count),
              *(["--limit", str(args.limit)] if args.limit is not None else []),
-             *(["--verbose"] if args.verbose else [])]))
+             *(["--verbose"] if args.verbose else []),
+             *(["--lang", args.lang] if args.lang else [])]))
     elif args.cmd == "consistency":
         sys.path.insert(0, str(here))
         from tools import consistency
@@ -608,7 +613,8 @@ def main():
             ["--input", args.input,
              *(["--out", args.out] if args.out else []),
              *(["--min-count", str(args.min_count)]
-               if args.min_count != 1 else [])]))
+               if args.min_count != 1 else []),
+             *(["--lang", args.lang] if args.lang else [])]))
     elif args.cmd == "name-check":
         sys.path.insert(0, str(here))
         from tools import name_check
