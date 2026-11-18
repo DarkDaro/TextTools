@@ -173,6 +173,36 @@ def main():
                       if isinstance(w, widgets_ctk.CheckField)
                       and w.key == "ui.report_open"))
 
+        # 8. язык текстов/интерфейса (18.11, docs/LOC_PLAN.md)
+        print("[8] язык на «Настройках»")
+        if st is not None:
+            check("переключатели языка на «Настройках»",
+                  all(hasattr(st, a) for a in
+                      ("seg_text_lang", "seg_ui_lang")))
+            from core import lang as core_lang
+            st._on_text_lang("English")
+            check("язык текстов пишется в конфиг",
+                  gui_config.CFG.get("text_lang") == "en",
+                  str(gui_config.CFG.get("text_lang")))
+            check("core.lang видит язык текстов из конфига",
+                  core_lang.get_text_lang() == "en",
+                  core_lang.get_text_lang())
+            st._on_ui_lang("English")
+            check("язык интерфейса пишется в конфиг",
+                  gui_config.CFG.get("ui_lang") == "en",
+                  str(gui_config.CFG.get("ui_lang")))
+            check("оси независимы: text_lang не тронут ui_lang",
+                  gui_config.CFG.get("text_lang") == "en")
+            st._on_text_lang("Русский")
+            st._on_ui_lang("Русский")
+            check("возврат на русский",
+                  gui_config.CFG.get("text_lang") == "ru"
+                  and gui_config.CFG.get("ui_lang") == "ru")
+            check("подпись переключателя по коду",
+                  st._lang_label("en") == "English"
+                  and st._lang_label("ru") == "Русский"
+                  and st._lang_label("de") == "Русский")
+
         app.destroy()
     finally:
         # вернуть настройки пользователя

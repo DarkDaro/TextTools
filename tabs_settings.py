@@ -34,6 +34,9 @@ PRESET_LABELS = {"auto": "Авто", "manual": "Вручную", "off": "Вык�
 PRESET_KEYS = {v: k for k, v in PRESET_LABELS.items()}
 
 
+LANG_LABELS = {"Русский": "ru", "English": "en"}
+
+
 class SettingsTab(ctk.CTkFrame):
     LABEL = "Настройки"
 
@@ -317,6 +320,43 @@ class SettingsTab(ctk.CTkFrame):
         self.f_review_to.entry.bind(
             "<FocusOut>", lambda e: self._check_int_range(
                 self.f_review_to, 1, 60, 10, "Витрина, мин"), add="+")
+
+        # --- Язык (18.11, docs/LOC_PLAN.md): текстов и интерфейса.
+        # Две независимые оси: text_lang — по каким правилам работают
+        # скрипты; ui_lang — какие строки видит человек (перевод вкладок
+        # идёт по пайплайну, вкладка за вкладкой).
+        s_lang = Section(parent, "Язык")
+        r_tlang = ctk.CTkFrame(s_lang.inner, fg_color="transparent")
+        r_tlang.pack(fill="x", pady=(2, 0))
+        ctk.CTkLabel(r_tlang, text="Язык текстов:",
+                     font=FONT_SMALL).pack(side="left")
+        self.seg_text_lang = ctk.CTkSegmentedButton(
+            r_tlang, values=list(LANG_LABELS), width=170, height=26,
+            dynamic_resizing=False, font=FONT_SMALL,
+            command=self._on_text_lang)
+        self.seg_text_lang.set(self._lang_label(CFG.get("text_lang", "ru")))
+        self.seg_text_lang.pack(side="left", padx=(8, 0))
+        r_ulang = ctk.CTkFrame(s_lang.inner, fg_color="transparent")
+        r_ulang.pack(fill="x", pady=(2, 0))
+        ctk.CTkLabel(r_ulang, text="Язык интерфейса:",
+                     font=FONT_SMALL).pack(side="left")
+        self.seg_ui_lang = ctk.CTkSegmentedButton(
+            r_ulang, values=list(LANG_LABELS), width=170, height=26,
+            dynamic_resizing=False, font=FONT_SMALL,
+            command=self._on_ui_lang)
+        self.seg_ui_lang.set(self._lang_label(CFG.get("ui_lang", "ru")))
+        self.seg_ui_lang.pack(side="left", padx=(8, 0))
+        # Tooltip на CTkSegmentedButton не вешается (NotImplementedError)
+        # — объяснение рядом, под переключателями
+        ctk.CTkLabel(
+            s_lang.inner, justify="left", anchor="w", font=FONT_SMALL,
+            text_color=("gray45", "gray60"), wraplength=500,
+            text="Язык текстов — по каким правилам работают скрипты: "
+                 "стоп-слова, слова-паразиты, словари штампов, поиск имён. "
+                 "Язык интерфейса — подмена строк окна (перевод вкладок "
+                 "идёт по плану docs/LOC_PLAN.md). Выбор сохраняется "
+                 "сразу; инструменты подхватят его при следующем запуске."
+            ).pack(anchor="w", pady=(2, 0))
 
         # --- Помодоро (18.11): длительности и автостарт таймера писателя
         # переехали с вкладки «Помодоро» — все настройки в одном месте,
@@ -724,6 +764,29 @@ class SettingsTab(ctk.CTkFrame):
             field.set(str(default))
             self._log(f"«{label}»: целое число от {lo} до {hi}. "
                       f"Возвращено {default}.\n", "warn")
+
+    # --- язык (18.11) ---
+
+    @staticmethod
+    def _lang_label(value):
+        """'ru'/'en' -> подпись переключателя; незнакомое — русский."""
+        for label, code in LANG_LABELS.items():
+            if str(value or "").lower() == code:
+                return label
+        return next(iter(LANG_LABELS))
+
+    def _on_text_lang(self, label):
+        """Язык текстов пишется в конфиг сразу; инструменты прочитают
+        его при следующем запуске (core.lang читает gui_config.json)."""
+        CFG.set("text_lang", LANG_LABELS.get(label, "ru"))
+        self._log(f"Язык текстов: {LANG_LABELS.get(label, 'ru')}")
+
+    def _on_ui_lang(self, label):
+        """Язык интерфейса пишется в конфиг; подмену строк берёт
+        core.i18n (перевод вкладок — по пайплайну docs/LOC_PLAN.md)."""
+        CFG.set("ui_lang", LANG_LABELS.get(label, "ru"))
+        self._log(f"Язык интерфейса: {LANG_LABELS.get(label, 'ru')} "
+                  "(строки вкладок подменяются по мере перевода)")
 
     # --- вид и журнал (06.11) ---
 
