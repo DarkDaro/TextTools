@@ -1,6 +1,6 @@
 """Ядро помодоро-таймера — вкладка «Помодоро».
 
-23.11: бонус-фича по запросу владельца — трекер времени писателя по
+18.11: бонус-фича по запросу владельца — трекер времени писателя по
 технике Pomodoro. Техника: 25 минут сфокусированной работы, затем
 5 минут короткого перерыва; после 4 помидоров подряд — длинный
 перерыв 15 минут.
@@ -120,19 +120,29 @@ class PomodoroEngine:
 
     def set_durations(self, work_min=None, short_min=None, long_min=None,
                       rounds=None):
-        """Применить настройки. None = не менять. Новая длительность
-        берёт следующая фаза; если таймер стоит в начале фазы
-        (не запущен), отображение обновляется сразу — цифры на экране
-        не противоречат настройкам."""
+        """Применить настройки. None и пустые строки = не менять. Новая
+        длительность берёт следующая фаза; если таймер стоит в начале
+        текущей (отсчёт не начат), отображение обновляется сразу —
+        цифры на экране не противоречат настройкам. Пауза в середине
+        фазы отсчёт не трогает: доигрывается старая длительность, как
+        и после перезапуска программы (18.11: раньше любой ввод в
+        поле настроек перезаряжал стоящий на паузе отсчёт)."""
         if rounds is not None:
             self.rounds = clamp_rounds(rounds, self.rounds)
+        fresh = (not self.running
+                 and self.remaining == self._durations[self.phase])
+        changed_current = False
         for phase, val in ((WORK, work_min), (SHORT, short_min),
                            (LONG, long_min)):
             if val is None or str(val).strip() == "":
                 continue
             mins = clamp_min(val, self._durations[phase] // 60)
+            if mins * 60 == self._durations[phase]:
+                continue          # значение не изменилось — не трогаем
             self._durations[phase] = mins * 60
-        if not self.running:
+            if phase == self.phase:
+                changed_current = True
+        if fresh and changed_current:
             self.remaining = self._durations[self.phase]
 
     def state(self):
@@ -168,12 +178,16 @@ class PomodoroEngine:
 
     def skip(self):
         """Перейти к следующей фазе сразу. Пропущенная работа в счёт
-        помидоров не идёт — засчитывается только досчитанная фаза."""
+        помидоров не идёт — засчитывается только досчитанная фаза.
+        Если таймер был на паузе, следующая фаза тоже стоит на старте:
+        автостарт работает только от досчитанной фазы, а не от кнопки
+        — когда садиться, решает автор (18.11)."""
+        was_running = self.running
         events = [("phase_end", self.phase)]
         nxt = self._advance_phase()
         self.phase = nxt
         self.remaining = self._durations[nxt]
-        self.running = self._auto_for(nxt)
+        self.running = self._auto_for(nxt) if was_running else False
         events.append(("phase_start", nxt))
         return events
 

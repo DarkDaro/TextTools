@@ -222,6 +222,63 @@ def test_empty_string_setting_is_ignored():
     assert e.state()["durations"][WORK] == 60
 
 
+def test_set_durations_paused_midphase_keeps_remaining():
+    """18.11: пауза в середине фазы — настройки едут в следующую
+    фазу, отсчёт не перезаряжается."""
+    e = make_engine()
+    e.start()
+    e.tick(40)
+    e.pause()
+    e.set_durations(work_min=50, short_min=10, long_min=30, rounds=6)
+    assert e.remaining == 20
+    st = e.state()
+    assert st["durations"][WORK] == 3000
+    assert st["rounds"] == 6
+
+
+def test_set_durations_same_value_keeps_paused_remaining():
+    """18.11: повторная установка тех же значений (каждый ввод в поле
+    даёт трейс) не перезаряжает стоящий на паузе отсчёт."""
+    e = make_engine()
+    e.start()
+    e.tick(40)
+    e.pause()
+    e.set_durations(work_min=1, short_min=1, long_min=1, rounds=2)
+    assert e.remaining == 20
+
+
+def test_set_durations_fresh_phase_updates_display():
+    """Таймер стоит в начале фазы — новая длительность видна сразу;
+    чужая фаза отсчёт не трогает."""
+    e = make_engine()
+    e.set_durations(work_min=50)
+    assert e.remaining == 50 * 60
+    e.start()
+    e.tick(30)
+    e.pause()
+    e.reset()
+    assert e.remaining == 50 * 60
+    e.set_durations(short_min=10)
+    assert e.remaining == 50 * 60
+    e.set_durations(work_min=30)
+    assert e.remaining == 30 * 60
+
+
+def test_skip_while_paused_stays_paused():
+    """18.11: пропуск с паузы не включает автостарт — следующая фаза
+    ждёт «Старт»."""
+    e = make_engine()
+    e.start()
+    e.tick(30)
+    e.pause()
+    e.skip()
+    assert e.phase == SHORT
+    assert e.running is False
+    assert e.remaining == 60
+    e.start()
+    assert e.running is True
+
+
 # --- границы ------------------------------------------------------------------
 
 def test_clamp_min_bounds_and_garbage():
