@@ -42,7 +42,7 @@ register of technical debt), [docs/AUDIT.md](docs/AUDIT.md)
 current state), [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md)
 (CLI-to-GUI correspondence).
 Check whether your copy is intact with
-one command: `python textools.py doctor`. Version 1.8.3, Windows,
+one command: `python textools.py doctor`. Version 1.8.4, Windows,
 Python 3.10+, MIT license.
 
 ## Screenshots
@@ -406,11 +406,13 @@ here to help you navigate):
 * **Pomodoro (Помодоро)**: a writer's timer for the Pomodoro
   technique — 25 minutes of work, a 5-minute break, a long break
   after the series; phase auto-start, daily counters (pomodoros
-  and clean working time), fully offline; no CLI command (an
-  interactive timer has nowhere to draw its countdown in a terminal)
+  and clean working time), fully offline; durations and auto-start
+  live on the Settings tab; no CLI command (an interactive timer
+  has nowhere to draw its countdown in a terminal)
 * **Settings (Настройки)**: paths to external scripts, theme, fonts
   and UI scale, timings (toast, Stop, showcase), log line wrapping
-  and opening the report after saving, note checks (extensions for
+  and opening the report after saving, Pomodoro timer settings
+  (durations, series, auto-start), note checks (extensions for
   CJK, validator `.bak`), backup housekeeping, finding stale copies
   and creating a fresh shortcut (copy-doctor), general parameters,
   about the program, dependency checks and the full doctor check
@@ -503,7 +505,7 @@ Restoration lives on the Settings tab.
 The main suite is pytest:
 
 ```
-python -m pytest test/ -q             # 231 tests: engines, CLI, docx, pomodoro, GUI utilities
+python -m pytest test/ -q             # 235 tests: engines, CLI, docx, pomodoro, GUI utilities
 ```
 
 The GUI is checked by separate scripts in the root (they open a
