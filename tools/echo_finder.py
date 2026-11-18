@@ -46,6 +46,20 @@ ECHO_STOPS = frozenset("""
 был была было были будет будут быть есть нет ни-будь -то -либо
 """.split())
 
+# 18.11: английские служебные слова (docs/LOC_PLAN.md) — короткие
+# предлоги и артикли сюда же; обрывки апострофных форм (don't -> don, t)
+# токенизатор режет, их тоже гасим
+ECHO_STOPS_EN = frozenset("""
+the a an and or but if then else when while because so that this these
+those there here it its he she they we you i me him her them us my your
+his their our our what who whom which how why where as at by for with
+from to of in on off out up down over under again further once all any
+both each few more most other some such no not nor only own same too
+very can will just should now was were is are be been being have has
+had do does did would could shall may might must o u im ive dont cant
+wont s t d ll re ve
+""".split())
+
 # свой токенизатор: В ОТЛИЧИЕ от tp.WORD_RE держит слова из одной
 # буквы — «мир сжался до точки» без «до» уже не та конструкция
 ECHO_WORD_RE = re.compile(r"[а-яёa-z]+(?:-[а-яёa-z]+)*")
@@ -56,9 +70,17 @@ def _words(sentence):
     return ECHO_WORD_RE.findall(tp.norm_yo(sentence.lower()))
 
 
-def _is_noise(ngram_words):
+def _is_noise(ngram_words, stops=None):
     """n-грамм из одних служебных слов конструкции не образует."""
-    return all(w in ECHO_STOPS for w in ngram_words)
+    return all(w in (stops or ECHO_STOPS) for w in ngram_words)
+
+
+def _stops(lang=None):
+    """Служебные слова эха под язык; None — из настроек (text_lang)."""
+    from core import lang as lang_mod
+    if lang is None:
+        lang = lang_mod.get_text_lang(None)
+    return ECHO_STOPS_EN if lang_mod.is_en(lang) else ECHO_STOPS
 
 
 def load_name_words(registry_path):
@@ -83,11 +105,12 @@ def load_name_words(registry_path):
 
 
 def find_echo(input_path, n=3, min_files=2, top=25, name_words=None,
-              limit=None):
+              limit=None, lang=None):
     """Сканирование хранилища. Возвращает список находок:
     [{"ngram", "files", "count", "example": {"file", "sentence"}}],
     отсортированный по (файлов, раз, сама фраза)."""
     name_words = name_words or set()
+    stops = _stops(lang)
     counts = defaultdict(int)          # n-грамм -> всего вхождений
     file_sets = defaultdict(set)       # n-грамм -> {файл}
     examples = {}                      # n-грамм -> (файл, предложение)
@@ -106,7 +129,7 @@ def find_echo(input_path, n=3, min_files=2, top=25, name_words=None,
                 continue
             for i in range(len(words) - n + 1):
                 chunk = words[i:i + n]
-                if _is_noise(chunk):
+                if _is_noise(chunk, stops):
                     continue
                 if name_words and any(w in name_words for w in chunk):
                     continue
@@ -152,10 +175,10 @@ def _echo_text(items, input_path, n, min_files):
 
 
 def run(input_path, n=3, min_files=2, top=25, registry=None, out=None,
-        json_out=None, limit=None):
+        json_out=None, limit=None, lang=None):
     name_words = load_name_words(registry) if registry else set()
     items = find_echo(input_path, n=n, min_files=min_files, top=top,
-                      name_words=name_words, limit=limit)
+                      name_words=name_words, limit=limit, lang=lang)
     print(_echo_text(items, input_path, n, min_files), end="")
     if out:
         # md-версия: таблица + примеры
@@ -201,6 +224,8 @@ def main(argv=None):
     ap.add_argument("--out", help="отчёт в .md («-» — в stdout)")
     ap.add_argument("--json", dest="json_out",
                     help="полный список в JSON («-» — в stdout)")
+    # 18.11: язык текстов (docs/LOC_PLAN.md)
+    ap.add_argument("--lang", choices=["ru", "en"], help="язык текстов")
     args = ap.parse_args(argv)
     if not 2 <= args.n <= 6:
         print("Ошибка: --n должен быть от 2 до 6 слов.", file=sys.stderr)
@@ -212,7 +237,7 @@ def main(argv=None):
     try:
         return run(args.input, n=args.n, min_files=args.min_files,
                    top=args.top, registry=args.registry, out=args.out,
-                   json_out=args.json_out, limit=args.limit)
+                   json_out=args.json_out, limit=args.limit, lang=args.lang)
     except ValueError as e:
         print(f"Ошибка: {e}", file=sys.stderr)
         return 2

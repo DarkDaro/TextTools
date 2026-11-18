@@ -307,6 +307,8 @@ def main():
     p_echo.add_argument("--out", help="отчёт в .md («-» — в stdout)")
     p_echo.add_argument("--json", dest="json_out",
                         help="полный список в JSON («-» — в stdout)")
+    # 18.11: язык текстов (docs/LOC_PLAN.md)
+    p_echo.add_argument("--lang", choices=["ru", "en"], help="язык текстов")
 
     p17 = sub.add_parser("check-all",
                          help="профиль «проверить всё»: obsidian-check, cjk, "
@@ -610,7 +612,8 @@ def main():
                 *(["--registry", args.registry] if args.registry else []),
                 *(["--limit", str(args.limit)] if args.limit is not None else []),
                 *(["--out", args.out] if args.out else []),
-                *(["--json", args.json_out] if args.json_out else [])]
+                *(["--json", args.json_out] if args.json_out else []),
+                *(["--lang", args.lang] if args.lang else [])]
         sys.exit(echo_finder.main(opts))
     elif args.cmd == "cast":
         sys.path.insert(0, str(here))

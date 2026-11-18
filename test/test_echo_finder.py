@@ -132,3 +132,36 @@ def test_cli_help_visible():
         [sys.executable, "textools.py", "--help"],
         cwd=ROOT, capture_output=True, text=True)
     assert "echo" in r.stdout
+
+
+# --- 18.11: двуязычие (docs/LOC_PLAN.md) ---------------------------------
+
+def test_english_echo_found(tmp_path):
+    (tmp_path / "ch1.md").write_text(
+        "The room exhaled dust. The room exhaled dust again.\n",
+        encoding="utf-8")
+    (tmp_path / "ch2.md").write_text(
+        "Outside, the room exhaled dust and silence.\n", encoding="utf-8")
+    items = echo_finder.find_echo(str(tmp_path), n=3, min_files=2,
+                                  lang="en")
+    grams = {it["ngram"] for it in items}
+    assert "the room exhaled" in grams
+
+
+def test_english_stops_are_noise(tmp_path):
+    # n-грамм из одних служебных слов (the was and) не считается эхом
+    (tmp_path / "ch1.md").write_text(
+        "It was the way of things.\n", encoding="utf-8")
+    (tmp_path / "ch2.md").write_text(
+        "It was the way of people.\n", encoding="utf-8")
+    items = echo_finder.find_echo(str(tmp_path), n=3, min_files=2,
+                                  lang="en")
+    grams = {it["ngram"] for it in items}
+    assert not any(all(w in echo_finder.ECHO_STOPS_EN
+                       for w in g.split()) for g in grams)
+
+
+def test_stops_by_lang():
+    assert echo_finder._stops("en") is echo_finder.ECHO_STOPS_EN
+    assert echo_finder._stops(None) is echo_finder.ECHO_STOPS
+    assert echo_finder._stops("ru") is echo_finder.ECHO_STOPS
