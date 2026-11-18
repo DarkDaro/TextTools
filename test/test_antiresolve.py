@@ -166,3 +166,64 @@ def test_run_collect_adds_findings(tmp_path):
     _rc, _log, summary2 = antiresolve.run(
         str(f), quiet=True, log_path=str(tmp_path / "b.log"))
     assert "находки" not in summary2
+
+
+# --- 18.11: двуязычие (docs/LOC_PLAN.md) ---------------------------------
+
+BEFORE_EN = ("With grim determination she faced the enemy. "
+             "Fire danced in her eyes. She overcame her fear and stepped "
+             "forward.")
+
+
+def test_scan_english_dictionaries(tmp_path, monkeypatch):
+    """lang=en: англ. словари-стартеры ловят англ. штампы."""
+    monkeypatch.chdir(tmp_path)
+    f = tmp_path / "a.md"
+    f.write_text(BEFORE_EN, encoding="utf-8")
+    rc, log, summary = antiresolve.run(str(f), lang="en")
+    assert rc == 1
+    assert summary["hard"] >= 3
+    cats = summary["по_категориям"]
+    assert any("determination" in k for k in cats)
+    assert f.read_text(encoding="utf-8") == BEFORE_EN
+
+
+def test_english_clean_cuts_hard(tmp_path, monkeypatch):
+    """--clean для en вырезает hard-вхождения, .bak создаётся."""
+    monkeypatch.chdir(tmp_path)
+    f = tmp_path / "a.md"
+    f.write_text("She stood with determination. She left.", encoding="utf-8")
+    rc, log, summary = antiresolve.run(str(f), clean=True, lang="en")
+    assert f.read_text(encoding="utf-8") != BEFORE_EN
+    body = f.read_text(encoding="utf-8")
+    assert "with determination" not in body
+    assert "She left." in body
+    assert Path(str(f) + ".bak").exists()
+
+
+def test_russian_dicts_still_default(tmp_path, monkeypatch):
+    """Без lang (ru по настройкам) англ. штампы не ищутся."""
+    monkeypatch.chdir(tmp_path)
+    f = tmp_path / "a.md"
+    f.write_text("With grim determination she left.", encoding="utf-8")
+    rc, log, summary = antiresolve.run(str(f))
+    assert rc == 0 and summary["hard"] == 0
+
+
+def test_explicit_db_overrides_lang(tmp_path, monkeypatch):
+    """Явный --resolve-db сильнее языка: указан русский — ищется русский."""
+    monkeypatch.chdir(tmp_path)
+    f = tmp_path / "a.md"
+    f.write_text("Он с решимостью кивнул.", encoding="utf-8")
+    rc, log, summary = antiresolve.run(
+        str(f), resolve_db=antiresolve.DEFAULT_RESOLVE_DB, lang="en")
+    assert rc == 1 and summary["hard"] >= 1
+
+
+def test_en_dicts_load_clean():
+    """Оба англ. словаря читаются валидатором rulebase без ошибок."""
+    from core.rulebase import load_rules
+    r1 = load_rules(antiresolve.DEFAULT_RESOLVE_DB_EN)
+    r2 = load_rules(antiresolve.DEFAULT_PATHOS_DB_EN)
+    assert len(r1) >= 15 and len(r2) >= 15
+    assert all(r.pattern.match("") is None for r in r1 + r2)

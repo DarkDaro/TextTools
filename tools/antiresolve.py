@@ -30,6 +30,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core import lang as lang_mod  # noqa: E402
 from core import text_parser as tp  # noqa: E402
 from core.report import write_json, write_report  # noqa: E402
 from core.rulebase import load_rules  # noqa: E402
@@ -37,6 +38,9 @@ from core.rulebase import load_rules  # noqa: E402
 HERE = Path(__file__).resolve().parent
 DEFAULT_RESOLVE_DB = HERE.parent / "data" / "resolve_db.yaml"
 DEFAULT_PATHOS_DB = HERE.parent / "data" / "pathos_db.yaml"
+# 18.11: английские словари-стартеры (docs/LOC_PLAN.md)
+DEFAULT_RESOLVE_DB_EN = HERE.parent / "data" / "resolve_db_en.yaml"
+DEFAULT_PATHOS_DB_EN = HERE.parent / "data" / "pathos_db_en.yaml"
 
 CTX = 40  # символов контекста вокруг вхождения
 
@@ -227,14 +231,23 @@ def build_log_entry(source, n_files, findings, cleaned, leftover):
 
 
 def run(input_path, resolve_db="", pathos_db="", clean=False,
-        log_path="", out="", quiet=False, collect=False):
+        log_path="", out="", quiet=False, collect=False, lang=None):
     """Полный прогон: поиск → лог → (зачистка) → контроль.
     Возвращает (код_возврата, путь_лога, сводка).
     collect=True — в сводку добавляется «находки»: полный список dict
     (нужно репетиции чистки в check-all --plan; без collect сводка
-    компактна, как раньше)."""
-    rules = load_rules(resolve_db or DEFAULT_RESOLVE_DB)
-    rules += load_rules(pathos_db or DEFAULT_PATHOS_DB)
+    компактна, как раньше).
+    18.11: lang (docs/LOC_PLAN.md) — «en» подставляет англ. словари,
+    если --resolve-db/--pathos-db не указаны явно; None — из настроек."""
+    if lang is None:
+        lang = lang_mod.get_text_lang(None)
+    is_en = lang_mod.is_en(lang)
+    rules = load_rules(resolve_db
+                       or (DEFAULT_RESOLVE_DB_EN if is_en
+                           else DEFAULT_RESOLVE_DB))
+    rules += load_rules(pathos_db
+                        or (DEFAULT_PATHOS_DB_EN if is_en
+                            else DEFAULT_PATHOS_DB))
     root = tp.check_root(input_path)
     files = list(tp.iter_text_files(root, exts=tp.ANALYSIS_EXTS))  # 07.11: + html
 
@@ -314,13 +327,16 @@ def main(argv=None):
     ap.add_argument("--json", dest="json_out", nargs="?", const="-",
                     default="",
                     help="сводка в JSON («-» — в stdout)")
+    # 18.11: язык текстов (docs/LOC_PLAN.md)
+    ap.add_argument("--lang", choices=lang_mod.LANGS,
+                    help="язык текстов: en подставляет англ. словари")
     args = ap.parse_args(argv)
 
     try:
         rc, log_file, summary = run(
             args.input, resolve_db=args.resolve_db, pathos_db=args.pathos_db,
             clean=args.clean, log_path=args.log, out=args.out,
-            quiet=bool(args.json_out))
+            quiet=bool(args.json_out), lang=args.lang)
     except ValueError as e:
         print(f"Ошибка: {e}", file=sys.stderr)
         return 2

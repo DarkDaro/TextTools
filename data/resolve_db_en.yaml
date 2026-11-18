@@ -1,0 +1,106 @@
+# ======================================================================
+# ANTI-RESOLVE (English) — запретная лексика, англ. версия словаря
+# data/resolve_db.yaml (18.11, docs/LOC_PLAN.md).
+#
+# Формат правила — тот же (см. шапку resolve_db.yaml):
+#   cat   — категория отчёта (обязательно)
+#   level — hard: убрать (--clean вырезает); soft: только подсветка
+#   re    — регэксп Python, регистр не важен, писать в нижнем регистре;
+#           основу слова заканчивать \w* (pymorphy3 английские формы
+#           не склоняет — word: для латиницы ищет точное написание)
+#   hint  — подсказка редактору, попадает в лог
+#
+# Философия та же: герои не побеждают, а выживают; эмоция — через
+# действие; тело — последняя граница свободы. Словарь стартовый —
+# пополняется по мере работы.
+# ======================================================================
+rules:
+  # --- 1. Determination and resolve (memo, p.1) ---------------------------
+  # Фразовые правила идут ПЕРЕД корневыми: зачистка снимает оборот
+  # целиком («with determination»), а не голое слово.
+  - cat: determination
+    level: hard
+    re: 'with (a |grim )?determination'
+    hint: "Cut the phrase: «She watched one spot. Did not blink»"
+  - cat: determination
+    level: hard
+    re: 'with (a |stony |grim )?resolut\w*'
+    hint: "Cut the phrase: «He stepped forward. Without a word»"
+  - cat: determination
+    level: hard
+    re: '\bdetermin\w*'
+    hint: "Emotion through action: «She watched one spot. Did not blink»"
+  - cat: determination
+    level: hard
+    re: '\bresolut\w*'
+    hint: "«He stepped forward. Without a word» — action instead of verdict"
+  - cat: determination
+    level: soft
+    re: '\bresolve\b'
+    hint: "Flag manually: pathos or plain speech? Decide in context"
+
+  # --- 2. Heroic gaze markers ----------------------------------------------
+  - cat: gaze
+    level: hard
+    re: 'fire (danc\w+|burn\w+|glow\w+|smolder\w+|in) (in )?(his|her|their) eyes'
+    hint: "Heroism marker. Show a deed — or just delete"
+  - cat: gaze
+    level: hard
+    re: 'light in (his|her|their) eyes'
+    hint: "Heroism marker. A look alone — or drop it"
+  - cat: gaze
+    level: hard
+    re: 'steely (gaze|look|stare)'
+    hint: "«Steely gaze» is banned (memo, p.1)"
+  - cat: gaze
+    level: hard
+    re: 'eyes (burned|blazed|glowed)'
+    hint: "Pathos marker: fire or resolve burning in the eyes"
+
+  # --- 3. Faith and hope in the pathos sense -------------------------------
+  - cat: faith
+    level: hard
+    re: 'faith in (victory|winning)'
+    hint: "«Faith in victory» is a slogan (faith in / faith of victory)"
+  - cat: hope
+    level: soft
+    re: '\bhope\b'
+    hint: "Pathos or everyday? Decide manually — machine cannot tell"
+
+  # --- 4. Moralizing closing of a scene -------------------------------------
+  - cat: moral
+    level: soft
+    re: 'finally understood,? (that )?the (main|only)'
+    hint: "Moralizing ending — cut the scene with an action or a pause"
+  - cat: moral
+    level: soft
+    re: 'now (he|she) knew'
+    hint: "«Now she knew…» — a verdict for the reader. End on a deed"
+
+  # --- 5. Slogans -------------------------------------------------------------
+  - cat: slogan
+    level: hard
+    re: '\bwe (must|will|shall) (win|prevail|be victorious)\b'
+    hint: "Slogan banned. «We are still alive. For now»"
+  - cat: slogan
+    level: hard
+    re: '\bwe will not (retreat|give up|back down|surrender|yield)\b'
+    hint: "Slogan. «We are still alive. For now»"
+  - cat: slogan
+    level: hard
+    re: '\bwe (cannot|can.not) (lose|be defeated)\b'
+    hint: "Slogan. Show it: she did not retreat because she knew no other way"
+
+  # --- 6. Endurance ----------------------------------------------------------
+  - cat: endurance
+    level: hard
+    re: '\b(overcame|overcome|overcoming|overcomes)\b'
+    hint: "«He exhaled through his teeth. Stood up» — physiology instead of pathos"
+  - cat: endurance
+    level: hard
+    re: 'against all odds'
+    hint: "Pathos marker — concrete detail instead"
+  - cat: endurance
+    level: soft
+    re: '(gritting|clenching) (his|her|their) teeth'
+    hint: "Allowed only as irony — check the context"

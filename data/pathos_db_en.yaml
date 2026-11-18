@@ -1,0 +1,91 @@
+# ======================================================================
+# ANTI-PATHOS (English) — pathos clichés and generalizations, English
+# companion of data/pathos_db.yaml (18.11, docs/LOC_PLAN.md). Same
+# fields and levels; philosophy header lives in resolve_db.yaml.
+#
+# Memo: a character is not a "hero" — they survive; emotion through
+# action; physiology instead of a "steely gaze"; concreteness instead
+# of verdicts ("the city was bleak" -> neon, rain, transformer hum).
+# ======================================================================
+rules:
+  # --- Heroic epithets ----------------------------------------------------
+  - cat: epithet
+    level: soft
+    re: '\bunwavering\b'
+    hint: "Show stubbornness with a deed, not a label"
+  - cat: epithet
+    level: soft
+    re: '\bunbending\b'
+    hint: "Label instead of a deed"
+  - cat: epithet
+    level: soft
+    re: '\bunbreakable\b'
+    hint: "Label instead of a deed"
+  - cat: epithet
+    level: soft
+    re: '\bunyielding\b'
+    hint: "Label instead of a deed"
+  - cat: epithet
+    level: soft
+    re: '(iron|steely|nerves of steel) will'
+    hint: "«Iron will» is a cliché. What does the person DO instead?"
+  - cat: epithet
+    level: hard
+    re: '\bheroic\w*'
+    hint: "In this world there are no heroes — a character does what she can"
+  - cat: epithet
+    level: soft
+    re: '\bselfless\w*'
+    hint: "Verdict instead of an act"
+  - cat: epithet
+    level: soft
+    re: '(act|deed) of (valor|heroism)'
+    hint: "«Act of valor» is pathos. Show the price of the deed"
+
+  # --- Pathos constructions ------------------------------------------------
+  - cat: pathos
+    level: hard
+    re: 'with (his|her|their) head held high'
+    hint: "Cliché. Replacement: «Chin up. Without a word»"
+  - cat: pathos
+    level: soft
+    re: 'in the name of'
+    hint: "«In the name of…» — slogan or character speech? Check"
+  - cat: pathos
+    level: soft
+    re: '(did not|never|could not) break\b'
+    hint: "«She did not break» — say it broken, not as a message"
+  - cat: pathos
+    level: soft
+    re: '(remained|stayed|still) (a )?human'
+    hint: "«Remained human» — a verdict for the reader"
+  - cat: pathos
+    level: soft
+    re: '(a |the )?(real|true) hero\w*'
+    hint: "«True hero» — categorization instead of a scene"
+  - cat: pathos
+    level: soft
+    re: 'for the (sake of the )?future'
+    hint: "Pathos motivation — make it concrete"
+  - cat: pathos
+    level: soft
+    re: 'the price of (this |such |that )?victory'
+    hint: "«The price of victory» — a rhetorical construction"
+
+  # --- Generalizations instead of concreteness (memo, p.4) -----------------
+  - cat: generalization
+    level: soft
+    re: '(the )?(city|world|district|quarter) was (bleak|dark|grim|somber)'
+    hint: "Concreteness: neon, rain, transformer hum"
+  - cat: generalization
+    level: soft
+    re: 'the air was (thick|heavy|suffocating)'
+    hint: "Atmosphere cliché — replace with a detail"
+  - cat: generalization
+    level: soft
+    re: '(silence|fear|chaos|order) (reigned|ruled|prevailed)'
+    hint: "«Silence reigned» is a cliché. What is actually audible?"
+  - cat: generalization
+    level: soft
+    re: 'the atmosphere was (oppressive|bleak|heavy|somber)'
+    hint: "Verdict instead of scenery"

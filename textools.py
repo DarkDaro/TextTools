@@ -342,6 +342,8 @@ def main():
     p18.add_argument("--out", help="отчёт .md («-» — в stdout)")
     p18.add_argument("--json", dest="json_out", nargs="?", const="-",
                      help="сводка в JSON («-» — в stdout)")
+    # 18.11: язык текстов (docs/LOC_PLAN.md) — en подставляет англ. словари
+    p18.add_argument("--lang", choices=["ru", "en"], help="язык текстов")
 
     # 07.11: список персонажей, проверка имени, поиск старых копий
     p_cast = sub.add_parser("cast",
@@ -669,6 +671,8 @@ def main():
             opts += ["--out", args.out]
         if args.json_out:
             opts += ["--json", args.json_out]
+        if args.lang:
+            opts += ["--lang", args.lang]
         sys.exit(antiresolve.main(opts))
 
 
