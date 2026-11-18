@@ -1,6 +1,8 @@
 {
   "_note": "Минимальный пример конфига. Рабочий gui_config.json создаётся программой автоматически и в git не входит. Пресет script_preset: auto ищет внешние скрипты рядом с проектом, manual оставляет пути как есть, off отключает их.",
   "theme": "dark",
+  "text_lang": "ru",
+  "ui_lang": "ru",
   "default_vault": "",
   "show_cmd": true,
   "jump_log": true,
@@ -43,5 +45,9 @@
   "pomo.auto_break": true,
   "pomo.auto_work": false,
   "pomo.sound": true,
-  "pomo.stats": { "day": "", "work_done": 0, "work_seconds": 0 }
+  "pomo.stats": {
+    "day": "",
+    "work_done": 0,
+    "work_seconds": 0
+  }
 }
