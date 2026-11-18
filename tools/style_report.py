@@ -4,7 +4,7 @@ style_report — стилистический отчёт: повторы сло�
 
   python style_report.py --input <папка или файл>
       [--registry characters.yaml] [--window N] [--long N] [--limit N]
-      [--out report.md]
+      [--out report.md] [--lang ru|en]
 
 Только отчёт — файлы НЕ изменяются.
 
@@ -25,6 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core.report import write_report
+from core import lang as lang_mod
 from core import text_parser as tp
 from core import name_registry as nr  # 20.10: реестр имён (был не импортирован)
 
@@ -56,7 +57,30 @@ FUNCTION_WORDS = {
     "при", "под", "над", "про", "без", "тем", "том", "так", "сей",
     "оба", "обе", "три", "два", "сто",
 }
+
+# 18.11: английские служебные слова (docs/LOC_PLAN.md). Короткие
+# предлоги (a, of, to...) отсекает WORD_MIN_LEN, остальные — здесь.
+FUNCTION_WORDS_EN = {
+    "which", "that", "this", "these", "those", "whose", "when", "if",
+    "because", "so", "then", "also", "too", "though", "although",
+    "while", "was", "were", "been", "being", "are", "have", "has",
+    "had", "will", "would", "can", "could", "should", "shall",
+    "may", "might", "must", "does", "did", "the", "and", "but",
+    "not", "nor", "for", "with", "from", "him", "her", "his", "hers",
+    "its", "our", "ours", "their", "theirs", "them", "they", "she",
+    "you", "your", "yours", "who", "whom", "what", "where", "there",
+    "here", "both", "two", "three", "one", "ten", "hundred", "unto",
+}
 STOPWORDS = tp.STOPLIST | FUNCTION_WORDS
+
+
+def _stopwords(lang=None):
+    """Служебные слова под язык; None — из настроек (text_lang)."""
+    if lang is None:
+        lang = lang_mod.get_text_lang(None)
+    if lang_mod.is_en(lang):
+        return tp.STOPLIST_EN | FUNCTION_WORDS_EN
+    return STOPWORDS
 
 WORD_MIN_LEN = 3
 
@@ -117,9 +141,12 @@ def _paragraphs(text):
     return paras
 
 
-def scan_repeats(text, window, exclude=None):
-    """[(слово, строка, фрагмент)] — повторы в пределах окна слов."""
+def scan_repeats(text, window, exclude=None, stopwords=None):
+    """[(слово, строка, фрагмент)] — повторы в пределах окна слов.
+    stopwords — служебные слова под язык (по умолчанию — из настроек)."""
     exclude = exclude or set()
+    if stopwords is None:
+        stopwords = _stopwords(None)
     hits = []
     per_word = {}
     for start, lines in _paragraphs(text):
@@ -128,7 +155,7 @@ def scan_repeats(text, window, exclude=None):
             for m in tp.WORD_RE.finditer(line):
                 tokens.append((_norm(m.group(0)), start + ln_off))
         for i, (w, ln) in enumerate(tokens):
-            if len(w) < WORD_MIN_LEN or w in STOPWORDS or w in exclude:
+            if len(w) < WORD_MIN_LEN or w in stopwords or w in exclude:
                 continue
             if per_word.get(w, 0) >= PER_WORD_CAP:
                 continue
@@ -155,7 +182,8 @@ def scan_long_sentences(text, threshold):
     return hits
 
 
-def run(input_path, registry=None, window=5, long=25, limit=None, out=None):
+def run(input_path, registry=None, window=5, long=25, limit=None, out=None,
+        lang=None):
     exclude = set()
     if registry:
         try:
@@ -170,6 +198,7 @@ def run(input_path, registry=None, window=5, long=25, limit=None, out=None):
     if not files:
         print("Файлы .md/.txt/.docx не найдены.")
         return 1
+    stopwords = _stopwords(lang)
 
     all_repeats = []   # (слово, файл, строка, фрагмент)
     all_long = []      # (файл, строка, слов, начало)
@@ -196,7 +225,7 @@ def run(input_path, registry=None, window=5, long=25, limit=None, out=None):
             print(f"PROGRESS:{idx}/{total}", flush=True)
             continue
         print(f"PROGRESS:{idx}/{total}", flush=True)
-        reps = scan_repeats(text, window, exclude)
+        reps = scan_repeats(text, window, exclude, stopwords)
         longs = scan_long_sentences(text, long)
         for w, ln, frag in reps:
             all_repeats.append((w, str(f), ln, frag))
@@ -243,9 +272,12 @@ def main(argv=None):
                     help="порог «длинного предложения» в словах (по умолчанию 25)")
     ap.add_argument("--limit", type=int, help="максимум файлов")
     ap.add_argument("--out", help="файл отчёта")
+    ap.add_argument("--lang", choices=lang_mod.LANGS,
+                    help="язык текстов (по умолчанию — из настроек)")
     args = ap.parse_args(argv)
     return run(args.input, registry=args.registry, window=args.window,
-               long=args.long, limit=args.limit, out=args.out)
+               long=args.long, limit=args.limit, out=args.out,
+               lang=args.lang)
 
 
 if __name__ == "__main__":

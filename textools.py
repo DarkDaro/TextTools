@@ -199,6 +199,8 @@ def main():
                      help="порог длинного предложения в словах (по умолчанию 25)")
     p12.add_argument("--limit", type=int)
     p12.add_argument("--out")
+    # 18.11: язык текстов (docs/LOC_PLAN.md)
+    p12.add_argument("--lang", choices=["ru", "en"], help="язык текстов")
 
     p13 = sub.add_parser("emoji-icons",
                          help="эмодзи-иконки → SVG в HTML (с .bak)")
@@ -469,7 +471,8 @@ def main():
              *(["--registry", args.registry] if args.registry else []),
              "--window", str(args.window), "--long", str(args.long),
              *(["--limit", str(args.limit)] if args.limit is not None else []),
-             *(["--out", args.out] if args.out else [])]))
+             *(["--out", args.out] if args.out else []),
+             *(["--lang", args.lang] if args.lang else [])]))
     elif args.cmd == "restore":
         sys.path.insert(0, str(here))
         from tools import backup_restore
