@@ -7,6 +7,7 @@ import customtkinter as ctk
 from pathlib import Path
 
 from gui_config import CFG, CONFIG_FILE
+from core.i18n import tr
 from widgets_ctk import (PathField, EntryField, CheckField, HelpBox,
                          Section, Tooltip, ActionButton, button_row,
                          FONT_SMALL)
@@ -324,11 +325,12 @@ class SettingsTab(ctk.CTkFrame):
         # --- Язык (18.11, docs/LOC_PLAN.md): текстов и интерфейса.
         # Две независимые оси: text_lang — по каким правилам работают
         # скрипты; ui_lang — какие строки видит человек (перевод вкладок
-        # идёт по пайплайну, вкладка за вкладкой).
-        s_lang = Section(parent, "Язык")
+        # идёт по пайплайну, вкладка за вкладкой). Строки раздела —
+        # через tr(): этот раздел — пилот подмены строк интерфейса.
+        s_lang = Section(parent, tr("settings.lang.section"))
         r_tlang = ctk.CTkFrame(s_lang.inner, fg_color="transparent")
         r_tlang.pack(fill="x", pady=(2, 0))
-        ctk.CTkLabel(r_tlang, text="Язык текстов:",
+        ctk.CTkLabel(r_tlang, text=tr("settings.lang.text"),
                      font=FONT_SMALL).pack(side="left")
         self.seg_text_lang = ctk.CTkSegmentedButton(
             r_tlang, values=list(LANG_LABELS), width=170, height=26,
@@ -338,7 +340,7 @@ class SettingsTab(ctk.CTkFrame):
         self.seg_text_lang.pack(side="left", padx=(8, 0))
         r_ulang = ctk.CTkFrame(s_lang.inner, fg_color="transparent")
         r_ulang.pack(fill="x", pady=(2, 0))
-        ctk.CTkLabel(r_ulang, text="Язык интерфейса:",
+        ctk.CTkLabel(r_ulang, text=tr("settings.lang.ui"),
                      font=FONT_SMALL).pack(side="left")
         self.seg_ui_lang = ctk.CTkSegmentedButton(
             r_ulang, values=list(LANG_LABELS), width=170, height=26,
@@ -351,11 +353,7 @@ class SettingsTab(ctk.CTkFrame):
         ctk.CTkLabel(
             s_lang.inner, justify="left", anchor="w", font=FONT_SMALL,
             text_color=("gray45", "gray60"), wraplength=500,
-            text="Язык текстов — по каким правилам работают скрипты: "
-                 "стоп-слова, слова-паразиты, словари штампов, поиск имён. "
-                 "Язык интерфейса — подмена строк окна (перевод вкладок "
-                 "идёт по плану docs/LOC_PLAN.md). Выбор сохраняется "
-                 "сразу; инструменты подхватят его при следующем запуске."
+            text=tr("settings.lang.hint")
             ).pack(anchor="w", pady=(2, 0))
 
         # --- Помодоро (18.11): длительности и автостарт таймера писателя
