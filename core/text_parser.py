@@ -37,7 +37,7 @@ def backup_once(f):
 
 # Слова, которые часто встречаются с заглавной буквы, но не имена
 # (начало диалога, обращения, месяцы, и т.д.)
-STOPLIST = {
+STOPLIST_RU = {
     # местоимения / частые слова в начале реплик
     "я", "он", "она", "оно", "они", "мы", "вы", "ты", "это", "этот", "эта",
     "как", "так", "что", "чтобы", "кто", "все", "всё", "весь", "вся",
@@ -57,6 +57,47 @@ STOPLIST = {
     "ответ", "пример", "часть", "глава", "раздел", "день", "ночь", "утро",
     "вечер", "год", "месяц", "неделя",
 }
+
+# 18.11: английский стоп-лист (docs/LOC_PLAN.md) — те же группы слов
+STOPLIST_EN = {
+    # местоимения / частые слова в начале реплик
+    "i", "he", "she", "it", "they", "we", "you", "this", "that", "these",
+    "those", "how", "what", "who", "why", "where", "when", "all", "but",
+    "yes", "no", "not", "yet", "still", "just", "only", "there", "here",
+    "then", "now", "later", "soon", "maybe", "perhaps", "can", "could",
+    "should", "would", "will", "shall", "must", "and", "or", "so", "if",
+    "because", "as", "once", "everything", "nothing", "something",
+    "everyone", "nobody", "somebody", "anyone", "did", "does", "done",
+    "get", "got", "have", "has", "had", "was", "were", "been", "being",
+    # обращения и титулы-слова (сами по себе не имя)
+    "mister", "mistress", "sir", "madam", "master", "teacher", "mentor",
+    "elder", "captain", "commander", "prince", "princess", "king", "queen",
+    "emperor", "lord", "lady", "baron", "general", "doctor", "doc",
+    "professor", "colonel", "sergeant", "lieutenant", "officer", "sheriff",
+    "mrs", "miss",
+    # месяцы / дни
+    "january", "february", "march", "april", "may", "june", "july",
+    "august", "september", "october", "november", "december",
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
+    "sunday",
+    # служебное
+    "note", "notes", "warning", "summary", "answer", "example", "part",
+    "chapter", "section", "day", "night", "morning", "evening", "year",
+    "month", "week",
+}
+
+# Объединение — прежнее имя: подписчики (style_report, cast_list) и
+# старые вызовы без lang работают как раньше. Выбор по языку делает
+# stoplist(); стоп-слово именем персонажа быть не может, поэтому
+# для русского объединение безопасно, как и было.
+STOPLIST = STOPLIST_RU | STOPLIST_EN
+
+
+def stoplist(lang=None):
+    """Список служебных слов под язык. en — английский; для «ru» и
+    None (язык не задан) — объединённый, поведение прежних версий."""
+    from core import lang as _lang_mod
+    return STOPLIST_EN if _lang_mod.is_en(lang) else STOPLIST
 
 WORD_RE = re.compile(r"[А-ЯЁа-яёA-Za-z][А-ЯЁа-яёA-Za-z-]+")
 SENT_SPLIT_RE = re.compile(r"[.!?…]+\s|[.!?…]+$")
@@ -184,13 +225,15 @@ def sentences(text):
     return [s.strip() for s in SENT_SPLIT_RE.split(text) if s.strip()]
 
 
-def find_name_candidates(text, known=None, min_len=3):
+def find_name_candidates(text, known=None, min_len=3, lang=None):
     """
     Ищет слова с заглавной буквы в середине предложения.
     known: set слов, которые уже известны (не включать в кандидаты).
-    Возвращает список (слово_в_начальной_форме_приблизительно, слово).
+    lang: «ru»/«en» (docs/LOC_PLAN.md); None — как раньше, объединённый
+    стоп-лист. Возвращает список слов в начальной форме (приблизительно).
     """
     known = known or set()
+    stops = stoplist(lang)
     # 01.10: ё/е — одна буква для сравнения («Елена» = «Елёна»)
     known = {norm_yo(k) for k in known}
     results = []
@@ -202,15 +245,17 @@ def find_name_candidates(text, known=None, min_len=3):
             # слово с заглавной, не полностью из заглавных (аббревиатуры)
             if w[0].isupper() and not w.isupper() and len(w) >= min_len:
                 low = norm_yo(w.lower())
-                if low in STOPLIST or low in known:
+                if low in stops or low in known:
                     continue
                 results.append(low)
     return results
 
 
-def find_bigrams(text, known=None, min_len=3):
-    """Пары подряд идущих заглавных слов (Имя Фамилия, Мастер Кайдзо)."""
+def find_bigrams(text, known=None, min_len=3, lang=None):
+    """Пары подряд идущих заглавных слов (Имя Фамилия, Мастер Кайдзо).
+    lang — как у find_name_candidates."""
     known = known or set()
+    stops = stoplist(lang)
     known = {norm_yo(k) for k in known}  # 01.10: ё/е
     results = []
     for sent in sentences(text):
@@ -220,7 +265,7 @@ def find_bigrams(text, known=None, min_len=3):
             if (a[:1].isupper() and b[:1].isupper()
                     and len(a) >= min_len and len(b) >= min_len):
                 la, lb = norm_yo(a.lower()), norm_yo(b.lower())
-                if la in STOPLIST or lb in STOPLIST:
+                if la in stops or lb in stops:
                     continue
                 if la in known or lb in known:
                     continue
