@@ -21,9 +21,13 @@ and your folder of texts, to which all of it is applied.
 
 Built for Russian-language prose in Obsidian: names and their
 inflected forms, ё vs е, «Russian-style guillemets», dashes, clichés,
-wiki-links. It reads `.md`, `.txt` and `.docx` from local disk. It
-never touches the network, requires no accounts, collects no
-telemetry.
+wiki-links. Since 1.8.5 English texts are processed too: the text
+language is picked on the Settings tab (Russian/English), and stop
+words, parasites, cliché dictionaries and name search follow it;
+window strings switch per the pipeline in
+[docs/LOC_PLAN.md](docs/LOC_PLAN.md). It reads `.md`, `.txt` and
+`.docx` from local disk. It never touches the network, requires no
+accounts, collects no telemetry.
 
 It was written for one repository and one author, not for a market.
 Hence the occurrence showcase, the Stop button and a report before
@@ -42,7 +46,7 @@ register of technical debt), [docs/AUDIT.md](docs/AUDIT.md)
 current state), [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md)
 (CLI-to-GUI correspondence).
 Check whether your copy is intact with
-one command: `python textools.py doctor`. Version 1.8.4, Windows,
+one command: `python textools.py doctor`. Version 1.8.5, Windows,
 Python 3.10+, MIT license.
 
 ## Screenshots
@@ -505,7 +509,7 @@ Restoration lives on the Settings tab.
 The main suite is pytest:
 
 ```
-python -m pytest test/ -q             # 235 tests: engines, CLI, docx, pomodoro, GUI utilities
+python -m pytest test/ -q             # 284 tests: engines, CLI, docx, pomodoro, GUI utilities, language
 ```
 
 The GUI is checked by separate scripts in the root (they open a
