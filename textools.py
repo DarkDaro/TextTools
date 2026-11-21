@@ -21,6 +21,7 @@ textools — единый CLI текстовых инструментов.
   copy-doctor        поиск старых копий TextTools и ярлыков к ним
   doctor             целостность приложения: файлы, зависимости, скрипты, версии
   update             обновление с GitHub: --check (по умолчанию) / --apply
+  meta-check         целостность метафайлов: README, GUIDE, карта, TECH_DEBT
   style-report       стилистика: повторы слов рядом, длинные предложения
   stats              статистика текстов (объём, диалоги, паразиты)
   whitespace         чистка пробелов и пустых строк
@@ -400,6 +401,12 @@ def main():
     p_up.add_argument("--check", action="store_true",
                       help="только проверить (по умолчанию)")
 
+    # 21.11: повышение из рабочего скрипта песочницы check_docs.py —
+    # метафайлы доказывают свою целостность, как doctor для программы
+    p_mc = sub.add_parser("meta-check",
+                          help="целостность метафайлов: README, GUIDE, "
+                               "карта CLI↔GUI, TECH_DEBT (только чтение)")
+
     args = ap.parse_args()
 
     here = Path(__file__).parent
@@ -670,6 +677,10 @@ def main():
         fwd = (["--apply"] if args.apply else
                (["--check"] if args.check else []))
         sys.exit(updater.main(fwd))
+    elif args.cmd == "meta-check":
+        sys.path.insert(0, str(here))
+        from tools import meta_check
+        sys.exit(meta_check.main([]))
     elif args.cmd == "doctor":
         sys.path.insert(0, str(here))
         from tools import app_check

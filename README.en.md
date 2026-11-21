@@ -16,7 +16,7 @@ a manuscript to hunt typos is the kind of work you burn out on before
 you finish the book; the program takes that work for itself.
 
 There are no clouds, no subscriptions and no artificial intelligence
-here. What there is: 32 CLI subcommands (33 names), a window with eight tabs,
+here. What there is: 33 CLI subcommands (34 names), a window with eight tabs,
 and your folder of texts, to which all of it is applied.
 
 Built for Russian-language prose in Obsidian: names and their
