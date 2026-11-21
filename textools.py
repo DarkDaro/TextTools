@@ -53,11 +53,14 @@ import argparse
 # вычитка --check) и карточка «Типографика» на вкладке «Писателям».
 # 05.11: 1.1.0 — шесть команд из BACKLOG (yo, check-all --out/--plan,
 # stats --history, export-docx, echo)
+# 21.11: 1.9.1 — meta-check и smoke — повышение временных
+# скриптов до инструментов, кнопки на «Настройках», TD-04
+# закрыт, CHANGELOG развязан на архив.
 # 21.11: 1.9.0 — tools/updater.py + CLI update: обновление с GitHub
 # (git fetch/merge, запасной zip), кнопки «Обновление и целостность»
 # на «Настройках», шаг doctor в update.bat v5; core/fuse.py —
 # предохранители от зависаний (лимит МБ, бюджет времени, stop.flag)
-__version__ = "1.9.0"
+__version__ = "1.9.1"
 
 
 def main():

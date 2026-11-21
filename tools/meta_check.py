@@ -28,7 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # старые версии, которых в README быть не должно
-OLD_VERSIONS = ("1.8.5", "1.8.4", "1.8.3", "1.6.0")
+OLD_VERSIONS = ("1.9.0", "1.8.5", "1.8.4", "1.8.3", "1.6.0")
 
 
 def _plural(n, one, few, many):
@@ -124,7 +124,7 @@ def run_checks():
           "языковой блок на месте", "нет языкового блока в README.en.md")
     check(lines, f"Version {cur_ver}" in en_text, f"версия {cur_ver}",
           f"в README.en.md не {cur_ver}")
-    for old in ("1.8.5", "1.8.4"):
+    for old in ("1.9.0", "1.8.5", "1.8.4"):
         check(lines, f"Version {old}" not in en_text, f"старой версии {old} нет",
               f"в README.en.md осталось «Version {old}»")
     check(lines, "eight tabs" in en_text, "eight tabs",

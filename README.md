@@ -49,7 +49,7 @@
 [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md) (соответствие CLI и GUI),
 [docs/LOC_PLAN.md](docs/LOC_PLAN.md) (пайплайн английского языка).
 Целая ли копия — одной командой: `python textools.py doctor`.
-Версия 1.9.0, Windows, Python 3.10+, лицензия MIT.
+Версия 1.9.1, Windows, Python 3.10+, лицензия MIT.
 
 ## Скриншоты
 

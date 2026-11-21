@@ -50,7 +50,7 @@ register of technical debt), [docs/AUDIT.md](docs/AUDIT.md)
 current state), [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md)
 (CLI-to-GUI correspondence).
 Check whether your copy is intact with
-one command: `python textools.py doctor`. Version 1.9.0, Windows,
+one command: `python textools.py doctor`. Version 1.9.1, Windows,
 Python 3.10+, MIT license.
 
 ## Screenshots
