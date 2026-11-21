@@ -148,7 +148,7 @@ class Note:
         return self.rel
 
 
-def scan_vault(vault, exts=(".md",), limit=None):
+def scan_vault(vault, exts=(".md",), limit=None, fuse=None):
     """
     Сканирует vault, возвращает (notes, basenames, relpaths, attachments):
       notes: list[Note]
@@ -157,8 +157,17 @@ def scan_vault(vault, exts=(".md",), limit=None):
       attachments: set имён и rel-путей прочих файлов (вложения, .canvas,
         lower, с расширением) — цели ![[…]] и [[x.png]] для broken_links.
         Собирается в том же проходе; при --limit — до лимита.
+
+    fuse — core.fuse.Fuse или None (21.11): без него создаётся штатный
+    (лимиты из настроек или встроенные) — гигантские заметки
+    пропускаются, обход сам останавливается по стоп-файлу и по бюджету
+    времени. Сработавшее печатается в stdout, если печатать некому.
     """
     vault = check_root(vault)
+    own_fuse = fuse is None
+    if fuse is None:
+        from core.fuse import Fuse
+        fuse = Fuse()
     basenames = set()
     relpaths = set()
     attachments = set()
@@ -170,6 +179,8 @@ def scan_vault(vault, exts=(".md",), limit=None):
     else:
         candidates = [(f, f.relative_to(vault)) for f in sorted(vault.rglob("*"))]
     for f, rel in candidates:
+        if not fuse.check():
+            break
         if not f.is_file() or f.suffix.lower() != ".md":
             # 04.11: не-markdown файлы — вложения; индекс имён нужен,
             # иначе все ![[картинка.png]] попадают в битые ссылки
@@ -192,6 +203,12 @@ def scan_vault(vault, exts=(".md",), limit=None):
 
     notes = []
     for f, rel in md_files:
+        # 21.11: предохранители — гигантскую заметку пропускаем,
+        # по стоп-файлу и по бюджету времени прекращаем обход
+        if not fuse.check():
+            break
+        if not fuse.allow_file(f):
+            continue
         # 20.10: cp1251/koi8 заметки больше не выпадают из графа — читаем
         # через read_any (utf-8 / autodetect)
         text, _enc = encoding.read_any(f)
@@ -209,6 +226,10 @@ def scan_vault(vault, exts=(".md",), limit=None):
         except Exception:
             pass
         notes.append(Note(f, str(rel), links, hash_, md_links))
+    # 21.11: сводку печатает тот, кто передал свой Fuse; собственная —
+    # только если предохранители реально сработали, чтобы не мусорить
+    if own_fuse:
+        fuse.report()
     return notes, basenames, relpaths, attachments
 
 
