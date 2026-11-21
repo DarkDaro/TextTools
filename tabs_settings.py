@@ -663,6 +663,23 @@ class SettingsTab(ctk.CTkFrame):
                              "словари, зависимости, версии. То же, что "
                              "python textools.py doctor."
                      ).pack(side="left")
+        # 21.11: повышение инструментов из рабочих скриптов —
+        # метадоки и смоук всех команд
+        row_upd2 = button_row(s_upd.inner, pady=(4, 0))
+        ActionButton(row_upd2, "Проверить документацию", self._run_meta_check,
+                     kind="safe", width=230,
+                     tooltip="Сверить метафайлы проекта: версии и счётчики "
+                             "в README, ссылки, разделы GUIDE, таблицу "
+                             "техдолгов. Только чтение — то же, что "
+                             "python textools.py meta-check."
+                     ).pack(side="left", padx=(0, 8))
+        ActionButton(row_upd2, "Проверка команд (смоук)", self._run_smoke,
+                     kind="safe", width=235,
+                     tooltip="Прогнать все команды на демо-полигоне: "
+                             "читающие — по оригиналу, пишущие — по "
+                             "временной копии; ничего своего не меняется. "
+                             "То же, что python textools.py smoke."
+                     ).pack(side="left")
 
         s4 = Section(parent, "Информация")
         ctk.CTkLabel(s4.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
@@ -888,6 +905,19 @@ class SettingsTab(ctk.CTkFrame):
                   "останутся)...\n")
         from gui_ctk import run_internal
         run_internal("updater", ["--apply"])
+
+    def _run_meta_check(self):
+        # 21.11: целостность метафайлов — README, GUIDE, карта, TECH_DEBT
+        self._log("Проверка документации (метафайлы)...\n")
+        from gui_ctk import run_internal
+        run_internal("meta_check", [])
+
+    def _run_smoke(self):
+        # 21.11: смоук всех CLI-команд на полигоне (пишущие — во
+        # временной копии, свои файлы не меняются)
+        self._log("Смоук-прогон всех команд на полигоне...\n")
+        from gui_ctk import run_internal
+        run_internal("cli_smoke", [])
 
     # --- о программе (24.10) ---
 
