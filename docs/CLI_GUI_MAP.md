@@ -81,6 +81,9 @@ refile) — только GUI: это личные скрипты автора и
 | Найти старые копии и ярлыки | copy_doctor | copy-doctor | без ключей (dry-run) | --fix, --roots |
 | Создать свежий ярлык | copy_doctor | copy-doctor --new-shortcut | то же | — |
 | Полная проверка (doctor) | app_check | doctor | без ключей (18.11) | --json |
+| Проверка целостности | app_check | doctor | без ключей (21.11) | --json |
+| Проверить обновления | updater | update (по умолчанию) | --check | — |
+| Обновить сейчас | updater | update --apply | --apply | — |
 
 ## Помодоро
 

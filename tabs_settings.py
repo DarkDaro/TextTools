@@ -605,6 +605,38 @@ class SettingsTab(ctk.CTkFrame):
                      tooltip="Открыть папку, из которой запущена программа."
                      ).pack(side="left")
 
+        # --- Обновление и целостность (21.11, просьба владельца) ---
+        s_upd = Section(parent, "Обновление и целостность",
+                        subtitle="GitHub как источник; сеть трогается "
+                                 "только по кнопке")
+        ctk.CTkLabel(s_upd.inner, justify="left", anchor="w",
+                     font=FONT_SMALL, wraplength=500, text=(
+            "«Проверить обновления» сверяет вашу версию с GitHub "
+            "(сеть работает только в этот момент). «Обновить сейчас» "
+            "докачивает файлы и обновляет программу поверх, не трогая "
+            "настройки, журнал и отчёты; после обновления перезапустите "
+            "TextTools. «Проверка целостности» без сети сверяет файлы, "
+            "зависимости и версии этой копии — то же, что doctor."
+        )).pack(anchor="w", pady=(0, 4))
+        row_upd = button_row(s_upd.inner)
+        ActionButton(row_upd, "Проверить обновления", self._run_update_check,
+                     kind="safe", width=210,
+                     tooltip="Сверить версию с GitHub: сеть включается "
+                             "только на эту проверку."
+                     ).pack(side="left", padx=(0, 8))
+        ActionButton(row_upd, "Обновить сейчас", self._run_update_apply,
+                     kind="primary", width=190,
+                     tooltip="Скачает свежие файлы с GitHub и обновит "
+                             "программу поверх (настройки и журнал "
+                             "останутся). Потом перезапустите программу."
+                     ).pack(side="left", padx=(0, 8))
+        ActionButton(row_upd, "Проверка целостности", self._run_integrity,
+                     kind="safe", width=200,
+                     tooltip="Проверить эту копию без сети: файлы, "
+                             "словари, зависимости, версии. То же, что "
+                             "python textools.py doctor."
+                     ).pack(side="left")
+
         s4 = Section(parent, "Информация")
         ctk.CTkLabel(s4.inner, justify="left", anchor="w", font=FONT_SMALL, text=(
             f"Настройки хранятся в: {CONFIG_FILE}\n"
@@ -808,6 +840,27 @@ class SettingsTab(ctk.CTkFrame):
         self._log("Полная проверка программы (doctor)...\n")
         from gui_ctk import run_internal
         run_internal("app_check", [])
+
+    def _run_integrity(self):
+        # 21.11: проверка целостности из раздела «Обновление и
+        # целостность» — тот же doctor, но по месту, где её ищут
+        self._log("Проверка целостности копии (без сети)...\n")
+        from gui_ctk import run_internal
+        run_internal("app_check", [])
+
+    def _run_update_check(self):
+        # 21.11: сверка версии с GitHub; сеть трогается только здесь
+        self._log("Проверяю обновления на GitHub...\n")
+        from gui_ctk import run_internal
+        run_internal("updater", ["--check"])
+
+    def _run_update_apply(self):
+        # 21.11: обновление файлов с GitHub поверх (личные данные не
+        # трогаются); после успеха программа просит перезапуска
+        self._log("Обновление с GitHub (файлы поверх, настройки "
+                  "останутся)...\n")
+        from gui_ctk import run_internal
+        run_internal("updater", ["--apply"])
 
     # --- о программе (24.10) ---
 
