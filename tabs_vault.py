@@ -201,7 +201,7 @@ class VaultTab(ctk.CTkFrame):
         run_internal("obsidian_check", args)
 
     def _run_cjk(self):
-        # 24.10: find_cjk живёт в корне проекта, запуск отдельным процессом
+        # 21.11: find_cjk живёт в core/, запуск отдельным процессом
         from gui_ctk import run_cmd, _app
         p = self.f_cjk.get()
         if not p:

@@ -48,7 +48,6 @@ textools = "textools:main"
 [tool.setuptools]
 py-modules = [
     "textools",
-    "find_cjk",
     "gui_config",
     "review_dialog",
     "widgets_ctk",

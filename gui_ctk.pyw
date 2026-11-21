@@ -552,7 +552,7 @@ def tool_cmd(modname, *rest):
     разбирает флаг и вызывает main(). Обычный запуск: python + файл."""
     if getattr(sys, "frozen", False):
         return [sys.executable, "--tool-run", modname, *rest]
-    paths = {"find_cjk": HERE / "find_cjk.py",
+    paths = {"find_cjk": HERE / "core" / "find_cjk.py",
              "phrase_check": HERE / "tools" / "phrase_check.py"}
     return [sys.executable, str(paths[modname]), *rest]
 
@@ -1543,7 +1543,7 @@ def main():
         args = sys.argv[i + 2:]
         try:
             if modname == "find_cjk":
-                import find_cjk
+                from core import find_cjk
                 sys.exit(find_cjk.main(args))
             import importlib
             m = importlib.import_module(f"tools.{modname}")

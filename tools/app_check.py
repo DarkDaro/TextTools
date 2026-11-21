@@ -4,7 +4,7 @@ app_check — самопроверка целостности приложени
 Свежая копия репозитория должна работать «из коробки». Проверка идёт
 только чтением, ничего на диск не пишется:
 
-1. ключевые файлы: CLI, GUI-модули, find_cjk, requirements.txt,
+1. ключевые файлы: CLI, GUI-модули, core/find_cjk, requirements.txt,
    pyproject.toml, LICENSE;
 2. папки: core, tools, wrappers, data, external, test;
 3. словари движков: tools/phrases*.yaml, tools/parasites.yaml, data/
@@ -32,7 +32,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_FILES = [
     "textools.py", "gui_ctk.pyw", "widgets_ctk.py", "review_dialog.py",
     "tabs_writers.py", "tabs_names.py", "tabs_vault.py", "tabs_clean.py",
-    "tabs_replace.py", "tabs_settings.py", "find_cjk.py",
+    "tabs_replace.py", "tabs_settings.py", "core/find_cjk.py",
     "requirements.txt", "pyproject.toml", "LICENSE", "README.md",
     "tools/phrases.yaml", "tools/phrases_clean.yaml", "tools/parasites.yaml",
     "data/resolve_db.yaml", "data/pathos_db.yaml",

@@ -61,7 +61,7 @@ def _run(input_path, limit=None, exit_zero=False, json_out=None,
          out_stream=None, out=None, plan=None):
     from tools import obsidian_check, integrity_check, merge_finder
     from tools import phrase_check, antiresolve
-    from find_cjk import main as cjk_main
+    from core.find_cjk import main as cjk_main
 
     checks = {}
     with tempfile.TemporaryDirectory() as td:

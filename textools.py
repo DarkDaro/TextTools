@@ -181,7 +181,7 @@ def main():
     p_int.add_argument("--json", dest="json_out",
                        help="сохранить отчёт в JSON («-» — в stdout)")
 
-    # 24.10: find_cjk из корня проекта — поиск иероглифов и мойбейка
+    # 21.11: find_cjk в core/ — поиск иероглифов и мойбейка
     p_cjk = sub.add_parser("cjk",
                            help="иероглифы (CJK), мойбейк и порча кодировки (только чтение)")
     p_cjk.add_argument("--input", required=True, help="папка или файл")
@@ -449,7 +449,7 @@ def main():
         sys.exit(obsidian_check.main(opts))
     if args.cmd == "cjk":
         sys.path.insert(0, str(here))
-        from find_cjk import main as cjk_main
+        from core.find_cjk import main as cjk_main
         opts = [args.input,
                 *(["--ext", args.ext] if args.ext else []),
                 *(["--json", args.json_out] if args.json_out else []),

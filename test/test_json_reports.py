@@ -112,7 +112,7 @@ def test_obsidian_out_stdout(tmp_path, capsys):
 def test_cjk_json_stdout(tmp_path, capsys):
     # 05.11: «--json -» — stdout целиком под JSON, отчёт уходит в stderr;
     # раньше создавался файл с именем «-», stdout оставался смесью текста
-    from find_cjk import main as cjk_main
+    from core.find_cjk import main as cjk_main
     (tmp_path / "чисто.md").write_text("без иероглифов\n", encoding="utf-8")
     code = cjk_main([str(tmp_path), "--json", "-", "--quiet"])
     assert code == 0

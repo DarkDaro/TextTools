@@ -15,7 +15,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(HERE))
 
-from find_cjk import DEFAULT_EXT, main, scan_file
+from core.find_cjk import DEFAULT_EXT, main, scan_file
 
 
 def _make_docx(path, paras):

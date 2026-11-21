@@ -13,11 +13,11 @@ core.docx_io (python-docx), находки ищутся в том же текс�
 находится по тем же паттернам.
 
 Запуск:
-    python find_cjk.py <путь>                # папка или файл
-    python find_cjk.py <путь> --ext .md,.txt # только эти расширения
-    python find_cjk.py <путь> --json out.json
-    python find_cjk.py <путь> --quiet        # только итог, без деталей
-    python find_cjk.py <путь> --exit-zero    # 0 даже при находках (для скриптов)
+    python core/find_cjk.py <путь>           # папка или файл
+    python core/find_cjk.py <путь> --ext .md,.txt  # только эти расширения
+    python core/find_cjk.py <путь> --json out.json
+    python core/find_cjk.py <путь> --quiet   # только итог, без деталей
+    python core/find_cjk.py <путь> --exit-zero  # 0 даже при находках (для скриптов)
 
 Код возврата: 0 — чисто, 1 — есть находки, 2 — путь не найден.
 Только чтение. Ничего не меняет и не исправляет.
@@ -31,7 +31,8 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+# 21.11: файл живёт в core/ — для прямого запуска в sys.path нужен корень проекта
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core.text_parser import stop_requested
 
 # Диапазоны, которых не должно быть в текстах проекта.
