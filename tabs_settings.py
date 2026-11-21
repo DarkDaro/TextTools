@@ -409,6 +409,40 @@ class SettingsTab(ctk.CTkFrame):
             CFG, width_label=230, placeholder="4",
             tooltip="Сколько помидоров в серии: от 1 до 12. Пусто или "
                     "не число — классические 4.")
+
+        # 22.11: пресеты таймера (по ревью Помодоро). 50/10 — режим
+        # владельца: 50 работы, 10 перерыв, 30 длинный после 4 помидоров.
+        # Кнопка заполняет поля; правка едет в конфиг и таймер через
+        # обычные трейсы, ничего нового не придумываем.
+        def _apply_preset(preset):
+            for field, val in (
+                    (self.f_pomo_work, preset["work_min"]),
+                    (self.f_pomo_short, preset["short_min"]),
+                    (self.f_pomo_long, preset["long_min"]),
+                    (self.f_pomo_rounds, preset["rounds"])):
+                field.var.set(str(val))
+                field._on_edit()
+            _push_pomodoro()
+
+        from core.pomodoro import PRESETS
+        row_preset = button_row(s_pomo.inner)
+        ctk.CTkLabel(row_preset, text="Пресет:", font=FONT_SMALL).pack(
+            side="left")
+        self.b_preset_25 = ActionButton(
+            row_preset, "25/5 (классика)",
+            command=lambda: _apply_preset(PRESETS["25/5"]),
+            kind="neutral", width=170,
+            tooltip="Классический Помодоро: 25 работы, 5 перерыв, "
+                    "15 длинный после 4 помидоров.")
+        self.b_preset_25.pack(side="left", padx=(8, 6), pady=3)
+        self.b_preset_50 = ActionButton(
+            row_preset, "50/10",
+            command=lambda: _apply_preset(PRESETS["50/10"]),
+            kind="primary", width=110,
+            tooltip="Режим владельца: 50 работы, 10 перерыв, 30 длинный "
+                    "после 4 помидоров — длинные интервалы глубокой "
+                    "работы.")
+        self.b_preset_50.pack(side="left", pady=3)
         self.c_pomo_auto_break = CheckField(
             s_pomo.inner, "Автоматически начинать перерыв",
             "pomo.auto_break", CFG, default=True,
