@@ -15,7 +15,10 @@ app_check — самопроверка целостности приложени
 5. внешние скрипты: автопоиск wrappers (external/ проверяется первым),
    ожидание — 5 из 5; при провале — подсказка про bundle_external.py;
 6. версии: textools.__version__ совпадает с верхней записью CHANGELOG.md;
-7. CLI поднимается: `python textools.py --help` отрабатывает без ошибки.
+7. CLI поднимается: `python textools.py --help` отрабатывает без ошибки;
+8. по флагу --gui — «живая» проверка (TD-05): gui_ctk.pyw запускается с
+   --selftest, окно строится, отрисовывается и закрывается само; сверяется
+   версия ядра и окна, число вкладок; сообщается конкретно, что не так.
 
 Код выхода: 0 — всё цело, 1 — есть провалы (предупреждения не считаются).
 """
@@ -64,8 +67,52 @@ def _app_version():
         return ""
 
 
-def run_checks():
-    """[(статус, проверка, деталь)] — ok / warn / fail."""
+EXPECTED_TABS = 8  # Писателям … Журнал
+
+
+def _gui_selftest(timeout=120):
+    """Живая проверка окна (TD-05). Запускает `gui_ctk.pyw --selftest`:
+    то же окно, что у пользователя, строится, отрисовывается и закрывается
+    само. Возврат — (статус, деталь) для run_checks."""
+    try:
+        r = subprocess.run(
+            [sys.executable, str(PROJECT_ROOT / "gui_ctk.pyw"), "--selftest"],
+            capture_output=True, text=True, timeout=timeout,
+            cwd=str(PROJECT_ROOT))
+    except subprocess.TimeoutExpired:
+        return "fail", (f"окно не отстроилось и не закрылось за {timeout} с "
+                        "(питон есть, окно — нет)")
+    except Exception as e:
+        return "fail", f"запуск не удался: {e}"
+    line = ""
+    for ln in reversed((r.stdout or "").splitlines()):
+        if ln.startswith("SELFTEST "):
+            line = ln[len("SELFTEST "):]
+            break
+    if not line:
+        tail = (r.stderr or "").strip().splitlines()
+        why = tail[-1][:200] if tail else f"код {r.returncode}"
+        return "fail", f"окно завершилось без диагностики ({why})"
+    try:
+        doc = json.loads(line)
+    except Exception:
+        return "fail", "диагностика окна не разобралась (не JSON)"
+    if not doc.get("ok"):
+        return "fail", f"окно не отстроилось: {doc.get('error') or 'без ошибки'}"
+    app_version = _app_version()
+    if app_version and doc.get("version") != app_version:
+        return "fail", (f"версия окна {doc.get('version')} ≠ версии ядра "
+                        f"{app_version}")
+    n = doc.get("tab_count")
+    if n != EXPECTED_TABS:
+        return "fail", f"вкладок {n}, ожидалось {EXPECTED_TABS} — вкладка потерялась"
+    return "ok", (f"окно отстроилось и закрылось: версия {doc.get('version')}, "
+                  f"вкладок {n}, customtkinter {doc.get('ctk') or 'н/д'}")
+
+
+def run_checks(live_gui=False):
+    """[(статус, проверка, деталь)] — ok / warn / fail. При live_gui
+    добавляется «живая» проверка окна (медленная, по запросу)."""
     res = []
 
     def add(status, name, detail=""):
@@ -153,6 +200,12 @@ def run_checks():
     except Exception as e:
         add("fail", "CLI", f"запуск не удался: {e}")
 
+    # 21.11 (TD-05): живая проверка — только по явному запросу (--gui):
+    # окно на секунды открывается и закрывается, это не «тихая» проверка
+    if live_gui:
+        status, detail = _gui_selftest()
+        add(status, "живое окно (selftest GUI)", detail)
+
     return res
 
 
@@ -162,9 +215,12 @@ def main(opts=None):
                     "внешние скрипты, версии (только чтение)")
     ap.add_argument("--json", dest="json_out",
                     help="отчёт в JSON («-» — в stdout)")
+    ap.add_argument("--gui", action="store_true",
+                    help="живая проверка: окно открывается, "
+                         "отрисовывается и закрывается")
     args = ap.parse_args(opts if opts is not None else [])
 
-    res = run_checks()
+    res = run_checks(live_gui=args.gui)
     fails = [x for x in res if x[0] == "fail"]
     warns = [x for x in res if x[0] == "warn"]
 

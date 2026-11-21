@@ -19,7 +19,7 @@ textools — единый CLI текстовых инструментов.
   cast               список персонажей без повторов в текстовый лог
   name-check         проверка придуманного имени/названия на занятость
   copy-doctor        поиск старых копий TextTools и ярлыков к ним
-  doctor             целостность приложения: файлы, зависимости, скрипты, версии
+  doctor             целостность приложения: файлы, зависимости, скрипты, версии (--gui — живая проверка окна)
   update             обновление с GitHub: --check (по умолчанию) / --apply
   meta-check         целостность метафайлов: README, GUIDE, карта, TECH_DEBT
   smoke              смоук всех подкоманд на полигоне (read-only + копия)
@@ -394,6 +394,9 @@ def main():
                                "внешние скрипты, версии (только чтение)")
     p_dr.add_argument("--json", dest="json_out",
                       help="отчёт в JSON («-» — в stdout)")
+    p_dr.add_argument("--gui", action="store_true",
+                      help="живая проверка: окно открывается, "
+                           "отрисовывается и закрывается")
 
     # 21.11: обновление с GitHub — единственная сетевая команда,
     # сеть трогается только по явному вызову
@@ -698,7 +701,8 @@ def main():
         sys.path.insert(0, str(here))
         from tools import app_check
         sys.exit(app_check.main(
-            [*( ["--json", args.json_out] if args.json_out else [])]))
+            [*( ["--json", args.json_out] if args.json_out else []),
+             *( ["--gui"] if getattr(args, "gui", False) else [])]))
     elif args.cmd == "check-all":
         sys.path.insert(0, str(here))
         from tools import full_check

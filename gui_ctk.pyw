@@ -1531,6 +1531,41 @@ def _stale_redirect():
         pass  # защита не имеет права сломать обычный запуск
 
 
+def _selftest():
+    """21.11 (TD-05): живая самопроверка окна — «запустился,
+    отрисовался, закрылся». Вызывается как `python gui_ctk.pyw
+    --selftest` (это делает doctor --gui); диагностика — одна строка
+    SELFTEST <json> в stdout, код 0 или 1. Без журнал-записей старта:
+    это диагностический прогон, а не рабочий сеанс."""
+    info = {"ok": False, "version": APP_VERSION,
+            "py": sys.version.split()[0], "ctk": "",
+            "tabs": [], "tab_count": 0, "error": ""}
+    try:
+        import json as _json
+        app = App()
+        app.update_idletasks()  # окно реально отрисовалось
+        app.update()
+        info["tabs"] = sorted(str(x) for x in app.nb._tab_dict)
+        info["tab_count"] = len(info["tabs"])
+        info["ctk"] = str(getattr(ctk, "__version__", ""))
+        app.destroy()
+        info["ok"] = True
+    except SystemExit as e:
+        info["error"] = f"SystemExit: {getattr(e, 'code', '')}"
+    except Exception as e:
+        info["error"] = f"{type(e).__name__}: {e}"
+        try:
+            _log_crash("selftest")
+        except Exception:
+            pass  # диагностика не имеет права упасть молча, но и сама не падает
+    try:
+        import json as _json
+        print("SELFTEST " + _json.dumps(info, ensure_ascii=False))
+    except Exception:
+        print(f"SELFTEST {info}")
+    sys.exit(0 if info["ok"] else 1)
+
+
 def main():
     sys.excepthook = _sys_excepthook  # 20.10: runtime падения тоже в журнал
     # 26.10 (exe): self-run внутренних инструментов. exe перезапускает
@@ -1558,6 +1593,12 @@ def main():
             except Exception:
                 pass
             sys.exit(1)
+    # 21.11 (TD-05): самопроверка окна для doctor --gui. До
+    # _stale_redirect: проверяется именно та копия, которую спросили,
+    # подмена на «свежую» здесь неуместна.
+    if "--selftest" in sys.argv:
+        _selftest()
+        return
     _stale_redirect()  # 08.11: старая копия не запускается — открываем свежую
     _log_info(f"START pid={os.getpid()} py={sys.version.split()[0]} "
               f"app={APP_VERSION} exe={sys.executable}")
