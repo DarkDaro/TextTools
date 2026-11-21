@@ -468,7 +468,9 @@ def _external_python():
     return _ext_python
 
 
-def run_cmd(cmd):
+def run_cmd(cmd, label=None):
+    # 21.11: label можно задать явно (ai_scan) — чтобы код 1 «есть
+    # находки» не показывался сбоем. Без label — как раньше, по скрипту.
     # Дружелюбное сообщение, если внешний скрипт не настроен или не найден.
     # 25.10: подробная подсказка и тост — один раз за сессию на скрипт,
     # дальше короткая строка, чтобы журнал не забивался одинаковым текстом.
@@ -539,7 +541,7 @@ def run_internal(modname, args):
     # на машине (3.14 с пакетами / 3.15 пустой) гарантированно тот же
     # интерпретатор, что питает сам GUI
     if _app.begin_run():
-        _app.runner.run(cmd)
+        _app.runner.run(cmd, label=label)
 
 
 _app = None
@@ -1369,9 +1371,10 @@ class App(ctk.CTk):
         # 05.11: full_check («проверить всё») — код 1 это серьёзные находки,
         # а не сбой; раньше профиль показывал «Ошибка» вместо замечаний.
         # 06.11: echo_finder — код 1 «эхо найдено», это результат, не сбой.
+        # 21.11: ai_scan — следы ИИ найдены, это результат, не сбой.
         if code == 1 and label in ("find_cjk", "obsidian_check",
                                    "phrase_check", "full_check",
-                                   "echo_finder"):
+                                   "echo_finder", "ai_scan"):
             self.status.configure(text="есть замечания")
             _toast_beep("warn")
             if _cfg_flag("toast_done", True):

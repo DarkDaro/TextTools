@@ -185,8 +185,11 @@ def script_path(key):
     return find_scripts().get(key, "")
 
 
-def cmd_emoji_clean(paths, dry_run=True, backup=False, restore=False):
-    """Чистка эмодзи/смайлов в txt/md/docx."""
+def cmd_emoji_clean(paths, dry_run=True, backup=False, restore=False,
+                    invisible=False, ws=False, ai_scan=False):
+    """Чистка эмодзи/смайлов в txt/md/docx.
+    21.11: невидимые символы (--invisible), нормализация табов и
+    пробелов (--ws), отчёт о следах ИИ (--ai-scan, только чтение)."""
     cmd = [sys.executable, script_path("emoji_cleaner"), *paths]
     if restore:
         cmd.append("--restore")
@@ -195,6 +198,12 @@ def cmd_emoji_clean(paths, dry_run=True, backup=False, restore=False):
             cmd.append("--dry-run")
         if backup:
             cmd.append("--backup")
+        if invisible:
+            cmd.append("--invisible")
+        if ws:
+            cmd.append("--ws")
+        if ai_scan:
+            cmd.append("--ai-scan")
     return cmd
 
 

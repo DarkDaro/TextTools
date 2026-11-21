@@ -88,6 +88,28 @@ class CleanTab(ctk.CTkFrame):
                 pass
         _sync_emoji()
 
+        # 21.11: следы ИИ — невидимые символы, табы/пробелы, отчёт
+        r2 = ctk.CTkFrame(s1.inner, fg_color="transparent")
+        r2.pack(fill="x", pady=(0, 4))
+        self.c_invisible = CheckField(
+            r2, "Невидимые символы", "emoji_invisible", CFG, default=False,
+            tooltip="Нулевые символы, двунаправленные метки, теги-водяные "
+                    "знаки ИИ, мягкий перенос — чистятся и в код-блоках.")
+        self.c_invisible.pack(side="left", padx=(0, 12))
+        self.c_ws = CheckField(
+            r2, "Пробелы и табы", "emoji_ws", CFG, default=False,
+            tooltip="Табы между словами - один пробел, необычные "
+                    "unicode-пробелы - обычный. Отступы и код не трогаются.")
+        self.c_ws.pack(side="left", padx=12)
+
+        self.b_ai = ActionButton(
+            row1, "Следы ИИ (отчёт)", self._run_ai_scan,
+            kind="safe", width=190,
+            tooltip="Только чтение: невидимые символы, слова с подменой "
+                    "алфавита (латиница/кириллица), в docx - скрытый и "
+                    "белый текст. Файлы не меняются.")
+        self.b_ai.pack(side="left", padx=(8, 0))
+
         # --- clean_text_files ---
         s2 = Section(parent, "2. Чистка мусора и CJK-символов",
                      subtitle="форматы: .txt, .md (только заметки)")
@@ -322,7 +344,19 @@ class CleanTab(ctk.CTkFrame):
         run_cmd(cmd_emoji_clean([p],
                                 dry_run=self.c_dry.get(),
                                 backup=self.c_bak.get(),
-                                restore=self.c_res.get()))
+                                restore=self.c_res.get(),
+                                invisible=self.c_invisible.get(),
+                                ws=self.c_ws.get()))
+
+    def _run_ai_scan(self):
+        # 21.11: отчёт о следах ИИ — только чтение, код 1 = «есть следы»
+        # (метка ai_scan в списке допуска, см. gui_ctk)
+        p = self.f_emoji.get()
+        if not p:
+            self._log("Укажите папку или файл.\n")
+            return
+        from gui_ctk import run_cmd
+        run_cmd(cmd_emoji_clean([p], ai_scan=True), label="ai_scan")
 
     def _run_clean_text(self):
         p = self.f_text.get()
