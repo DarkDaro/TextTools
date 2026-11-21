@@ -418,8 +418,12 @@ here to help you navigate):
 * **Replace (Замены)**: md_replace (4 modes), char_search, targeted
   single-word replacement, refile
 * **Pomodoro (Помодоро)**: a writer's timer for the Pomodoro
-  technique — 25 minutes of work, a 5-minute break, a long break
-  after the series; phase auto-start, daily counters (pomodoros
+  technique — presets 25/5 (classic) and 50/10 (50 minutes of work,
+  a 10-minute break, a 30-minute long break after the series); a
+  Task field, a session journal, an "Interruption" button with a
+  reason, a "Session report" (pomodoros, time, interruptions,
+  journal); a work-phase pause longer than 5 minutes marks the cycle
+  as interrupted; phase auto-start, daily counters (pomodoros
   and clean working time), fully offline; durations and auto-start
   live on the Settings tab; no CLI command (an interactive timer
   has nowhere to draw its countdown in a terminal)
@@ -520,7 +524,7 @@ Restoration lives on the Settings tab.
 The main suite is pytest:
 
 ```
-python -m pytest test/ -q             # 342 tests: engines, CLI, docx, pomodoro, GUI utilities, language, updater, fuses, AI traces
+python -m pytest test/ -q             # 353 tests: engines, CLI, docx, pomodoro, GUI utilities, language, updater, fuses, AI traces
 ```
 
 The GUI is checked by separate scripts in the root (they open a
