@@ -35,7 +35,8 @@ def test_fmt_date():
 
 
 def test_local_version_and_commit():
-    assert updater.local_version() == "1.8.5"
+    import textools
+    assert updater.local_version() == textools.__version__
     c = updater.local_commit()
     assert c == "" or (len(c) == 10 and c.islower())
 
@@ -103,10 +104,12 @@ def test_check_network_dead(monkeypatch, capsys):
 
 def test_check_api_dead_but_raw_alive(monkeypatch, capsys):
     # API часто в лимите: версия с raw спасает проверку
+    import textools
     monkeypatch.setattr(updater, "remote_commit", lambda root="": "")
     monkeypatch.setattr(updater, "local_commit", lambda root="": "")
-    assert updater.run_check(fetch=_fake_fetch(api_ok=False,
-                                               version="1.8.5")) is True
+    assert updater.run_check(
+        fetch=_fake_fetch(api_ok=False,
+                          version=textools.__version__)) is True
     assert "НЕТ" in capsys.readouterr().out
 
 

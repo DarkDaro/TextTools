@@ -16,7 +16,7 @@ a manuscript to hunt typos is the kind of work you burn out on before
 you finish the book; the program takes that work for itself.
 
 There are no clouds, no subscriptions and no artificial intelligence
-here. What there is: 32 CLI subcommands, a window with eight tabs,
+here. What there is: 32 CLI subcommands (33 names), a window with eight tabs,
 and your folder of texts, to which all of it is applied.
 
 Built for Russian-language prose in Obsidian: names and their
@@ -26,8 +26,12 @@ language is picked on the Settings tab (Russian/English), and stop
 words, parasites, cliché dictionaries and name search follow it;
 window strings switch per the pipeline in
 [docs/LOC_PLAN.md](docs/LOC_PLAN.md). It reads `.md`, `.txt` and
-`.docx` from local disk. It never touches the network, requires no
-accounts, collects no telemetry.
+`.docx` from local disk. It never touches the network unless you
+explicitly ask it to update itself: since 1.9.0 there is a button on
+the Settings tab, `python textools.py update`, and the update.bat
+script — all of them pull fresh files from GitHub over the existing
+installation while settings and logs stay put. Large vaults run under
+fuses: oversized files are skipped, long scans stop on their own.
 
 It was written for one repository and one author, not for a market.
 Hence the occurrence showcase, the Stop button and a report before
@@ -46,7 +50,7 @@ register of technical debt), [docs/AUDIT.md](docs/AUDIT.md)
 current state), [docs/CLI_GUI_MAP.md](docs/CLI_GUI_MAP.md)
 (CLI-to-GUI correspondence).
 Check whether your copy is intact with
-one command: `python textools.py doctor`. Version 1.8.5, Windows,
+one command: `python textools.py doctor`. Version 1.9.0, Windows,
 Python 3.10+, MIT license.
 
 ## Screenshots
@@ -509,7 +513,7 @@ Restoration lives on the Settings tab.
 The main suite is pytest:
 
 ```
-python -m pytest test/ -q             # 284 tests: engines, CLI, docx, pomodoro, GUI utilities, language
+python -m pytest test/ -q             # 323 tests: engines, CLI, docx, pomodoro, GUI utilities, language, updater, fuses
 ```
 
 The GUI is checked by separate scripts in the root (they open a
