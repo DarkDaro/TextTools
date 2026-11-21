@@ -221,6 +221,109 @@ def main():
         check("Ctrl+6 → «Помодоро»",
               app._current_tab == "Помодоро", app._current_tab)
 
+        # --- новые фичи сессии (22.11): задача, отвлечение, отчёт ---
+        check("поле «Задача» есть", hasattr(p, "e_task"))
+        check("кнопки «Отвлечение»/«Итог сессии» есть",
+              hasattr(p, "b_interrupt") and hasattr(p, "b_report"))
+
+        p.e_task.delete(0, "end")
+        p.e_task.insert(0, "Глава 3 — переработка диалога")
+        p.engine.set_task(p.e_task.get())
+        p.b_start.invoke()
+        pump(app, 0.2)
+        check("задача попала в движок",
+              p.engine.task == "Глава 3 — переработка диалога",
+              p.engine.task)
+
+        # «Отвлечение»: причина через диалог (get_input подменяем)
+        import customtkinter as _ctk
+        _orig_get_input = _ctk.CTkInputDialog.get_input
+        try:
+            _ctk.CTkInputDialog.get_input = (
+                lambda self: "звонок из банка")
+            p.b_interrupt.invoke()
+            pump(app, 0.2)
+            check("отвлечение записано в список",
+                  p.engine.interruptions == ["звонок из банка"],
+                  str(p.engine.interruptions))
+            check("отвлечение в журнале сессии",
+                  any(j["event"] == "interrupt"
+                      for j in p.engine.journal),
+                  str([j["event"] for j in p.engine.journal]))
+
+            _ctk.CTkInputDialog.get_input = lambda self: None
+            before = len(p.engine.interruptions)
+            p.b_interrupt.invoke()
+            pump(app, 0.2)
+            check("Esc/закрытие диалога ничего не записывает",
+                  len(p.engine.interruptions) == before,
+                  str(p.engine.interruptions))
+        finally:
+            _ctk.CTkInputDialog.get_input = _orig_get_input
+
+        # «Итог сессии»: завершаем работу до конца, потом отчёт
+        p.engine.tick(60 - 1)          # работа 1 мин — до конца фазы
+        deadline = time.time() + 8
+        while time.time() < deadline:
+            pump(app, 0.4)
+            if p.engine.phase == "short":
+                break
+        check("второй помидор дошёл до перерыва",
+              p.engine.phase == "short", p.engine.phase)
+        p.engine.pause()
+        p.b_report.invoke()
+        pump(app, 0.4)
+        rep = p.engine.session_report()
+        check("отчёт остановил таймер", p.engine.running is False)
+        check("в отчёте задача",
+              rep["task"] == "Глава 3 — переработка диалога", rep["task"])
+        check("в отчёте помидоры и отвлечение",
+              rep["done_pomodoros"] == 2  # один раньше + этот
+              and rep["interruptions"] == ["звонок из банка"],
+              str(rep["done_pomodoros"]) + " / "
+              + str(rep["interruptions"]))
+        check("журнал закрыт событием finish",
+              rep["journal"] and rep["journal"][-1]["event"] == "finish",
+              str(rep["journal"][-1:] if rep["journal"] else []))
+        titles = []
+        stack = list(app.winfo_children())
+        while stack:
+            w = stack.pop()
+            stack.extend(w.winfo_children())
+            try:
+                titles.append(w.title())
+            except Exception:
+                pass
+        check("окно отчёта открылось",
+              any(t == "Помодоро — итог сессии" for t in titles),
+              str([t for t in titles if "итог" in t or "textools" in t]))
+
+        # --- пресеты на «Настройках» (22.11) ---
+        check("кнопки пресетов есть",
+              hasattr(stt, "b_preset_25") and hasattr(stt, "b_preset_50"))
+        stt.b_preset_50.invoke()
+        pump(app, 1.0)
+        st50 = p.engine.state()["durations"]
+        check("пресет 50/10: поля 50/10/30/4",
+              stt.f_pomo_work.var.get() == "50"
+              and stt.f_pomo_short.var.get() == "10"
+              and stt.f_pomo_long.var.get() == "30"
+              and stt.f_pomo_rounds.var.get() == "4",
+              str([stt.f_pomo_work.var.get(), stt.f_pomo_short.var.get(),
+                   stt.f_pomo_long.var.get(), stt.f_pomo_rounds.var.get()]))
+        check("пресет 50/10 в движке",
+              st50 == {"work": 3000, "short": 600, "long": 1800}
+              and p.engine.state()["rounds"] == 4, str(st50))
+        stt.b_preset_25.invoke()
+        pump(app, 1.0)
+        check("пресет 25/5 вернул классику",
+              p.engine.state()["durations"]
+              == {"work": 1500, "short": 300, "long": 900}
+              and p.engine.state()["rounds"] == 4,
+              str(p.engine.state()["durations"]))
+        stt.f_pomo_work.set("1")       # вернуть 1 мин для порядка
+        pump(app, 0.5)
+
         app.destroy()
     except Exception as e:
         import traceback
