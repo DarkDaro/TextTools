@@ -203,3 +203,15 @@ def test_merge_finder_flags_accepted(tmp_path, capsys):
     out = capsys.readouterr().out
     assert rc == 0
     assert "Предохранитель" not in out  # ничего не сработало — тишина
+
+
+def test_config_string_value(monkeypatch, tmp_path):
+    # GUI хранит значения полей строками — «8» должно работать как число
+    import gui_config
+    cfg = tmp_path / "gui_config.json"
+    cfg.write_text(json.dumps({"fuse.max_mb": "8",
+                               "fuse.max_min": "0"}), encoding="utf-8")
+    monkeypatch.setattr(gui_config, "CONFIG_FILE", cfg)
+    f = Fuse(log=_quiet())
+    assert f.max_bytes == 8 * fuse.MB
+    assert f.deadline is None  # «0» в конфиге = выключен

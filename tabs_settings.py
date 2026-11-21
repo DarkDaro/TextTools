@@ -157,6 +157,24 @@ class SettingsTab(ctk.CTkFrame):
                     "1–60 минут (по умолчанию 10). Для очень больших "
                     "хранилищ увеличьте.")
         self.f_review_to.pack(fill="x")
+        # 21.11: предохранители от зависаний (core/fuse.py): пределы
+        # размера файла и времени обхода хранилищ; 0 = выключить
+        self.f_fuse_mb = EntryField(
+            s2.inner, "Предохранитель: файл, МБ:", "fuse.max_mb", CFG,
+            width_label=230, placeholder="64",
+            tooltip="Файлы крупнее N МБ обход хранилища пропускает и "
+                    "сообщает в журнале (по умолчанию 64). 0 — "
+                    "предохранитель выключен. Растёт и на CLI: "
+                    "--max-mb перекрывает это значение.")
+        self.f_fuse_mb.pack(fill="x")
+        self.f_fuse_min = EntryField(
+            s2.inner, "Предохранитель: время, мин:", "fuse.max_min", CFG,
+            width_label=230, placeholder="20",
+            tooltip="Обход хранилища сам останавливается через N минут "
+                    "(по умолчанию 20) — как кнопка «Стоп», только "
+                    "срабатывает сама. 0 — выключить. На CLI перекрывается "
+                    "флагом --max-min.")
+        self.f_fuse_min.pack(fill="x")
 
         # --- Проверки заметок (24.10) ---
         s_checks = Section(parent, "Проверки заметок")
@@ -321,6 +339,15 @@ class SettingsTab(ctk.CTkFrame):
         self.f_review_to.entry.bind(
             "<FocusOut>", lambda e: self._check_int_range(
                 self.f_review_to, 1, 60, 10, "Витрина, мин"), add="+")
+        # 21.11: предохранители — 0 разрешён (выключить)
+        self.f_fuse_mb.entry.bind(
+            "<FocusOut>", lambda e: self._check_int_range(
+                self.f_fuse_mb, 0, 4096, 64, "Предохранитель: файл, МБ"),
+            add="+")
+        self.f_fuse_min.entry.bind(
+            "<FocusOut>", lambda e: self._check_int_range(
+                self.f_fuse_min, 0, 240, 20, "Предохранитель: время, мин"),
+            add="+")
 
         # --- Язык (18.11, docs/LOC_PLAN.md): текстов и интерфейса.
         # Две независимые оси: text_lang — по каким правилам работают

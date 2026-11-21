@@ -40,13 +40,18 @@ MB = 1024 * 1024
 
 
 def _from_config(key):
-    """Число из gui_config.json или None (нет файла, битый JSON, не число)."""
+    """Число из gui_config.json или None (нет файла, битый JSON, не число).
+    GUI хранит значения полей строками — «64» и «64.5» тоже годятся."""
     try:
         from gui_config import CONFIG_FILE
         data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
         v = data.get(key)
         if isinstance(v, (int, float)) and v >= 0:
             return float(v)
+        if isinstance(v, str):
+            f = float(v.strip().replace(",", "."))
+            if f >= 0:
+                return f
     except Exception:
         pass
     return None
