@@ -318,16 +318,18 @@ class PomodoroTab(ctk.CTkFrame):
     def _on_interrupt(self):
         """«Отвлечение» — диалог причины (из ревью порция 3); причина
         в движок: список + журнал. Пустой ввод — «без причины».
-        Окно само закрывается через секунду-полторы, отсчёт не трогает."""
+        Esc/закрытие окна (get_input вернул None) — ничего не
+        записываем; отсчёт не трогается."""
         try:
             dlg = ctk.CTkInputDialog(
                 text="Что отвлекло? (Enter — записать, Esc — отмена)",
                 title="Помодоро — отвлечение")
-            reason = (dlg.get_input() or "").strip()
+            raw = dlg.get_input()
         except Exception:
             return
-        if reason is None:
+        if raw is None:
             return  # Esc/закрытие окна — ничего не записываем
+        reason = raw.strip()
         self.engine.add_interruption(reason)
         self._log(f"Помодоро: отвлечение записано — «{reason or 'без причины'}».")
         self._refresh()

@@ -524,7 +524,7 @@ Restoration lives on the Settings tab.
 The main suite is pytest:
 
 ```
-python -m pytest test/ -q             # 353 tests: engines, CLI, docx, pomodoro, GUI utilities, language, updater, fuses, AI traces
+python -m pytest test/ -q             # 355 tests: engines, CLI, docx, pomodoro, GUI utilities, language, updater, fuses, AI traces
 ```
 
 The GUI is checked by separate scripts in the root (they open a

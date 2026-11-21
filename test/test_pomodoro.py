@@ -12,7 +12,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(HERE))
 
-from core.pomodoro import (DEFAULTS, LONG, SHORT, WORK, PomodoroEngine,
+from core.pomodoro import (DEFAULTS, EV_PAUSE, EV_RESUME, EV_START, LONG,
+                           SHORT, WORK, PomodoroEngine,
                            clamp_min, clamp_rounds, ensure_day, fmt_mmss)
 
 
@@ -448,3 +449,37 @@ def test_skip_does_not_count_toward_session_done():
     e.start()
     e.skip()               # работа пропущена — помидор не засчитан
     assert e.session_done == 0
+
+
+def test_skip_from_pause_does_not_leak_pause_state():
+    """22.11: пауза перед «Пропустить фазу» не перетекает в следующую
+    фазу — иначе «Старт» в новой фазе писал бы в журнал resume вместо
+    start и проверял бы порог прерывания не в той фазе."""
+    e = make_engine()
+    e.start_session()
+    e.start()
+    e.pause()
+    e.skip()               # пауза -> SHORT, отсчёт стоит
+    assert e.phase == SHORT
+    e.start()
+    events = [j["event"] for j in e.journal]
+    assert events[-1] == EV_START   # resume после пропуска — ошибка
+    assert e.running is True
+
+
+def test_pause_threshold_not_checked_in_break_phase():
+    """Порог прерывания (5 мин) действует только в РАБОТЕ: длинная
+    пауза на перерыве — не отвлечение."""
+    e = make_engine(work_min=1, short_min=1)
+    e.start_session()
+    e.start()
+    e.tick(60)             # работа -> короткий перерыв
+    e.pause()
+    e.interrupt_threshold_min = 0  # порог = 0 с: пауза любой длины
+    e.start()              # пауза короткая, но порог нулевой
+    e.interrupt_threshold_min = 5
+    e.pause()
+    e.interrupt_threshold_min = 0
+    e.start()
+    assert [i for i in e.interruptions] == []
+    assert all(j["event"] != "interrupt" for j in e.journal)
