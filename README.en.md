@@ -167,6 +167,7 @@ functional deficit; that is its boundary.
 | Orphan notes, dead links, duplicates | `orphan-finder`, `broken-links`, `merge-finder` |
 | Obsidian silently breaks markup | `obsidian-check`: frontmatter, headings, tables, tags, code fences, links, text split character-by-character. Severity ERROR/WARN/INFO; `--fix` repairs the unambiguous and makes `.bak` |
 | Copy-paste smuggled in emoji, CJK, mojibake | `cjk` (find_cjk) and `utf8`; `cjk` also checks `.docx` (line number = paragraph number). `obsidian-check` catches `ENC_NOT_UTF8`. Emoji are cleaned by an external script, see "What's not here" |
+| The text went through a neural network and left traces: invisible watermarks, swapped characters | The emoji cleaner: `--ai-scan` is read-only and reports zero-width and tag characters (AI watermark carriers), mixed-script words ("аdон", "Oля"), hidden and white text in docx. `--invisible` strips invisibles, `--ws` normalizes spaces and tabs |
 | Files arrived in cp1251, koi8-r or cp866 | `utf8` detects the encoding and converts to UTF-8, with a report and backup |
 | Quotes, dashes and ellipses all over the place | `typography`: «guillemets» (including „inner quotes" and nested quotations), dashes, ellipses, dialogue dashes, optionally non-breaking spaces |
 | Clichés and filler | `phrase_check` against the `phrases.yaml` dictionary; the showcase lets you pick occurrences instead of accepting everything wholesale. `check-all --plan` assembles a rehearsal of the cleanup — a single plan of clichés and ANTIRESONANCE before any edit |
@@ -241,10 +242,15 @@ untouched.
 mass-replace, character search, refile and clean_text are the
 author's personal tools; they now ship inside the repository, in
 `external/`, and the "Auto" preset finds them without configuration.
-If the folder is empty or the scripts have moved, the button honestly
-says "not configured": paths are set on the Settings tab or carried
-over by `tools/bundle_external.py`. Check that all five are present:
-`python textools.py doctor`.
+The emoji cleaner also handles invisible junk: `--invisible` strips
+zero-width, bidirectional and tag characters, `--ws` normalizes
+spaces and tabs, and `--ai-scan` only reads the text and reports AI
+traces. In the GUI these are the "Invisible characters" and "Spaces
+and tabs" checkboxes and the "AI traces (report)" button on the
+emoji card. If the folder is empty or the scripts have moved, the
+button honestly says "not configured": paths are set on the Settings
+tab or carried over by `tools/bundle_external.py`. Check that all
+five are present: `python textools.py doctor`.
 
 **Not an Obsidian plugin.** It works with a folder on disk and does
 not live inside the app. It does not sync the vault either.
@@ -494,7 +500,8 @@ Restoration lives on the Settings tab.
 * `find_cjk.py`: search for CJK characters, mojibake and encoding
   corruption (CLI `cjk`, a card on the Vault tab)
 * `wrappers/`: building command lines for the external scripts
-  (emoji-cleaner, md-replace, char_search, refile, clean_text_files).
+  (emoji-cleaner — with invisible-cleanup modes and an AI-trace
+  report, md-replace, char_search, refile, clean_text_files).
   The scripts themselves live in `external/` inside the repository —
   the "Auto" preset checks it first. Next — beside the project (the
   base folder can be set with the `TEXTOOLS_SCRIPTS_DIR` variable);
