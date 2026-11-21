@@ -62,6 +62,34 @@ def now_stamp():
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def fmt_total(seconds):
+    """Чистое время работы по-человечески: до часа «N мин», дальше
+    «H ч M мин» (используется в отчёте сессии)."""
+    m = max(0, int(seconds)) // 60
+    if m < 60:
+        return f"{m} мин"
+    return f"{m // 60} ч {m % 60} мин"
+
+
+def session_report_lines(rep):
+    """Отчёт сессии строками для окна «Итог сессии» — формат из
+    ревью (порции 1–2): задача, помидоры, время, отвлечения, журнал."""
+    L = []
+    if rep.get("task"):
+        L.append(f"Задача: {rep['task']}")
+    L.append(f"Помидоров выполнено: {rep.get('done_pomodoros', 0)}")
+    L.append(f"Чистое время работы: {fmt_total(rep.get('work_seconds', 0))}")
+    intr = rep.get("interruptions", [])
+    L.append(f"Отвлечения: {', '.join(intr) if intr else '—'}")
+    L.append("")
+    L.append("Журнал сессии:")
+    for j in rep.get("journal", []):
+        note = f" — {j['note']}" if j.get("note") else ""
+        L.append(f"  {j['ts']}  [{j['event']}]  "
+                 f"{PHASE_TITLES.get(j.get('phase'), '')}{note}")
+    return L
+
+
 def clamp_min(value, default):
     """Длительность фазы в минутах: целое в границах LIMITS_MIN,
     иначе default. Пустая строка и мусор -> default (настройка просто

@@ -28,7 +28,8 @@ from gui_config import CFG
 from widgets_ctk import (HelpBox, Section, ActionButton, button_row,
                          FONT, FONT_SECTION, MONO_FAMILY)
 from core.pomodoro import (PHASE_TITLES, WORK, DEFAULTS, PomodoroEngine,
-                           clamp_min, clamp_rounds, ensure_day, fmt_mmss)
+                           clamp_min, clamp_rounds, ensure_day, fmt_mmss,
+                           session_report_lines)
 
 # цвета фаз: пара (светлая, тёмная) — CTk сам выбирает по теме.
 # Работа — фирменный фиолетовый акцент, перерывы — спокойный зелёный.
@@ -72,9 +73,14 @@ class PomodoroTab(ctk.CTkFrame):
             "работа в счёт не идёт; с паузы пропуск следующую фазу "
             "сам не запускает.\n"
             "• Длительности, серия и автостарт задаются на вкладке "
-            "«Настройки» (раздел «Помодоро») и применяются со следующей "
-            "фазы; пока таймер стоит в начале фазы — сразу. По классике "
-            "перерыв начинается сам, а работу начинает автор.\n"
+            "«Настройки» (раздел «Помодоро», есть пресет 50/10) и "
+            "применяются со следующей фазы; пока таймер стоит в начале "
+            "фазы — сразу. По классике перерыв начинается сам, а работу "
+            "начинает автор.\n"
+            "• Поле «Задача» называет работу цикла: название попадает "
+            "в журнал сессии и в итоговый отчёт. Кнопка «Отвлечение» "
+            "записывает причину, пауза дольше 5 минут в работе помечает "
+            "цикл прерванным.\n"
             "• Счётчики дня (раздел 2) ведутся по датам: в полночь "
             "начинаются с нуля. Статистика хранится офлайн — в "
             "gui_config.json рядом с программой.\n"
@@ -98,7 +104,14 @@ class PomodoroTab(ctk.CTkFrame):
         # --- 1. таймер ---
         s1 = Section(parent, "1. Таймер",
                      subtitle="классика: 25 работы · 5 перерыв · "
-                              "15 после 4 помидоров")
+                              "15 после 4 помидоров · пресет 50/10 — "
+                              "в «Настройках»")
+        row_task = ctk.CTkFrame(s1.inner, fg_color="transparent")
+        row_task.pack(fill="x", pady=(0, 2))
+        ctk.CTkLabel(row_task, text="Задача:", font=FONT).pack(side="left")
+        self.e_task = ctk.CTkEntry(row_task, width=280, font=FONT,
+                                   placeholder_text="над чем работаете?")
+        self.e_task.pack(side="left", padx=(8, 0), fill="x", expand=True)
         self.lbl_time = ctk.CTkLabel(
             s1.inner, text=fmt_mmss(self.engine.remaining),
             font=(MONO_FAMILY, 44, "bold"), text_color=COLOR_WORK)
@@ -126,6 +139,19 @@ class PomodoroTab(ctk.CTkFrame):
                     "в счёт помидоров не идёт. С паузы следующая фаза "
                     "ждёт «Старт».")
         self.b_skip.pack(side="left", pady=(8, 0))
+        row1b = button_row(s1.inner)
+        self.b_interrupt = ActionButton(
+            row1b, "Отвлечение", self._on_interrupt, kind="neutral",
+            width=150,
+            tooltip="Записать, что отвлекло от работы: причина попадёт "
+                    "в журнал сессии и в итоговый отчёт.")
+        self.b_interrupt.pack(side="left", pady=(2, 0))
+        self.b_report = ActionButton(
+            row1b, "Итог сессии", self._on_report, kind="neutral",
+            width=160,
+            tooltip="Завершить сессию и показать итог: помидоры, "
+                    "задача, отвлечения, журнал. Таймер останавливается.")
+        self.b_report.pack(side="left", padx=8, pady=(2, 0))
 
         # --- 2. сегодня ---
         s_today = Section(parent, "2. Сегодня",
@@ -262,6 +288,7 @@ class PomodoroTab(ctk.CTkFrame):
             # свежие настройки «Настроек» сразу: цикл подхватил бы их
             # за полсекунды, но старт в тот же миг — честнее применить
             self._apply_cfg()
+            self.engine.set_task(self.e_task.get())
             self.engine.start()
             self._last_ts = time.monotonic()
             self._log(f"Помодоро: {PHASE_TITLES[self.engine.phase].lower()} "
@@ -287,6 +314,52 @@ class PomodoroTab(ctk.CTkFrame):
         self._save_stats()
         self._log("Помодоро: дневные счётчики обнулены, таймер не тронут.")
         self._refresh()
+
+    def _on_interrupt(self):
+        """«Отвлечение» — диалог причины (из ревью порция 3); причина
+        в движок: список + журнал. Пустой ввод — «без причины».
+        Окно само закрывается через секунду-полторы, отсчёт не трогает."""
+        try:
+            dlg = ctk.CTkInputDialog(
+                text="Что отвлекло? (Enter — записать, Esc — отмена)",
+                title="Помодоро — отвлечение")
+            reason = (dlg.get_input() or "").strip()
+        except Exception:
+            return
+        if reason is None:
+            return  # Esc/закрытие окна — ничего не записываем
+        self.engine.add_interruption(reason)
+        self._log(f"Помодоро: отвлечение записано — «{reason or 'без причины'}».")
+        self._refresh()
+
+    def _on_report(self):
+        """«Итог сессии» — завершить сессию и показать отчёт (формат
+        ревью порций 1–2). Отсчёт останавливается; дневные счётчики
+        не трогаются (они уже учтены по ходу работы)."""
+        rep = self.engine.finish_session()
+        lines = session_report_lines(rep)
+        self._log("Помодоро: сессия завершена — "
+                  f"помидоров {rep['done_pomodoros']}, "
+                  f"отвлечений {len(rep['interruptions'])}.")
+        self._notify("Сессия завершена — итог на экране", "ok")
+        self._show_report_window("Помодоро — итог сессии", lines)
+        self._refresh()
+
+    def _show_report_window(self, title, lines):
+        try:
+            dlg = ctk.CTkToplevel(self)
+            dlg.title(title)
+            dlg.geometry("640x480")
+            dlg.transient(self.winfo_toplevel())
+            box = ctk.CTkTextbox(dlg, font=(MONO_FAMILY, 12), wrap="word")
+            box.pack(fill="both", expand=True, padx=10, pady=(10, 6))
+            box.insert("1.0", "\n".join(lines))
+            box.configure(state="disabled")
+            ctk.CTkButton(dlg, text="Закрыть", width=120,
+                          command=dlg.destroy).pack(pady=(0, 10))
+            dlg.after(200, dlg.lift)
+        except Exception:
+            pass  # окно закрывается — отчёт остаётся в журнале приложения
 
     # --- отображение ---
 
