@@ -22,6 +22,7 @@ textools — единый CLI текстовых инструментов.
   doctor             целостность приложения: файлы, зависимости, скрипты, версии
   update             обновление с GitHub: --check (по умолчанию) / --apply
   meta-check         целостность метафайлов: README, GUIDE, карта, TECH_DEBT
+  smoke              смоук всех подкоманд на полигоне (read-only + копия)
   style-report       стилистика: повторы слов рядом, длинные предложения
   stats              статистика текстов (объём, диалоги, паразиты)
   whitespace         чистка пробелов и пустых строк
@@ -407,6 +408,11 @@ def main():
                           help="целостность метафайлов: README, GUIDE, "
                                "карта CLI↔GUI, TECH_DEBT (только чтение)")
 
+    # 21.11: повышение из polygon_run.py — закрывает TD-04 (смоук всех
+    # подкоманд разом, read-only по полигону, пишущие по временной копии)
+    p_sm = sub.add_parser("smoke",
+                          help="смоук-прогон всех подкоманд на полигоне")
+
     args = ap.parse_args()
 
     here = Path(__file__).parent
@@ -681,6 +687,10 @@ def main():
         sys.path.insert(0, str(here))
         from tools import meta_check
         sys.exit(meta_check.main([]))
+    elif args.cmd == "smoke":
+        sys.path.insert(0, str(here))
+        from tools import cli_smoke
+        sys.exit(cli_smoke.main([]))
     elif args.cmd == "doctor":
         sys.path.insert(0, str(here))
         from tools import app_check
