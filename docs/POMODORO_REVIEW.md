@@ -648,6 +648,357 @@ def report(sid: str):
 * DeepSeek предлагает дополнительное (не выбрано): SQLite-персистенция,
   asyncio-версия, Tkinter-виджет.
 
+---
+
+### Порция 3 — 22.11.2026, источник: DeepSeek (прислал владелец)
+
+**Суть (слова владельца):** «Ниже — готовый Tkinter-виджет
+PomodoroWidget, который встраивается в любое окно (pack/grid/place),
+использует уже написанный PomodoroTracker и даёт: прогресс-бар,
+статус, кнопки Старт/Пауза/Продолжить/Стоп, поле задачи, счётчик
+циклов, кнопку „Отвлечение" и итоговый отчёт».
+
+Материал — три блока: `pomodoro_widget.py`, демо-запуск `demo.py`,
+список «что важно знать». DeepSeek перечислил возможные расширения
+(не выбрано): SQLite-персистенция (sessions, journal, interruptions),
+трей-иконка (pystray), звук/уведомление на смену фазы, вкладка
+настроек длительностей, экспорт отчёта в CSV/JSON; следующий шаг —
+SQLite + вкладка настроек, по словам DeepSeek «если нужно».
+
+#### 3.1. Файл pomodoro_widget.py (дословно)
+
+```python
+"""
+pomodoro_widget.py — Tkinter-виджет таймера-трекера Помодоро (50/10).
+
+Требует pomodoro.py (PomodoroTracker) в том же пакете/папке.
+
+Использование:
+    import tkinter as tk
+    from pomodoro_widget import PomodoroWidget
+
+    root = tk.Tk()
+    w = PomodoroWidget(root)
+    w.pack(fill="both", expand=True)
+    root.mainloop()
+"""
+
+from __future__ import annotations
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+from typing import Optional
+
+from pomodoro import PomodoroTracker, Phase
+
+
+class PomodoroWidget(ttk.Frame):
+    """Виджет Помодоро: таймер, прогресс, журнал, отчёт."""
+
+    TICK_MS = 500  # частота обновления UI (0.5 c — плавно и не грузит CPU)
+
+    def __init__(self, master, tracker: Optional[PomodoroTracker] = None, **kw):
+        super().__init__(master, padding=12, **kw)
+        self.tracker = tracker or PomodoroTracker()  # 50/10 по умолчанию
+        self._after_id: Optional[str] = None
+        self._build_ui()
+        self._set_controls_state(running=False)
+
+    # ---------- UI ----------
+
+    def _build_ui(self) -> None:
+        # --- Верхняя панель: задача и план ---
+        top = ttk.LabelFrame(self, text="Сессия", padding=8)
+        top.pack(fill="x", pady=(0, 8))
+
+        ttk.Label(top, text="Задача:").grid(row=0, column=0, sticky="w")
+        self.task_var = tk.StringVar(value="Ревью PR #142")
+        ttk.Entry(top, textvariable=self.task_var, width=40).grid(
+            row=0, column=1, sticky="we", padx=(6, 12)
+        )
+
+        ttk.Label(top, text="Циклов:").grid(row=0, column=2, sticky="w")
+        self.cycles_var = tk.IntVar(value=4)
+        ttk.Spinbox(top, from_=1, to=12, textvariable=self.cycles_var, width=4).grid(
+            row=0, column=3, sticky="w", padx=(6, 0)
+        )
+        top.columnconfigure(1, weight=1)
+
+        # --- Статус ---
+        status = ttk.LabelFrame(self, text="Статус", padding=8)
+        status.pack(fill="x", pady=(0, 8))
+
+        self.phase_var = tk.StringVar(value="IDLE")
+        self.cycle_var = tk.StringVar(value="—")
+        self.time_var = tk.StringVar(value="00:00")
+
+        ttk.Label(status, textvariable=self.phase_var,
+                  font=("Segoe UI", 14, "bold")).grid(row=0, column=0, sticky="w")
+        ttk.Label(status, textvariable=self.cycle_var,
+                  font=("Segoe UI", 11)).grid(row=0, column=1, sticky="e", padx=(12, 0))
+        ttk.Label(status, textvariable=self.time_var,
+                  font=("Consolas", 22, "bold")).grid(row=1, column=0, columnspan=2, pady=(4, 6))
+        status.columnconfigure(0, weight=1)
+
+        self.progress = ttk.Progressbar(status, orient="horizontal", mode="determinate", maximum=100)
+        self.progress.grid(row=2, column=0, columnspan=2, sticky="we")
+
+        # --- Кнопки ---
+        btns = ttk.Frame(self)
+        btns.pack(fill="x", pady=(0, 8))
+
+        self.btn_start = ttk.Button(btns, text="▶ Старт", command=self.on_start)
+        self.btn_pause = ttk.Button(btns, text="⏸ Пауза", command=self.on_pause)
+        self.btn_resume = ttk.Button(btns, text="⏵ Продолжить", command=self.on_resume)
+        self.btn_stop = ttk.Button(btns, text="■ Стоп", command=self.on_stop)
+        self.btn_interrupt = ttk.Button(btns, text="⚠ Отвлечение", command=self.on_interrupt)
+
+        for b in (self.btn_start, self.btn_pause, self.btn_resume, self.btn_stop, self.btn_interrupt):
+            b.pack(side="left", padx=(0, 6))
+
+        # --- Журнал ---
+        log = ttk.LabelFrame(self, text="Журнал", padding=8)
+        log.pack(fill="both", expand=True)
+        self.log_text = tk.Text(log, height=10, wrap="word", state="disabled",
+                                font=("Consolas", 9))
+        scroll = ttk.Scrollbar(log, orient="vertical", command=self.log_text.yview)
+        self.log_text.configure(yscrollcommand=scroll.set)
+        self.log_text.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+
+    # ---------- helpers ----------
+
+    def _set_controls_state(self, running: bool, paused: bool = False) -> None:
+        self.btn_start.state(["!disabled"] if not running else ["disabled"])
+        self.btn_pause.state(["!disabled"] if (running and not paused) else ["disabled"])
+        self.btn_resume.state(["!disabled"] if (running and paused) else ["disabled"])
+        self.btn_stop.state(["!disabled"] if running else ["disabled"])
+        self.btn_interrupt.state(["!disabled"] if running else ["disabled"])
+
+    def _log(self, msg: str) -> None:
+        self.log_text.configure(state="normal")
+        self.log_text.insert("end", msg + "\n")
+        self.log_text.see("end")
+        self.log_text.configure(state="disabled")
+
+    def _schedule_tick(self) -> None:
+        if self._after_id is not None:
+            self.after_cancel(self._after_id)
+        self._after_id = self.after(self.TICK_MS, self._tick)
+
+    # ---------- UI update ----------
+
+    def _update_ui(self) -> None:
+        st = self.tracker.status()
+        phase_label = {
+            Phase.IDLE: "ГОТОВ",
+            Phase.WORK: "РАБОТА",
+            Phase.SHORT_BREAK: "ПЕРЕРЫВ (короткий)",
+            Phase.LONG_BREAK: "ПЕРЕРЫВ (длинный)",
+            Phase.PAUSED: "ПАУЗА",
+            Phase.FINISHED: "ЗАВЕРШЕНО",
+        }.get(st.phase, st.phase.value)
+
+        if st.paused:
+            phase_label = "ПАУЗА"
+
+        self.phase_var.set(phase_label)
+        self.cycle_var.set(f"Цикл {st.cycle}/{st.cycles_planned}" if st.cycles_planned else "—")
+        m, s = divmod(st.remaining_sec, 60)
+        self.time_var.set(f"{m:02d}:{s:02d}")
+
+        if st.total_sec > 0:
+            done = (st.total_sec - st.remaining_sec) / st.total_sec * 100
+            self.progress["value"] = max(0.0, min(100.0, done))
+        else:
+            self.progress["value"] = 0
+
+    # ---------- events ----------
+
+    def on_start(self) -> None:
+        task = self.task_var.get().strip()
+        if not task:
+            messagebox.showwarning("Помодоро", "Укажи задачу.")
+            return
+        cycles = max(1, self.cycles_var.get())
+        self.log_text.configure(state="normal")
+        self.log_text.delete("1.0", "end")
+        self.log_text.configure(state="disabled")
+
+        self.tracker.start_session(task=task, cycles_planned=cycles)
+        self._log(f"▶ Старт сессии: «{task}», план {cycles} цикл(ов).")
+        self._set_controls_state(running=True, paused=False)
+        self._update_ui()
+        self._schedule_tick()
+
+    def on_pause(self) -> None:
+        self.tracker.pause()
+        self._log("⏸ Пауза.")
+        self._set_controls_state(running=True, paused=True)
+        self._update_ui()
+
+    def on_resume(self) -> None:
+        self.tracker.resume()
+        self._log("⏵ Продолжение.")
+        self._set_controls_state(running=True, paused=False)
+        self._update_ui()
+
+    def on_stop(self) -> None:
+        if not messagebox.askyesno("Помодоро", "Завершить сессию?"):
+            return
+        report = self.tracker.finish_session()
+        self._show_report(report)
+        if self._after_id is not None:
+            self.after_cancel(self._after_id)
+            self._after_id = None
+        self._set_controls_state(running=False)
+        self._update_ui()
+
+    def on_interrupt(self) -> None:
+        dlg = tk.Toplevel(self)
+        dlg.title("Отвлечение")
+        dlg.transient(self.winfo_toplevel())
+        dlg.grab_set()
+
+        ttk.Label(dlg, text="Что отвлекло?").pack(padx=10, pady=(10, 4))
+        var = tk.StringVar()
+        entry = ttk.Entry(dlg, textvariable=var, width=40)
+        entry.pack(padx=10)
+        entry.focus_set()
+
+        def ok():
+            reason = var.get().strip() or "без причины"
+            self.tracker.add_interruption(reason)
+            self._log(f"⚠ Отвлечение: {reason}")
+            dlg.destroy()
+
+        ttk.Button(dlg, text="OK", command=ok).pack(pady=8)
+        dlg.bind("<Return>", lambda e: ok())
+        dlg.wait_visibility()
+        self.wait_window(dlg)
+
+    # ---------- tick-loop ----------
+
+    def _tick(self) -> None:
+        prev_phase = self.tracker.phase
+        st = self.tracker.tick()
+        self._update_ui()
+
+        # логируем автопереходы фаз
+        if st.phase != prev_phase:
+            if st.phase == Phase.SHORT_BREAK:
+                self._log("☕ Короткий перерыв 10 мин.")
+            elif st.phase == Phase.LONG_BREAK:
+                self._log("🛋 Длинный перерыв 30 мин.")
+            elif st.phase == Phase.WORK:
+                self._log(f"▶ Цикл {st.cycle} — работа 50 мин.")
+            elif st.phase == Phase.FINISHED:
+                self._log("✅ Сессия завершена.")
+                self._show_report(self.tracker.report())
+                self._set_controls_state(running=False)
+                self._after_id = None
+                return
+
+        if st.phase in (Phase.IDLE, Phase.FINISHED):
+            self._after_id = None
+            return
+
+        self._schedule_tick()
+
+    # ---------- report ----------
+
+    def _show_report(self, report: dict) -> None:
+        dlg = tk.Toplevel(self)
+        dlg.title("Итог сессии")
+        dlg.transient(self.winfo_toplevel())
+        text = tk.Text(dlg, width=60, height=18, wrap="word", font=("Consolas", 9))
+        text.pack(fill="both", expand=True, padx=10, pady=10)
+
+        lines = [
+            f"Задача: {report.get('task', '')}",
+            f"Циклов выполнено: {report.get('cycles_completed', 0)} / {report.get('cycles_planned', 0)}",
+            f"Отвлечения: {', '.join(report.get('interruptions', [])) or '—'}",
+            "",
+            "Журнал:",
+        ]
+        for j in report.get("journal", []):
+            lines.append(f"  {j['ts']}  [{j['event']}]  cycle={j.get('cycle', '')}")
+        text.insert("1.0", "\n".join(lines))
+        text.configure(state="disabled")
+        ttk.Button(dlg, text="Закрыть", command=dlg.destroy).pack(pady=(0, 10))
+```
+
+#### 3.2. Демо-запуск demo.py (дословно)
+
+```python
+import tkinter as tk
+from tkinter import ttk
+from pomodoro_widget import PomodoroWidget
+
+def main():
+    root = tk.Tk()
+    root.title("Помодоро 50/10 — демо")
+    root.geometry("560x640")
+
+    style = ttk.Style(root)
+    try:
+        style.theme_use("clam")
+    except tk.TclError:
+        pass
+
+    w = PomodoroWidget(root)
+    w.pack(fill="both", expand=True)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
+```
+
+По словам DeepSeek: положить `pomodoro.py` и `pomodoro_widget.py`
+рядом, затем `python demo.py`.
+
+#### 3.3. «Что важно знать» (дословный список DeepSeek)
+
+* Автопереходы фаз обрабатываются в `_tick()` через `tracker.tick()` —
+  виджет только рисует.
+* Пауза останавливает datetime-таймер внутри трекера; UI просто
+  перерисовывает статус.
+* Отвлечение логируется в `tracker.interruptions` и в журнал; порог
+  5 мин на паузу — в трекере (при resume после долгой паузы в WORK
+  пишется interrupt).
+* Отчёт показывается и при ручном стопе, и при автозавершении после
+  последнего цикла.
+* Тик 500 мс — компромисс: плавно и без нагрузки; можно поменять
+  `TICK_MS`.
+* Персистенция не встроена: если нужна — сохранять `tracker.to_json()`
+  в файл/БД на `on_stop` и на закрытии окна, восстанавливать через
+  `PomodoroTracker.from_json` и передавать в
+  `PomodoroWidget(tracker=...)`.
+
+#### 3.4. Возможные расширения (перечислены DeepSeek, «если захотите»)
+
+1. Сохранение в SQLite — таблицы sessions, journal, interruptions.
+2. Трей-иконка (pystray) с обратным отсчётом в заголовке.
+3. Звук/уведомление на смену фазы (winsound / playsound / notifypy).
+4. Настройки длительности в отдельной вкладке (ttk.Notebook) —
+   «уже поддерживается PomodoroTracker(work_sec=...)».
+5. Экспорт отчёта в CSV/JSON через `tracker.to_json()`.
+
+#### 3.5. Факты для сверки (без оценок)
+
+* Виджет — **готовая UI-реализация на Tkinter/ttk** поверх трекера из
+  порции 2 (импортирует `from pomodoro import PomodoroTracker, Phase`);
+  связь с GUI TextTools (customtkinter, вкладка «Помодоро») в порции
+  не разбирается.
+* UI-элементы: поле задачи + Spinbox циклов (1–12), фаза/цикл/таймер,
+  прогресс-бар, 5 кнопок (Старт/Пауза/Продолжить/Стоп/Отвлечение),
+  журнал (Text+Scrollbar), модальные диалоги отвлечения и итогового
+  отчёта.
+* Тик UI — 500 мс через `after()` (в порции 2 рекомендовалось 1000 мс);
+  логика времени по-прежнему в трекере на datetime.
+* Расширения DeepSeek нарастают (SQLite, трей, звук, вкладка
+  настроек, CSV/JSON-экспорт) — ни одно не выбрано.
+
 ## Открытые вопросы
 
 1. Порция 1: материал — про отдельного агента-ассистента. Что берём
@@ -658,6 +1009,13 @@ def report(sid: str):
 3. Порция 2: pomodoro.py — уже готовая реализация, а не только схема.
    Не решено: встраивать как есть, вливать в текущий код вкладки
    «Помодоро» или держать как референс.
+4. Порция 3: pomodoro_widget.py — готовый Tkinter/ttk-виджет поверх
+   трекера из порции 2. Не решено: переносить ли его элементы в
+   вкладку «Помодоро» TextTools (GUI на customtkinter), брать как
+   есть или держать как референс. Пять расширений DeepSeek (SQLite,
+   трей, звук, вкладка настроек, экспорт) — ни одно не выбрано.
+5. Тик UI: в порции 2 рекомендовано after(1000), в порции 3 виджет
+   использует TICK_MS=500 — какой интервал брать, не решено.
 
 ## Итог разбора
 
