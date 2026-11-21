@@ -1,6 +1,6 @@
 @echo off
-rem TextTools - патник v4: обновляет программу, отключает старые копии,
-rem освежает ярлыки. 08.11: новый шаг [2/5] - tools\disable_stale_copies.ps1
+rem TextTools - патник v5: обновляет программу, отключает старые копии,
+rem освежает ярлыки, проверяет целостность (21.11, шаг doctor).
 rem переименовывает запускалки в других копиях TextTools на диске
 rem (*.СТАРАЯ_ОТКЛЮЧЕНА), чтобы старая версия не запускалась ни через
 rem какой батник; make_shortcuts.ps1 удаляет чужие/сломанные ярлыки
@@ -34,12 +34,12 @@ call :showver до
 echo.
 
 if exist ".git" if defined GITOK goto gitupdate
-echo  [1/5] Это не git-копия или git не найден - обновлю через zip.
+echo  [1/6] Это не git-копия или git не найден - обновлю через zip.
 call :zipupdate
 goto stale
 
 :gitupdate
-echo  [1/5] Git-копия: связываюсь с GitHub...
+echo  [1/6] Git-копия: связываюсь с GitHub...
 set "OLD="
 for /f %%i in ('git rev-parse --short HEAD 2^>nul') do set "OLD=%%i"
 git fetch origin main --quiet 2>nul
@@ -74,15 +74,15 @@ if errorlevel 1 (
 goto :eof
 
 :stale
-echo  [2/5] Отключаю запускалки в старых копиях на диске...
+echo  [2/6] Отключаю запускалки в старых копиях на диске...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\disable_stale_copies.ps1"
 
 :shortcuts
-echo  [3/5] Ярлыки на рабочем столе...
+echo  [3/6] Ярлыки на рабочем столе...
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\make_shortcuts.ps1"
 if errorlevel 1 echo        Ярлыки не создал - смотри причину выше.
 
-echo  [4/5] Проверяю, что обновление легло именно сюда...
+echo  [4/6] Проверяю, что обновление легло именно сюда...
 call :showver после
 
 set "FRESH="
@@ -95,7 +95,24 @@ if defined FRESH (
     echo        программу. Скажи мне путь, откуда запускаешь TextTools.
 )
 
-echo  [5/5] Готово. Это окно можно закрыть.
+echo  [5/6] Проверка целостности (doctor, без сети)...
+set "PYEXE="
+where python >nul 2>nul && set "PYEXE=python"
+if not defined PYEXE where py >nul 2>nul && set "PYEXE=py"
+if not defined PYEXE (
+    echo        Python не найден в PATH - проверку пропустил.
+    echo        В GUI она есть: Настройки - Проверка целостности.
+) else (
+    %PYEXE% textools.py doctor --json - >nul 2>nul
+    if errorlevel 1 (
+        echo        ЦЕЛОСТНОСТЬ: ПРОВАЛ. Запусти "python textools.py doctor"
+        echo        без --json и посмотри, чего не хватает.
+    ) else (
+        echo        Целостность: OK.
+    )
+)
+
+echo  [6/6] Готово. Это окно можно закрыть.
 echo.
 pause
 exit /b
