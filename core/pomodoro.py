@@ -14,6 +14,8 @@
 --work 25), он переиспользует этот же класс.
 """
 
+import time
+
 WORK = "work"      # сфокусированная работа
 SHORT = "short"    # короткий перерыв
 LONG = "long"      # длинный перерыв (после серии)
@@ -29,6 +31,35 @@ LIMITS_MIN = (1, 240)
 LIMITS_ROUNDS = (1, 12)
 
 DEFAULTS = {"work_min": 25, "short_min": 5, "long_min": 15, "rounds": 4}
+
+# пресеты таймера: классика и режим 50/10 владельца (22.11).
+# Значения подставляются в поля «Настроек», движку менять нечего —
+# это те же pomo.work_min/short_min/long_min/rounds.
+PRESETS = {
+    "25/5": {"work_min": 25, "short_min": 5, "long_min": 15, "rounds": 4},
+    "50/10": {"work_min": 50, "short_min": 10, "long_min": 30, "rounds": 4},
+}
+
+DEFAULT_INTERRUPT_THRESHOLD_MIN = 5  # пауза в работе дольше — прерывание
+
+# события журнала сессии: созвучно журналу DeepSeek (порция 2 ревью),
+# но без сериализации — журнал живёт в памяти сессии
+EV_START = "start"
+EV_PAUSE = "pause"
+EV_RESUME = "resume"
+EV_INTERRUPT = "interrupt"
+EV_NOTE = "note"
+EV_WORK_END = "work_end"
+EV_BREAK_END = "break_end"
+EV_WORK_START = "work_start"
+EV_BREAK_START = "break_start"
+EV_FINISH = "finish"
+
+
+def now_stamp():
+    """Таймстамп журнала сессии: 'YYYY-MM-DD HH:MM:SS' локального
+    времени (офлайн-приложение, локальный день читаемее UTC)."""
+    return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def clamp_min(value, default):
@@ -112,9 +143,20 @@ class PomodoroEngine:
         self.running = False
         # завершённые помидоры с последнего длинного перерыва
         self._round_in_series = 0
+        # всего завершённых помидоров за сессию (для итогового отчёта)
+        self.session_done = 0
         # чистое время завершённых помидоров за сессию (для дневной
         # статистики GUI и будущего CLI-режима)
         self.done_work_seconds = 0
+        # --- сессия (22.11, по материалу ревью DeepSeek): задача,
+        # журнал, отвлечения, порог прерывания ---
+        self.task = ""
+        self.interrupt_threshold_min = DEFAULT_INTERRUPT_THRESHOLD_MIN
+        self.journal = []      # [{"ts","event","phase","note"}]
+        self.interruptions = []  # строки-причины, порядок сохранения
+        self._pause_started = None  # time.monotonic() начала паузы
+        self._pause_accum = 0.0     # накопленная пауза текущей фазы
+        self._pause_counted = False  # прерывание уже записано за паузу
 
     # --- настройки ---
 
@@ -158,23 +200,117 @@ class PomodoroEngine:
             "done_work_seconds": self.done_work_seconds,
         }
 
+    # --- сессия: задача, журнал, отвлечения ---
+
+    def set_task(self, task):
+        """Назвать задачу цикла (правило «одна задача на цикл» из
+        спецификации ревью). Попадает в журнал и итоговый отчёт."""
+        self.task = str(task or "").strip()
+
+    def _log(self, event, note=""):
+        """Запись журнала сессии. Лишних строк не плодим: журнал —
+        только значимые события (старт/пауза/фазы/отвлечения)."""
+        self.journal.append({
+            "ts": now_stamp(),
+            "event": event,
+            "phase": self.phase,
+            "note": note,
+        })
+
+    def add_interruption(self, reason):
+        """Кнопка «Отвлечение»: причина — в список отвлечений и в
+        журнал (событие EV_INTERRUPT, note — причина)."""
+        reason = str(reason or "").strip() or "без причины"
+        self.interruptions.append(reason)
+        self._log(EV_INTERRUPT, note=reason)
+
+    def add_note(self, text):
+        """Произвольная пометка в журнал сессии."""
+        self._log(EV_NOTE, note=str(text or "").strip())
+
+    def _count_interrupt_if_needed(self):
+        """Правило из ревью: пауза в РАБОТЕ дольше порога (5 мин)
+        — цикл считается прерванным: событие EV_INTERRUPT с note.
+        Один раз на паузу; на перерывах порог не применяется."""
+        if self._pause_started is None or self._pause_counted:
+            return
+        self._pause_counted = True
+        secs = time.monotonic() - self._pause_started
+        if (self.phase == WORK
+                and secs >= self.interrupt_threshold_min * 60):
+            self._log(EV_INTERRUPT, note="пауза %d мин — цикл прерван"
+                      % max(1, int(secs // 60)))
+
+    def start_session(self, task=""):
+        """Новая сессия: задача, чистый журнал, чистые отвлечения,
+        таймер в начало первой работы, отсчёт остановлен (старт —
+        решает автор). Возвращает состояние."""
+        self.set_task(task)
+        self.journal = []
+        self.interruptions = []
+        self._pause_started = None
+        self._pause_accum = 0.0
+        self._pause_counted = False
+        self.reset()
+        self._log(EV_START, note=self.task)
+        return self.state()
+
+    def session_report(self):
+        """Итоговый отчёт сессии (формат из ревью порций 1–2):
+        задача, помидоры, чистое время работы, отвлечения, журнал."""
+        return {
+            "task": self.task,
+            "done_pomodoros": self.session_done,
+            "work_seconds": self.done_work_seconds,
+            "interruptions": list(self.interruptions),
+            "journal": list(self.journal),
+        }
+
+    def finish_session(self):
+        """Завершить сессию: стоп, событие EV_FINISH, отчёт."""
+        self.running = False
+        if self._pause_started is not None:
+            self._pause_accum += time.monotonic() - self._pause_started
+            self._pause_started = None
+        self._log(EV_FINISH)
+        return self.session_report()
+
     # --- управление ---
 
     def start(self):
+        if self._pause_started is not None:
+            # возобновление: порог прерывания проверяется ДО сброса
+            # таймера паузы (monotonic читается, пока пауза жива)
+            self._count_interrupt_if_needed()
+            self._pause_accum += time.monotonic() - self._pause_started
+            self._pause_started = None
+            self._log(EV_RESUME)
+        else:
+            self._pause_accum = 0.0
+            self._pause_counted = False
+            self._log(EV_START)
         self.running = True
 
     def pause(self):
+        if self.running:
+            self._pause_started = time.monotonic()
+            self._log(EV_PAUSE)
         self.running = False
 
     def toggle(self):
-        """Старт/пауза одним действием. Возвращает состояние running."""
-        self.running = not self.running
+        """Старт/пауза одним действием. Возвращает состояние running.
+        Идёт через pause()/start(), чтобы пауза учитывалась порогом
+        прерывания и журналом."""
+        (self.pause if self.running else self.start)()
         return self.running
 
     def reset(self):
         """В начало текущей фазы, отсчёт остановлен."""
         self.running = False
         self.remaining = self._durations[self.phase]
+        self._pause_started = None
+        self._pause_accum = 0.0
+        self._pause_counted = False
 
     def skip(self):
         """Перейти к следующей фазе сразу. Пропущенная работа в счёт
@@ -202,12 +338,20 @@ class PomodoroEngine:
         events = [("phase_end", self.phase)]
         if self.phase == WORK:
             self._round_in_series += 1
+            self.session_done += 1
             self.done_work_seconds += self._durations[WORK]
             events.append(("work_done", self._round_in_series))
+            self._log(EV_WORK_END)
+        else:
+            self._log(EV_BREAK_END)
         nxt = self._advance_phase()
         self.phase = nxt
         self.remaining = self._durations[nxt]
         self.running = self._auto_for(nxt)
+        if nxt in (SHORT, LONG):
+            self._log(EV_BREAK_START)
+        else:
+            self._log(EV_WORK_START)
         events.append(("phase_start", nxt))
         return events
 
