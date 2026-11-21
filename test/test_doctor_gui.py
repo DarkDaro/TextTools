@@ -11,6 +11,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import textools  # noqa: E402
 from tools.app_check import EXPECTED_TABS, _gui_selftest  # noqa: E402
 
 
@@ -30,7 +31,10 @@ class _FakeRun:
         return self
 
 
-def _payload(ok=True, version="1.9.1", tab_count=None, error=""):
+def _payload(ok=True, version=None, tab_count=None, error=""):
+    # версия по умолчанию — живая, чтобы тест не ломался на релизе
+    if version is None:
+        version = textools.__version__
     doc = {"ok": ok, "version": version, "py": "3.12.0", "ctk": "6.0.0",
            "tabs": ["Писателям"], "tab_count": EXPECTED_TABS,
            "error": error}
