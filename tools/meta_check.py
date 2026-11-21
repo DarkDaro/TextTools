@@ -28,7 +28,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # старые версии, которых в README быть не должно
-OLD_VERSIONS = ("1.9.0", "1.8.5", "1.8.4", "1.8.3", "1.6.0")
+OLD_VERSIONS = ("1.9.1", "1.9.0", "1.8.5", "1.8.4", "1.8.3", "1.6.0")
 
 
 def _plural(n, one, few, many):

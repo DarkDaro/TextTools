@@ -60,7 +60,7 @@ import argparse
 # (git fetch/merge, запасной zip), кнопки «Обновление и целостность»
 # на «Настройках», шаг doctor в update.bat v5; core/fuse.py —
 # предохранители от зависаний (лимит МБ, бюджет времени, stop.flag)
-__version__ = "1.9.1"
+__version__ = "1.9.2"
 
 
 def main():
