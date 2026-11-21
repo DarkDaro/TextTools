@@ -30,9 +30,10 @@ def _md_resolved(target, note, basenames, relpaths, attachments):
         return False
 
 
-def run(input_path, limit=None, verbose=False, out=None, json_out=None):
+def run(input_path, limit=None, verbose=False, out=None, json_out=None,
+        fuse=None):
     notes, basenames, relpaths, attachments = vs.scan_vault(
-        input_path, limit=limit)
+        input_path, limit=limit, fuse=fuse)
 
     broken = []  # (note, target) — вики
     for n in notes:
@@ -50,6 +51,9 @@ def run(input_path, limit=None, verbose=False, out=None, json_out=None):
     files_with_broken = sorted({n.rel for n, _ in broken})
     files_with_broken_md = sorted({n.rel for n, _ in broken_md})
     print(f"Заметок: {len(notes)}")
+    # 21.11: сводка предохранителей — пропущенные файлы и остановка
+    if fuse:
+        fuse.report()
     print(f"Битых вики-ссылок: {len(broken)} "
           f"в {len(files_with_broken)} файлах")
     print(f"Битых markdown-ссылок: {len(broken_md)} "
@@ -110,9 +114,14 @@ def main(argv=None):
     ap.add_argument("--out", help="файл отчёта")
     ap.add_argument("--json", dest="json_out",
                     help="сохранить отчёт в JSON («-» — в stdout)")
+    # 21.11: предохранители --max-mb/--max-min
+    from core.fuse import add_args as add_fuse_args
+    from core.fuse import from_args as fuse_from_args
+    add_fuse_args(ap)
     args = ap.parse_args(argv)
     return run(args.input, limit=args.limit, verbose=args.verbose,
-               out=args.out, json_out=args.json_out)
+               out=args.out, json_out=args.json_out,
+               fuse=fuse_from_args(args))
 
 
 if __name__ == "__main__":

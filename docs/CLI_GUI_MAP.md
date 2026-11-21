@@ -52,7 +52,7 @@
 
 | Карточка GUI | Движок | CLI | Ключи GUI | Ключи только CLI |
 |---|---|---|---|---|
-| Orphans / Битые ссылки / Дубликаты / Целостность | orphan_finder, broken_links, merge_finder, integrity_check | orphan-finder, broken-links, merge-finder, integrity | --input | --limit, --verbose, --out |
+| Orphans / Битые ссылки / Дубликаты / Целостность | orphan_finder, broken_links, merge_finder, integrity_check | orphan-finder, broken-links, merge-finder, integrity | --input | --limit, --verbose, --out, --max-mb, --max-min (21.11, предохранители) |
 | Проверить заметки | obsidian_check | obsidian-check | --input, --fix, --no-bak, --out | --exit-zero (для скриптов; в GUI код 1 честно показывается как «есть замечания») |
 | Найти иероглифы | find_cjk | cjk | --input (--ext берётся из настройки cjk_ext) | --json |
 | Проверить всё (6 проверок) | full_check | check-all | --input | --out, --plan, --json (план и машинные сводки — терминальные) |

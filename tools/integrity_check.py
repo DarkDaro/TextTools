@@ -60,7 +60,8 @@ def check_file(path):
     return issues
 
 
-def run(input_path, limit=None, verbose=False, out=None, json_out=None):
+def run(input_path, limit=None, verbose=False, out=None, json_out=None,
+        fuse=None):
     check_root(input_path)  # 05.11: пустой/несуществующий --input — ошибка
     root = Path(input_path)
     if root.is_file():
@@ -68,12 +69,25 @@ def run(input_path, limit=None, verbose=False, out=None, json_out=None):
     else:
         files = list(iter_md(root, limit))
 
+    # 21.11: предохранители — гигантский файл пропускается, стоп-файл
+    # и бюджет времени останавливают обход между файлами
+    if fuse is None:
+        from core.fuse import Fuse
+        fuse = Fuse()
+
     problems = []
+    seen = 0
     for p in files:
+        if not fuse.check():
+            break
+        if not fuse.allow_file(p):
+            continue
+        seen += 1
         for issue in check_file(p):
             problems.append((issue, p))
+    fuse.report()
 
-    print(f"Файлов проверено: {len(files)}")
+    print(f"Файлов проверено: {seen}")
     print(f"Проблем: {len(problems)}")
     if verbose and problems:
         for issue, p in problems[:40]:
@@ -84,7 +98,7 @@ def run(input_path, limit=None, verbose=False, out=None, json_out=None):
     if out:
         lines = ["# Integrity check", "",
                  f"Vault: {input_path}",
-                 f"Файлов: {len(files)}", f"Проблем: {len(problems)}", ""]
+                 f"Файлов: {seen}", f"Проблем: {len(problems)}", ""]
         for issue, p in problems:
             lines.append(f"- {issue}: {p}")
         write_report(out, "\n".join(lines))
@@ -93,7 +107,7 @@ def run(input_path, limit=None, verbose=False, out=None, json_out=None):
         write_json(json_out, {
             "tool": "integrity",
             "input": str(input_path),
-            "files": len(files),
+            "files": seen,
             "problems": [{"file": str(p), "issue": issue}
                          for issue, p in problems],
         })
@@ -109,9 +123,14 @@ def main(argv=None):
     ap.add_argument("--out", help="файл отчёта")
     ap.add_argument("--json", dest="json_out",
                     help="сохранить отчёт в JSON («-» — в stdout)")
+    # 21.11: предохранители --max-mb/--max-min
+    from core.fuse import add_args as add_fuse_args
+    from core.fuse import from_args as fuse_from_args
+    add_fuse_args(ap)
     args = ap.parse_args(argv)
     return run(args.input, limit=args.limit, verbose=args.verbose,
-               out=args.out, json_out=args.json_out)
+               out=args.out, json_out=args.json_out,
+               fuse=fuse_from_args(args))
 
 
 if __name__ == "__main__":

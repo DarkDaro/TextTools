@@ -152,6 +152,11 @@ def main():
         p.add_argument("--out")
         p.add_argument("--json", dest="json_out",
                        help="сохранить отчёт в JSON («-» — в stdout)")
+        # 21.11: предохранители от зависаний (core/fuse.py)
+        p.add_argument("--max-mb", type=float,
+                       help="пропускать файлы крупнее N МБ (0 — выключить)")
+        p.add_argument("--max-min", type=float,
+                       help="остановиться через N минут обхода (0 — выключить)")
 
     p_int = sub.add_parser("obsidian-check",
                            help="валидатор метафайлов Obsidian: таблицы, заголовки, теги, frontmatter")
@@ -405,7 +410,10 @@ def main():
                 *(["--limit", str(args.limit)] if args.limit is not None else []),
                 *(["--verbose"] if args.verbose else []),
                 *(["--out", args.out] if args.out else []),
-                *(["--json", args.json_out] if args.json_out else [])]
+                *(["--json", args.json_out] if args.json_out else []),
+                # 21.11: предохранители — проброс в инструменты
+                *(["--max-mb", str(args.max_mb)] if args.max_mb is not None else []),
+                *(["--max-min", str(args.max_min)] if args.max_min is not None else [])]
         sys.exit(mod.main(opts))
     if args.cmd == "obsidian-check":
         sys.path.insert(0, str(here))

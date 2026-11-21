@@ -35,15 +35,19 @@ def build_incoming(notes, basenames, relpaths):
     return has_incoming
 
 
-def run(input_path, limit=None, verbose=False, out=None, json_out=None):
+def run(input_path, limit=None, verbose=False, out=None, json_out=None,
+        fuse=None):
     notes, basenames, relpaths, _attachments = vs.scan_vault(
-        input_path, limit=limit)
+        input_path, limit=limit, fuse=fuse)
     has_incoming = build_incoming(notes, basenames, relpaths)
     orphans = [n for n in notes
                if not n.links  # нет исходящих
                and n not in has_incoming]
     print(f"Заметок: {len(notes)}")
     print(f"Orphan (нет входящих и исходящих ссылок): {len(orphans)}")
+    # 21.11: сводка предохранителей — пропущенные файлы и остановка
+    if fuse:
+        fuse.report()
 
     if verbose and orphans:
         for n in orphans[:40]:
@@ -78,9 +82,14 @@ def main(argv=None):
     ap.add_argument("--out", help="файл отчёта")
     ap.add_argument("--json", dest="json_out",
                     help="сохранить отчёт в JSON («-» — в stdout)")
+    # 21.11: предохранители --max-mb/--max-min
+    from core.fuse import add_args as add_fuse_args
+    from core.fuse import from_args as fuse_from_args
+    add_fuse_args(ap)
     args = ap.parse_args(argv)
     return run(args.input, limit=args.limit, verbose=args.verbose,
-               out=args.out, json_out=args.json_out)
+               out=args.out, json_out=args.json_out,
+               fuse=fuse_from_args(args))
 
 
 if __name__ == "__main__":

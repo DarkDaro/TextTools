@@ -158,3 +158,48 @@ def test_scan_vault_plain_works(tmp_path):
     assert len(notes) == 1
     assert bn == {"a"}
     assert rp == {"a"}
+
+
+# --- интеграция: флаги доезжают до инструментов ------------------------
+
+def test_orphan_finder_max_mb_flag(tmp_path, capsys):
+    from tools import orphan_finder
+    big = _vault_with_big(tmp_path)
+    rc = orphan_finder.main(["--input", str(tmp_path), "--max-mb", "0.001"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "Предохранитель" in out and big.name in out
+
+
+def test_integrity_max_mb_flag(tmp_path, capsys):
+    from tools import integrity_check
+    (tmp_path / "a.md").write_text("## A\nтекст", encoding="utf-8")
+    big = tmp_path / "big.md"
+    big.write_bytes(b"x" * (fuse.MB + 50_000))
+    rc = integrity_check.main(["--input", str(tmp_path), "--max-mb", "1"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert big.name in out
+    assert "Файлов проверено: 1" in out
+
+
+def test_integrity_zero_disables(tmp_path, capsys):
+    from tools import integrity_check
+    (tmp_path / "a.md").write_text("## A\nтекст", encoding="utf-8")
+    big = tmp_path / "big.md"
+    big.write_bytes(b"x" * 300)
+    rc = integrity_check.main(["--input", str(tmp_path), "--max-mb", "0"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "Предохранитель" not in out
+    assert "Файлов проверено: 2" in out
+
+
+def test_merge_finder_flags_accepted(tmp_path, capsys):
+    from tools import merge_finder
+    (tmp_path / "a.md").write_text("# A\nтекст", encoding="utf-8")
+    rc = merge_finder.main(["--input", str(tmp_path),
+                            "--max-mb", "1", "--max-min", "30"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "Предохранитель" not in out  # ничего не сработало — тишина

@@ -121,13 +121,17 @@ def _extra_text_notes(input_path, limit=None):
     return extra
 
 
-def run(input_path, limit=None, verbose=False, out=None, json_out=None):
+def run(input_path, limit=None, verbose=False, out=None, json_out=None,
+        fuse=None):
     notes, basenames, relpaths, _attachments = vs.scan_vault(
-        input_path, limit=limit)
+        input_path, limit=limit, fuse=fuse)
     # 05.11: txt/docx — в дубликаты (главы в Word раньше выпадали)
     extra = _extra_text_notes(input_path, limit=limit)
     notes = notes + extra
     n_md = len(notes) - len(extra)
+    # 21.11: сводка предохранителей — пропущенные файлы и остановка
+    if fuse:
+        fuse.report()
 
     # 1. точные дубликаты по нормализованному содержимому
     by_hash = {}
@@ -219,9 +223,14 @@ def main(argv=None):
     ap.add_argument("--out", help="файл отчёта")
     ap.add_argument("--json", dest="json_out",
                     help="сохранить отчёт в JSON («-» — в stdout)")
+    # 21.11: предохранители --max-mb/--max-min
+    from core.fuse import add_args as add_fuse_args
+    from core.fuse import from_args as fuse_from_args
+    add_fuse_args(ap)
     args = ap.parse_args(argv)
     return run(args.input, limit=args.limit, verbose=args.verbose,
-               out=args.out, json_out=args.json_out)
+               out=args.out, json_out=args.json_out,
+               fuse=fuse_from_args(args))
 
 
 if __name__ == "__main__":

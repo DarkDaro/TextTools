@@ -108,9 +108,11 @@ class Fuse:
             except OSError:
                 return True
             if size > self.max_bytes:
-                mb = size / MB
-                self.skipped.append(
-                    (str(path), f"{mb:.1f} МБ > {self.max_mb:g} МБ"))
+                if size < MB:  # мелкие — в КБ, чтобы не было «0.0 МБ»
+                    why = f"{size / 1024:.0f} КБ > {self.max_mb:g} МБ"
+                else:
+                    why = f"{size / MB:.1f} МБ > {self.max_mb:g} МБ"
+                self.skipped.append((str(path), why))
                 return False
         return True
 
