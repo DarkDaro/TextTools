@@ -325,3 +325,126 @@ def test_ensure_day_garbage_is_safe():
     bad = {"day": "2026-11-23", "work_done": "много", "work_seconds": None}
     out = ensure_day(bad, "2026-11-23")
     assert out["work_done"] == 0 and out["work_seconds"] == 0
+
+
+# --- сессия: задача, журнал, отвлечения, порог (22.11, ревью) --------------
+
+def test_presets_defined():
+    # пресеты: классика и 50/10 владельца (порция 5 ревью)
+    from core.pomodoro import PRESETS
+    assert PRESETS["25/5"] == {"work_min": 25, "short_min": 5,
+                               "long_min": 15, "rounds": 4}
+    assert PRESETS["50/10"] == {"work_min": 50, "short_min": 10,
+                                "long_min": 30, "rounds": 4}
+
+
+def test_set_task_strips_and_tolerates_none():
+    e = make_engine()
+    e.set_task("  Ревью главы 3  ")
+    assert e.task == "Ревью главы 3"
+    e.set_task(None)
+    assert e.task == ""
+    e.set_task("   ")
+    assert e.task == ""
+
+
+def test_start_session_clears_and_logs():
+    e = make_engine()
+    e.set_task("старая задача")
+    e.add_interruption("почта")
+    e.start_session("Новая глава")
+    assert e.task == "Новая глава"
+    assert e.interruptions == []
+    assert [j["event"] for j in e.journal] == ["start"]
+    assert e.journal[0]["note"] == "Новая глава"
+    assert e.running is False
+    assert e.remaining == e._durations[WORK]
+
+
+def test_journal_records_phases_and_counts():
+    e = make_engine(work_min=1, short_min=1, long_min=1, rounds=1)
+    e.start_session("глава")
+    e.start()
+    cycle_work(e)
+    events = [j["event"] for j in e.journal]
+    assert events[0] == "start"
+    assert "work_end" in events
+    assert "break_start" in events
+    assert e.session_done == 1
+
+
+def test_add_interruption_goes_to_both_places():
+    e = make_engine()
+    e.start_session()
+    e.add_interruption("звонок")
+    e.add_interruption("")  # пустая причина -> «без причины»
+    assert e.interruptions == ["звонок", "без причины"]
+    intr = [j for j in e.journal if j["event"] == "interrupt"]
+    assert [j["note"] for j in intr] == ["звонок", "без причины"]
+
+
+def test_short_pause_in_work_is_not_interrupt():
+    e = make_engine()
+    e.start_session("задача")
+    e.start()
+    e.pause()               # пауза короче порога
+    e.start()
+    assert e.interruptions == []
+    assert not any(j["event"] == "interrupt" for j in e.journal)
+    assert any(j["event"] == "pause" for j in e.journal)
+    assert any(j["event"] == "resume" for j in e.journal)
+
+
+def test_long_pause_in_work_counts_interrupt(monkeypatch):
+    t = {"v": 100.0}
+    monkeypatch.setattr("core.pomodoro.time.monotonic",
+                        lambda: t["v"])
+    e = make_engine()
+    e.start_session("задача")
+    e.start()
+    e.pause()          # t=100
+    t["v"] += 6 * 60   # пауза длилась 6 минут — больше порога в 5
+    e.start()
+    assert e.interruptions == []  # в списке отвлечений нет: пауза не кнопка
+    intr = [j for j in e.journal if j["event"] == "interrupt"]
+    assert len(intr) == 1
+    assert "цикл прерван" in intr[0]["note"]
+
+
+def test_interrupt_threshold_not_applied_to_breaks():
+    e = make_engine(work_min=1, short_min=1, rounds=2)
+    e.start_session()
+    e.start()
+    cycle_work(e)          # работа закончилась, начался перерыв
+    e.pause()              # «долгая пауза», но фаза — перерыв
+    e.start()
+    assert not any(j["event"] == "interrupt" for j in e.journal)
+
+
+def test_pause_on_stopped_engine_no_duplicates():
+    e = make_engine()
+    e.pause()              # таймер и так стоит — событий нет
+    e.pause()
+    assert not any(j["event"] == "pause" for j in e.journal)
+
+
+def test_finish_session_report():
+    e = make_engine(work_min=1, short_min=1, long_min=1, rounds=2)
+    e.start_session("Ревью PR #142")
+    e.start()
+    cycle_work(e)          # 1 помидор
+    rep = e.finish_session()
+    assert rep["task"] == "Ревью PR #142"
+    assert rep["done_pomodoros"] == 1
+    assert rep["work_seconds"] == 60
+    assert rep["interruptions"] == []
+    assert [j["event"] for j in rep["journal"]][-1] == "finish"
+    assert e.running is False
+
+
+def test_skip_does_not_count_toward_session_done():
+    e = make_engine()
+    e.start_session()
+    e.start()
+    e.skip()               # работа пропущена — помидор не засчитан
+    assert e.session_done == 0
