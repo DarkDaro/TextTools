@@ -13,7 +13,7 @@ sys.path.insert(0, str(HERE))
 
 from tools import (orphan_finder, broken_links, merge_finder,
                    integrity_check, utf8_convert, phrase_check,
-                   obsidian_check)
+                   obsidian_check, registry_builder, cast_list)
 from core.report import write_json
 
 
@@ -121,3 +121,34 @@ def test_cjk_json_stdout(tmp_path, capsys):
     assert data["results"] == {}
     assert data["scanned"] == 1
     assert "ЧИСТО" in captured.err  # человеческий отчёт не потерян
+
+
+def test_registry_dash_stdout(tmp_path, capsys, monkeypatch):
+    # 21.11: «--out -» у registry-builder печатает YAML в stdout —
+    # раньше save_registry создавал файл с именем «-» (его увидел smoke:
+    # файл рос в корне репозитория и ронял два stdout-теста)
+    monkeypatch.chdir(tmp_path)
+    # кандидат = слово с заглавной в середине предложения («мастер»
+    # сидит в стоп-листе, поэтому нейтральный «Полигон»)
+    (tmp_path / "текст.md").write_text(
+        "Ждал Полигон, Полигон спешил.\n", encoding="utf-8")
+    rc = registry_builder.run(str(tmp_path), out="-", min_count=2)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "имя: полигон" in out  # YAML кандидатов дошёл до stdout
+    assert "Сохранено" not in out
+    assert not (Path.cwd() / "-").exists()
+
+
+def test_cast_list_dash_stdout(tmp_path, capsys, monkeypatch):
+    # 21.11: «--out -» у cast-list печатает лог в stdout —
+    # раньше шла прямая write_text мимо stdout-конвенции
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "текст.md").write_text(
+        "Полигон ждал полигон, полигон спешил\n", encoding="utf-8")
+    rc = cast_list.run(str(tmp_path), out="-")
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "# Персонажи" in out  # лог дошёл до stdout
+    assert "Лог: -" not in out
+    assert not (Path.cwd() / "-").exists()

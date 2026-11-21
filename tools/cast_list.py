@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core import lang as lang_mod
 from core import text_parser as tp
+from core.report import write_report
 
 # Имя: заглавная + строчные, возможно через дефис (Анна-Мария).
 # АББРЕВИАТУРЫ (СВГ, ОБС) отсечены: после заглавной обязательны строчные.
@@ -155,8 +156,9 @@ def run(input_path, out=None, min_count=1, lang=None):
         L += ["", "## Возможные ошибки: одно имя пишется по-разному", ""]
         for base, sp in variants.items():
             L.append(" / ".join(f"{w} ({single[w]})" for w in sp))
-    out_path.write_text("\n".join(L) + "\n", encoding="utf-8")
-    print(f"\nЛог: {out_path}")
+    write_report(out_path, "\n".join(L) + "\n")  # «-» = stdout (21.11)
+    if str(out_path).strip() != "-":
+        print(f"\nЛог: {out_path}")
     return 0
 
 

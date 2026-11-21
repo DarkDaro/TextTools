@@ -53,7 +53,14 @@ def load_registry(path):
 
 def save_registry(path, chars):
     """Сохраняет реестр (UTF-8, читаемый вид). 20.10: атомарно — через
-    временный файл и os.replace, сбой посреди записи не теряет реестр."""
+    временный файл и os.replace, сбой посреди записи не теряет реестр.
+    21.11: «-» вместо пути печатает YAML в stdout — общая конвенция
+    «--out -» (как write_report в core/report.py); раньше молча
+    создавался файл с именем «-»."""
+    if str(path).strip() == "-":
+        print(yaml.safe_dump(chars, allow_unicode=True, sort_keys=False,
+                             default_flow_style=None, width=100), end="")
+        return
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = Path(str(path) + ".tmp")

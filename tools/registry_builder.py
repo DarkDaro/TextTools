@@ -74,7 +74,8 @@ def run(input_path, out=None, registry=None, min_count=2, limit=None,
                  + [{"имя": w, "формы": [w], "пар": c, "составное": True}
                     for w, c in sorted(bi.items(), key=lambda x: -x[1])])
         nr.save_registry(out, items)
-        print(f"\nСохранено: {out}")
+        if str(out).strip() != "-":  # «-» = stdout, «Сохранено» не печатаем
+            print(f"\nСохранено: {out}")
         if verbose:
             for it in items[:40]:
                 extra = f" (пар: {it.get('пар')})" if it.get("пар") else ""
