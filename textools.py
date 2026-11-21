@@ -20,6 +20,7 @@ textools — единый CLI текстовых инструментов.
   name-check         проверка придуманного имени/названия на занятость
   copy-doctor        поиск старых копий TextTools и ярлыков к ним
   doctor             целостность приложения: файлы, зависимости, скрипты, версии
+  update             обновление с GitHub: --check (по умолчанию) / --apply
   style-report       стилистика: повторы слов рядом, длинные предложения
   stats              статистика текстов (объём, диалоги, паразиты)
   whitespace         чистка пробелов и пустых строк
@@ -380,6 +381,16 @@ def main():
     p_dr.add_argument("--json", dest="json_out",
                       help="отчёт в JSON («-» — в stdout)")
 
+    # 21.11: обновление с GitHub — единственная сетевая команда,
+    # сеть трогается только по явному вызову
+    p_up = sub.add_parser("update",
+                          help="обновление с GitHub: проверка (по "
+                               "умолчанию) или --apply")
+    p_up.add_argument("--apply", action="store_true",
+                      help="скачать и применить обновление")
+    p_up.add_argument("--check", action="store_true",
+                      help="только проверить (по умолчанию)")
+
     args = ap.parse_args()
 
     here = Path(__file__).parent
@@ -640,6 +651,13 @@ def main():
         fwd += (["--new-shortcut"] if args.new_shortcut else [])
         fwd += (["--roots", args.roots] if args.roots else [])
         sys.exit(copy_doctor.main(fwd))
+    elif args.cmd == "update":
+        sys.path.insert(0, str(here))
+        from tools import updater
+        # 21.11: сеть только по явной команде; без флагов — проверка
+        fwd = (["--apply"] if args.apply else
+               (["--check"] if args.check else []))
+        sys.exit(updater.main(fwd))
     elif args.cmd == "doctor":
         sys.path.insert(0, str(here))
         from tools import app_check
