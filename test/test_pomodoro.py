@@ -331,7 +331,7 @@ def test_ensure_day_garbage_is_safe():
 # --- сессия: задача, журнал, отвлечения, порог (22.11, ревью) --------------
 
 def test_presets_defined():
-    # пресеты: классика и 50/10 владельца (порция 5 ревью)
+    # пресеты: классика и режим 50/10 (22.11)
     from core.pomodoro import PRESETS
     assert PRESETS["25/5"] == {"work_min": 25, "short_min": 5,
                                "long_min": 15, "rounds": 4}
